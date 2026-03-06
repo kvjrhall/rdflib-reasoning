@@ -1,0 +1,7 @@
+name: rdflib-reasoning
+channels:
+  - conda-forge
+dependencies:
+  - python=3.14
+  - pre-commit
+  - uv
