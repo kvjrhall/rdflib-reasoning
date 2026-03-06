@@ -1,0 +1,13 @@
+# We need to explicitly override the gitignore so that cursor can see the content
+!docs/specs/owl2-conformance/*
+!docs/specs/owl2-mapping-to-rdf/*
+!docs/specs/owl2-overview/*
+!docs/specs/owl2-reasoning-profiles/*
+!docs/specs/owl2-semantics-direct/*
+!docs/specs/owl2-semantics-rdf/*
+!docs/specs/owl2-structure-syntax/*
+!docs/specs/rdf11-concepts-syntax/*
+!docs/specs/rdf11-datasets/*
+!docs/specs/rdf11-primer/*
+!docs/specs/rdf11-schema/*
+!docs/specs/rdf11-semantics/*

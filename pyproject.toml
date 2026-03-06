@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rdflib-reasoning"
+version = "0.1.0"
+description = "Axiomatization of graphs for RDFLib"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+  "rdflib",
+  "rdflib-reasoning-axioms",
+  "rdflib-reasoning-engine",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy",
+  "ruff",
+  "pytest",
+]
+
+[tool.uv.sources]
+rdflib-reasoning-axioms = { workspace = true }
+rdflib-reasoning-engine = { workspace = true }
+
+[tool.uv.workspace]
+members = ["rdflib-reasoning-axioms", "rdflib-reasoning-engine"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rdflib_reasoning"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+extend-select = ["B", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["rdflib-reasoning-axioms/tests", "rdflib-reasoning-engine/tests"]
+addopts = "-v --import-mode=importlib"
