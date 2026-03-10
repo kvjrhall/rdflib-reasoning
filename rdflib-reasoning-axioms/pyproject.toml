@@ -8,10 +8,17 @@ version = "0.1.0"
 description = "Axiomatization of RDF graphs for RDFLib"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["rdflib"]
+dependencies = [
+    "pydantic",
+    "rdflib",
+]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = [
+    "pytest",
+    "mypy",
+    "ruff",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rdflibr"]
