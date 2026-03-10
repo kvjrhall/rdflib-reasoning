@@ -15,11 +15,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-  "mypy",
-  "ruff",
-  "pytest",
-]
+dev = ["beautifulsoup4", "mypy", "pytest", "ruff"]
+research = ["ipykernel", "jupyterlab"]
 
 [tool.uv.sources]
 rdflib-reasoning-axioms = { workspace = true }

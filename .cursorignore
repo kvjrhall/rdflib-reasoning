@@ -1,4 +1,6 @@
 # We need to explicitly override the gitignore so that cursor can see the content
+docs/example-chats/*
+!docs/example-chats/AGENTS.md
 !docs/specs/owl2-conformance/*
 !docs/specs/owl2-mapping-to-rdf/*
 !docs/specs/owl2-overview/*
