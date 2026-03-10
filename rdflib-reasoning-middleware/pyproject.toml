@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rdflib-reasoning-middleware"
+version = "0.1.0"
+description = "LangChain Custom Middleware for Semantic Web Reasoning"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = ["langgraph", "pydantic", "rdflib"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rdflibr"]

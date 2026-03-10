@@ -12,6 +12,7 @@ dependencies = [
   "rdflib",
   "rdflib-reasoning-axioms",
   "rdflib-reasoning-engine",
+  "rdflib-reasoning-middleware",
 ]
 
 [project.optional-dependencies]
@@ -21,9 +22,14 @@ research = ["ipykernel", "jupyterlab"]
 [tool.uv.sources]
 rdflib-reasoning-axioms = { workspace = true }
 rdflib-reasoning-engine = { workspace = true }
+rdflib-reasoning-middleware = { workspace = true }
 
 [tool.uv.workspace]
-members = ["rdflib-reasoning-axioms", "rdflib-reasoning-engine"]
+members = [
+  "rdflib-reasoning-axioms",
+  "rdflib-reasoning-engine",
+  "rdflib-reasoning-middleware",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rdflib_reasoning"]
@@ -34,5 +40,9 @@ target-version = "py314"
 extend-select = ["B", "I"]
 
 [tool.pytest.ini_options]
-testpaths = ["rdflib-reasoning-axioms/tests", "rdflib-reasoning-engine/tests"]
+testpaths = [
+  "rdflib-reasoning-axioms/tests",
+  "rdflib-reasoning-engine/tests",
+  "rdflib-reasoning-middleware/tests",
+]
 addopts = "-v --import-mode=importlib"
