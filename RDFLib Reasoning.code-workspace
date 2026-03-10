@@ -1,0 +1,64 @@
+{
+	"extensions": {
+		"recommendations": [
+			"tamasfe.even-better-toml",
+			"ms-toolsai.jupyter",
+			"ms-python.mypy-type-checker",
+			"ms-python.python",
+			"charliermarsh.ruff",
+			"timonwong.shellcheck",
+			"davidanson.vscode-markdownlint"
+		]
+	},
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"[jsonc]": {
+			"json.sortOnSave.enable": true
+		},
+		"[json]": {
+			"json.sortOnSave.enable": true
+		},
+		"[notebook]": {
+			"editor.codeActionsOnSave": {
+				"source.organizeImports": "explicit"
+			}
+		},
+		"[python]": {
+			"editor.codeActionsOnSave": {
+				"source.organizeImports": "explicit"
+			}
+		},
+		"files.exclude": {
+			".pytest_cache/**": true,
+			".ruff_cache/**": true,
+			".venv/**": true,
+			"**/__pycache__/**": true,
+			"**/.DS_Store": true,
+			"**/.git": true,
+			"**/.mypy_cache/**": true,
+			"**/Thumbs.db": true
+		},
+		"files.watcherExclude": {
+			".mypy_cache/**": true,
+			".pytest_cache/**": true,
+			".ruff_cache/**": true,
+			".venv/**": true,
+			"**/__pycache__/**": true,
+			"**/.git/objects/**": true,
+			"**/.git/subtree-cache/**": true
+		},
+		"markdownlint.lintWorkspaceGlobs": [
+			"**/*.{md,mkd,mdwn,mdown,markdown,markdn,mdtxt,mdtext,workbook}",
+			"!**/*.code-search",
+			"!**/bower_components",
+			"!**/node_modules",
+			"!**/.git",
+			"!**/vendor",
+			"!**/docs/example-chats/EXAMPLE-*"
+		]
+	}
+}
