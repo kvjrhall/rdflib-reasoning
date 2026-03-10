@@ -1,11 +1,19 @@
 # Project Overview
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 
-Development MUST use the `rdflib-reasoning` conda environment.
+## Agent roles
 
-This is a monorepo for the `rdflib-reasoning` python libraries:
+Two agent types are distinguished in this repository. Documentation and docstrings MUST use these terms when referring to one of them; see [DR-003](docs/dev/decision-records/DR-003%20Research%20Agent%20and%20Development%20Agent%20Terminology.md).
 
+- **Research Agent**: Deployed or runtime agent; subject of research. Sees tools, system prompts, and generated schema (e.g. from middleware/MCP); does NOT see repository, design docs, or AGENTS.md. Framework names such as LangGraph `AgentState` and "DeepAgents" refer to this side.
+- **Development Agent**: Code agent (e.g. Cursor, Claude Code). Reads AGENTS.md and design docs; modifies code and documentation; develops code for the Research Agent and documentation for itself. MUST be aware of the distinction between the two types.
+
+---
+
+This repository MUST support research into agents and their interoperability with formal logic. This repository SHOULD support the wider research community studying agents as the monorepo for the `rdflib-reasoning` python libraries:
+
+- Development MUST use the `rdflib-reasoning` conda environment.
 - All use [src-layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
 - All use the `rdflibr` [namespace package](https://packaging.python.org/en/latest/guides/packaging-namespace-packages/)
 
@@ -14,7 +22,10 @@ This is a monorepo for the `rdflib-reasoning` python libraries:
 | `docs/` | Reference materials for humans and machines |
 | `docs/dev/` | Design, Architecture, Decisions, and Development Status |
 | `docs/dev/decision-records/` | Rationale driving design & architecture |
-| `rdflib-reasoning-agents/` | LangChain middleware for agent/graph interaction |
-| `rdflib-reasoning-axioms/` | The project for axiomatizing RDF graphs |
+| `docs/specs/` | Cached copies of specifications optimized for Development Agent and tooling |
+| `notebooks/` | Notebooks for research and development into Research Agents using formal logic |
+| `rdflib-reasoning-agents/` | LangChain middleware for Research Agent/graph interaction |
+| `rdflib-reasoning-middleware/` | Exposes GraphBacked/StructuralElement as tool and state payloads for Custom Middleware; see [README](rdflib-reasoning-middleware/README.md) |
+| `rdflib-reasoning-axioms/` | Sub-project for axiomatizing RDF graphs; see its AGENTS.md for GraphBacked/StructuralElement rules and JSON Schema/error conventions |
 | `rdflib-reasoning-engine/` | Sub-project for RETE-based RDFS and OWL 2 RL Entailment |
 | `script-helpers.sh` | A set of bash helper functions to use when writing bash scripts |
