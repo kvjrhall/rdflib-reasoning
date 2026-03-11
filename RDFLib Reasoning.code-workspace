@@ -40,7 +40,9 @@
 			"**/.DS_Store": true,
 			"**/.git": true,
 			"**/.mypy_cache/**": true,
-			"**/Thumbs.db": true
+			"**/Thumbs.db": true,
+			"coverage.xml": true,
+			".coverage*": true
 		},
 		"files.watcherExclude": {
 			".mypy_cache/**": true,
@@ -49,7 +51,10 @@
 			".venv/**": true,
 			"**/__pycache__/**": true,
 			"**/.git/objects/**": true,
-			"**/.git/subtree-cache/**": true
+			"**/.git/subtree-cache/**": true,
+			"htmlcov/**": true,
+			"coverage.xml": true,
+			".coverage*": true
 		},
 		"markdownlint.lintWorkspaceGlobs": [
 			"**/*.{md,mkd,mdwn,mdown,markdown,markdn,mdtxt,mdtext,workbook}",

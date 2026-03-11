@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["beautifulsoup4", "mypy", "pytest", "ruff"]
+dev = ["beautifulsoup4", "mypy", "pytest", "pytest-cov", "ruff"]
 research = ["ipykernel", "jupyterlab"]
 
 [tool.uv.sources]
@@ -45,7 +45,36 @@ testpaths = [
   "rdflib-reasoning-engine/tests",
   "rdflib-reasoning-middleware/tests",
 ]
-addopts = "-v --import-mode=importlib"
+addopts = [
+  "-v",
+  "--import-mode=importlib",
+  "--cov=src",
+  "--cov=rdflib-reasoning-axioms/src",
+  "--cov=rdflib-reasoning-engine/src",
+  "--cov=rdflib-reasoning-middleware/src",
+  "--cov-report=term-missing",
+  "--cov-report=xml",
+  "--cov-report=html",
+]
+# Coverage is always run with pytest for Development Agent review and CI (e.g. xml for Codecov).
+
+[tool.coverage.run]
+source = [
+  "src",
+  "rdflib-reasoning-axioms/src",
+  "rdflib-reasoning-engine/src",
+  "rdflib-reasoning-middleware/src",
+]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "raise AssertionError",
+  "raise NotImplementedError",
+]
 
 [tool.mypy]
 namespace_packages = true

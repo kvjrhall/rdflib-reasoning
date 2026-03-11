@@ -34,6 +34,7 @@ This repository MUST support research into agents and their interoperability wit
 
 - `make` commands may require usage of a conda environment (i.e., `conda run -n rdflib-reasoning make`)
 - Use `make test` to run unit tests (should automatically use the virtual environment of `.venv`)
+- `make test` outputs coverage details to the console produces artifacts: `.coverage`, `coverage.xml`, `htmlcov/`
 - Use `make install-all` when a `.venv` environment does not exist or when dependencies change
 - Use `make check` to lint everything **except** type checking
 - Use `make validate` to lint everything **including** type checking
