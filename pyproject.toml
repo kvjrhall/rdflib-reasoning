@@ -46,3 +46,23 @@ testpaths = [
   "rdflib-reasoning-middleware/tests",
 ]
 addopts = "-v --import-mode=importlib"
+
+[tool.mypy]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = [
+  "src",
+  "rdflib-reasoning-axioms/src",
+  "rdflib-reasoning-engine/src",
+  "rdflib-reasoning-middleware/src",
+]
+files = [
+  "src",
+  "rdflib-reasoning-axioms/src",
+  "rdflib-reasoning-engine/src",
+  "rdflib-reasoning-middleware/src",
+]
+
+[[tool.mypy.overrides]]
+module = ["rdflibr.middleware.*"]
+disable_error_code = ["import-not-found"]
