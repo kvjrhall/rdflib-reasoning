@@ -26,7 +26,7 @@ test:  # run pytest unit tests
 	uv run pytest
 
 validate: check  # run mypy type check & all pre-commit hooks
-	uv run mypy src rdflib-reasoning-axioms/src rdflib-reasoning-engine/src
+	uv run mypy
 
 specs-fetch:  # fetch raw W3C specs into docs/specs/<name>/raw.html
 	bash docs/specs/fetch-w3c.sh
