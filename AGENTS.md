@@ -29,3 +29,11 @@ This repository MUST support research into agents and their interoperability wit
 | `rdflib-reasoning-axioms/` | Sub-project for axiomatizing RDF graphs; see its AGENTS.md for GraphBacked/StructuralElement rules and JSON Schema/error conventions |
 | `rdflib-reasoning-engine/` | Sub-project for RETE-based RDFS and OWL 2 RL Entailment |
 | `script-helpers.sh` | A set of bash helper functions to use when writing bash scripts |
+
+## Development Agent Commands
+
+- `make` commands may require usage of a conda environment (i.e., `conda run -n rdflib-reasoning make`)
+- Use `make test` to run unit tests (should automatically use the virtual environment of `.venv`)
+- Use `make install-all` when a `.venv` environment does not exist or when dependencies change
+- Use `make check` to lint everything **except** type checking
+- Use `make validate` to lint everything **including** type checking
