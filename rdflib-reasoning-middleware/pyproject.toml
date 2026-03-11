@@ -8,10 +8,23 @@ version = "0.1.0"
 description = "LangChain Custom Middleware for Semantic Web Reasoning"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["langgraph", "pydantic", "rdflib"]
+dependencies = ["langgraph", "langchain", "pydantic", "rdflib"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rdflibr"]
+
+[tool.mypy]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = ["src"]
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["langchain.*"]
+ignore_missing_imports = true
+
+[tool.pyright]
+reportMissingImports = false

@@ -69,6 +69,20 @@ Inference middleware is responsible for exposing reasoner-backed behavior to the
 - Inference execution, derivation tracing, and proof or explanation generation SHOULD be exposed as explicit runtime capabilities rather than being implicit side effects of unrelated operations.
 - If derivations are exposed to the Research Agent, they SHOULD be available through a structured proof representation such as `DirectProof`, so that baseline and tool-enabled conditions can be compared against a common output schema.
 
+### Engine event contract and entrypoint
+
+The reasoning engine (e.g. RETE in `rdflib-reasoning-engine`) is driven by store events via `BatchDispatcher`.
+This subsection codifies the contract and flow so that RETEStore and Development Agents have a clear foundation.
+
+- **Store event contract:** Backing stores MUST emit `TripleAddedEvent` (respectively `TripleRemovedEvent`) on every `add()` / `remove()` call, even when the triple is already present or absent, and MUST do so *before* performing the mutation. The batch dispatcher filters duplicate events by determining whether the triple is already in the store for that context; that determination MUST use the store's own graph (or equivalent) for the context identifier, not the context object passed in the event (because `Store.add` passes the caller's context through unchanged, which may not be the store's graph). Only `rdflib.plugins.stores.memory.Memory` has been validated against this contract in this repository.
+- **Event flow:** Store (add/remove) → `TripleAddedEvent` / `TripleRemovedEvent` → BatchDispatcher → `TripleAddedBatchEvent` / `TripleRemovedBatchEvent` → inference engine → materialization (derived triples) → fixed-point iteration (handled by BatchDispatcher's loop).
+- **Inference entrypoint:** The entrypoint for the inference engine is subscription to `TripleAddedBatchEvent` (and optionally `TripleRemovedBatchEvent`). Batches are per-context; the dispatcher iterates to fixed point. The tests in `rdflib-reasoning-engine/tests/test_batch_dispatcher.py` are the validated specification for this behavior.
+- **Persistence contract:** On open or attach, `RETEStore` MUST treat the current contents of the backing store as authoritative facts for each context. It MUST seed the engine from the fully materialized contents of that context; it MUST NOT attempt to reconstruct an asserted-versus-derived distinction from persisted RDF alone.
+- **Warm-start contract:** Warm-start MUST proceed by creating the engine, reading the existing triples for the context from the backing store, warming the engine from those triples, and materializing any non-silent warmup deductions back into the store.
+- **Engine update contract:** `RETEEngine.add_triples()` MUST be idempotent for already-known triples when derivation logging is disabled. `RETEEngine.add_triples()` and `RETEEngine.warmup()` MUST compute a fixed point for their input update set. `BatchDispatcher` provides store-level fixed-point iteration across reentrant materialization; it MUST NOT be relied upon to compensate for a partially saturating engine update step.
+
+These rules are aligned with [DR-004 RETE Store Persistence and Engine Update Contract](decision-records/DR-004%20RETE%20Store%20Persistence%20and%20Engine%20Update%20Contract.md).
+
 ### Contradiction signaling
 
 Contradiction handling is related to, but distinct from, inference execution and explanation behavior.
