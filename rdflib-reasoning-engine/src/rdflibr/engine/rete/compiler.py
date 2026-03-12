@@ -68,17 +68,6 @@ class CompiledRule(BaseModel):
     variables: tuple[str, ...] = Field(default_factory=tuple)
 
 
-class NetworkBuilder:
-    """
-    Orchestrator for RETE network assembly from compiled rule representations.
-
-    The builder is responsible for turning public rule definitions into the
-    internal network shape that drives triple-oriented forward chaining.
-    """
-
-    ...
-
-
 class JoinOptimizer:
     """
     Construction-time utility for ordering joins in conjunctive rule bodies.

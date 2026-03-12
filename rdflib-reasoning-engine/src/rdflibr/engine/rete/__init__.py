@@ -8,10 +8,17 @@ logical core remains triple-oriented and engine-managed.
 
 from .agenda import Agenda
 from .callbacks import CallbackAction, CallbackContext, rule_action
-from .compiler import JoinOptimizer, NetworkBuilder, RuleCompiler
+from .compiler import JoinOptimizer, RuleCompiler
 from .consequents import ActionInstance, TripleProduction
 from .facts import Fact, PartialMatch
-from .network import AlphaNode, BetaNode, NodeRegistry, PredicateNode, TerminalNode
+from .network import (
+    AlphaNode,
+    BetaNode,
+    NetworkBuilder,
+    NodeRegistry,
+    PredicateNode,
+    TerminalNode,
+)
 from .tms import DependencyGraph, Justification, TMSController, WorkingMemory
 
 __all__ = [
