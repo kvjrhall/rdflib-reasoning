@@ -150,7 +150,7 @@ class NetworkBuilder:
     @staticmethod
     def _predicate_key(condition: CompiledPredicateCondition) -> str:
         argument_parts = ",".join(
-            argument if isinstance(argument, str) else argument.n3()
+            f"?{argument}" if isinstance(argument, Variable) else argument.n3()
             for argument in condition.arguments
         )
         return f"predicate:{condition.predicate}:{argument_parts}"
@@ -377,8 +377,8 @@ class NetworkMatcher:
         for match in matches:
             arguments: list[Node] = []
             for argument in node.condition.arguments:
-                if isinstance(argument, str):
-                    arguments.append(match.bindings[argument])
+                if isinstance(argument, Variable):
+                    arguments.append(match.bindings[str(argument)])
                 else:
                     arguments.append(argument)
             if hook.test(context, *arguments):

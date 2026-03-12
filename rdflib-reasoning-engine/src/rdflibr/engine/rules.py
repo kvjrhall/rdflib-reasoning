@@ -9,6 +9,7 @@ from .proof import ProofModel, RuleDescription, RuleId
 
 if TYPE_CHECKING:
     from .derivation import DerivationLogger
+    from .rete.callbacks import CallbackContext
 
 
 class RuleContext:
@@ -49,6 +50,7 @@ class ContextData(TypedDict, total=False):
     builtins: Builtins
     context: ContextIdentifier
     derivation_logger: "DerivationLogger"
+    callback_recorder: "CallbackContext"
 
 
 PatternTerm: TypeAlias = Node | Variable

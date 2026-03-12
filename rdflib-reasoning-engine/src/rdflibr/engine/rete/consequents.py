@@ -36,9 +36,9 @@ class CallbackSchedule(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     callback: str = Field(..., description="Callback registry key.")
-    arguments: tuple[Node | str, ...] = Field(
+    arguments: tuple[Node, ...] = Field(
         default_factory=tuple,
-        description="Normalized callback arguments as constants or variable names.",
+        description="Normalized callback arguments as RDFLib terms or Variables.",
     )
     required_variables: tuple[str, ...] = Field(
         default_factory=tuple,

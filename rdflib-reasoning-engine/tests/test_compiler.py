@@ -86,7 +86,10 @@ def test_rule_compiler_normalizes_bindings_and_consequents() -> None:
     assert len(compiled.triple_conditions) == 2
     assert compiled.predicate_conditions[0].required_variables == ("y",)
     assert compiled.productions[0].required_variables == ("x",)
-    assert compiled.callbacks[0].arguments == ("x", URIRef("urn:test:marker"))
+    assert compiled.callbacks[0].arguments == (
+        Variable("x"),
+        URIRef("urn:test:marker"),
+    )
 
 
 def test_rule_compiler_rejects_predicate_with_unbound_variable() -> None:
