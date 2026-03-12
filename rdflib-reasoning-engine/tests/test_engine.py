@@ -4,7 +4,8 @@ import pytest
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import BNode, URIRef, Variable
 from rdflibr.engine.api import RETEEngine, RETEEngineFactory
-from rdflibr.engine.proof import RuleId
+from rdflibr.engine.derivation import DerivationLogger
+from rdflibr.engine.proof import DerivationRecord, RuleId
 from rdflibr.engine.rules import (
     ContextData,
     PredicateCondition,
@@ -55,6 +56,14 @@ class SameTermPredicate(PredicateHook):
     def test(self, context: RuleContext, *args: URIRef) -> bool:  # type: ignore[override]
         _ = context
         return len(args) == 2 and args[0] == args[1]
+
+
+class RecordingLogger(DerivationLogger):
+    def __init__(self) -> None:
+        self.records: list[DerivationRecord] = []
+
+    def record(self, record: DerivationRecord) -> None:
+        self.records.append(record)
 
 
 def test_rete_engine_init_and_close() -> None:
@@ -211,3 +220,62 @@ def test_rete_engine_add_triples_supports_builtin_predicates() -> None:
     inferred = engine.add_triples([triple])
 
     assert inferred == {(URIRef("urn:test:a"), RDFS.subClassOf, URIRef("urn:test:A"))}
+
+
+def test_rete_engine_add_triples_records_derivations_for_new_conclusions() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    logger = RecordingLogger()
+    context = BNode()
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="subclass"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    engine = RETEEngine(
+        context_data={"context": context, "derivation_logger": logger},
+        rules=[rule],
+    )
+    human = URIRef("urn:test:Human")
+    mammal = URIRef("urn:test:Mammal")
+    alice = URIRef("urn:test:alice")
+
+    inferred = engine.add_triples(
+        [
+            (alice, RDF.type, human),
+            (human, RDFS.subClassOf, mammal),
+        ]
+    )
+
+    assert inferred == {(alice, RDF.type, mammal)}
+    assert len(logger.records) == 1
+
+    record = logger.records[0]
+    assert record.context == context
+    assert record.rule_id == rule.id
+    assert record.depth == 1
+    assert [conclusion.triple for conclusion in record.conclusions] == [
+        (alice, RDF.type, mammal)
+    ]
+    assert {premise.triple for premise in record.premises} == {
+        (alice, RDF.type, human),
+        (human, RDFS.subClassOf, mammal),
+    }
+    assert [(binding.name, binding.value) for binding in record.bindings] == [
+        ("x", alice),
+        ("y", human),
+        ("z", mammal),
+    ]

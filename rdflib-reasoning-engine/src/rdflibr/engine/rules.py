@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Annotated, Literal, TypeAlias, TypedDict
+from typing import TYPE_CHECKING, Annotated, Literal, TypeAlias, TypedDict
 
 from pydantic import Field
 from rdflib.term import Node, Variable
 from rdflibr.axiom.common import ContextIdentifier
 
 from .proof import ProofModel, RuleDescription, RuleId
+
+if TYPE_CHECKING:
+    from .derivation import DerivationLogger
 
 
 class RuleContext:
@@ -45,6 +48,7 @@ class ContextData(TypedDict, total=False):
 
     builtins: Builtins
     context: ContextIdentifier
+    derivation_logger: "DerivationLogger"
 
 
 PatternTerm: TypeAlias = Node | Variable

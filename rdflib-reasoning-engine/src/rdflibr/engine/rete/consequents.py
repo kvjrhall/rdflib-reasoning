@@ -7,6 +7,7 @@ from rdflib.term import Node
 
 from ..proof import RuleId
 from ..rules import TriplePattern
+from .facts import Fact
 
 
 class TripleProduction(BaseModel):
@@ -58,6 +59,7 @@ class ActionInstance(BaseModel):
 
     rule_id: RuleId
     bindings: dict[str, Node]
+    premises: tuple[Fact, ...] = ()
     depth: int = 0
     salience: int = 0
     productions: tuple[TripleProduction, ...] = ()
