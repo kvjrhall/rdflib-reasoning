@@ -201,7 +201,7 @@ TABLE_DEFINITIONS = [
             "OWL 2 RL Rules",
             "Optional RDFS Support",
             "RDFS Axiomatic Triples",
-            "Implementation Status",
+            "Status",
             "Reconstruction Note",
         ],
     },
@@ -489,7 +489,7 @@ def main() -> int:
                 "owl_2_rl_rules": "; ".join(rl_rule_refs),
                 "optional_rdfs_support": "; ".join(optional_rdfs_support_refs),
                 "rdfs_axiomatic_triples": "; ".join(axiomatic_refs),
-                "implementation_status": seed_row["implementation_status"],
+                "status": seed_row.get("status", ""),
                 "reconstruction_note": seed_row["reconstruction_note"],
             }
         )
@@ -576,7 +576,7 @@ def main() -> int:
                 row["owl_2_rl_rules"],
                 row["optional_rdfs_support"],
                 row["rdfs_axiomatic_triples"],
-                row["implementation_status"],
+                row["status"],
                 row["reconstruction_note"],
             ]
             for row in table_4_rows
