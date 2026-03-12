@@ -116,8 +116,8 @@ class NetworkBuilder:
     """
     Orchestrator for RETE network assembly from compiled rule representations.
 
-    The builder turns compiled rules into canonical alpha/predicate nodes and
-    per-rule terminal nodes. Beta-node construction remains future work.
+    The builder turns compiled rules into canonical alpha, beta, and predicate
+    nodes plus per-rule terminal nodes using a left-deep join assembly.
     """
 
     registry: NodeRegistry
@@ -146,8 +146,16 @@ class NetworkBuilder:
     def _terminal_key(rule: CompiledRule) -> str:
         return f"terminal:{rule.rule_id.ruleset}:{rule.rule_id.rule_id}"
 
-    def build_rule(self, rule: CompiledRule) -> TerminalNode:
-        input_keys: list[str] = []
+    @staticmethod
+    def _beta_key(
+        left_key: str, right_key: str, shared_variables: tuple[str, ...]
+    ) -> str:
+        shared = ",".join(shared_variables)
+        return f"beta:{left_key}+{right_key}|shared={shared}"
+
+    def _build_join_chain(self, rule: CompiledRule) -> tuple[str | None, set[str]]:
+        current_key: str | None = None
+        current_variables: set[str] = set()
 
         for condition in rule.triple_conditions:
             alpha = self.registry.get_or_create_alpha(
@@ -157,7 +165,32 @@ class NetworkBuilder:
                     constraints=condition.constraints,
                 )
             )
-            input_keys.append(alpha.key)
+            condition_variables = set(condition.bound_variables)
+
+            if current_key is None:
+                current_key = alpha.key
+                current_variables = set(condition_variables)
+                continue
+
+            shared_variables = tuple(sorted(current_variables & condition_variables))
+            beta = self.registry.get_or_create_beta(
+                BetaNode(
+                    key=self._beta_key(current_key, alpha.key, shared_variables),
+                    left_key=current_key,
+                    right_key=alpha.key,
+                    shared_variables=shared_variables,
+                )
+            )
+            current_key = beta.key
+            current_variables.update(condition_variables)
+
+        return current_key, current_variables
+
+    def build_rule(self, rule: CompiledRule) -> TerminalNode:
+        input_keys: list[str] = []
+        join_root, _ = self._build_join_chain(rule)
+        if join_root is not None:
+            input_keys.append(join_root)
 
         for condition in rule.predicate_conditions:
             predicate = self.registry.get_or_create_predicate(
