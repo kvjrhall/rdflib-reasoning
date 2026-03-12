@@ -15,8 +15,8 @@ from rdflib.query import Result
 from rdflib.store import Store, StoreCreatedEvent
 from rdflib.term import Identifier, URIRef
 from rdflibr.axiom.common import ContextIdentifier
+from rdflibr.engine.api import RETEEngine, RETEEngineFactory
 from rdflibr.engine.batch_dispatcher import BatchDispatcher, TripleAddedBatchEvent
-from rdflibr.engine.rete_engine import RETEEngine, RETEEngineFactory
 
 
 class StoreWrapper(Store):

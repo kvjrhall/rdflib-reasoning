@@ -1479,7 +1479,9 @@ name = "rdflib-reasoning-engine"
 version = "0.1.0"
 source = { editable = "rdflib-reasoning-engine" }
 dependencies = [
+    { name = "pydantic" },
     { name = "rdflib" },
+    { name = "rdflib-reasoning-axioms" },
 ]
 
 [package.optional-dependencies]
@@ -1489,8 +1491,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "pydantic" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "rdflib" },
+    { name = "rdflib-reasoning-axioms", editable = "rdflib-reasoning-axioms" },
 ]
 provides-extras = ["dev"]
 
