@@ -3,9 +3,12 @@ from collections.abc import Iterable
 import pytest
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import BNode, URIRef, Variable
-from rdflibr.engine.api import RETEEngine, RETEEngineFactory
-from rdflibr.engine.proof import RuleId
+from rdflibr.engine.api import FatalRuleError, RETEEngine, RETEEngineFactory
+from rdflibr.engine.derivation import DerivationLogger
+from rdflibr.engine.proof import DerivationRecord, RuleId
 from rdflibr.engine.rules import (
+    CallbackConsequent,
+    CallbackHook,
     ContextData,
     PredicateCondition,
     PredicateHook,
@@ -55,6 +58,31 @@ class SameTermPredicate(PredicateHook):
     def test(self, context: RuleContext, *args: URIRef) -> bool:  # type: ignore[override]
         _ = context
         return len(args) == 2 and args[0] == args[1]
+
+
+class RecordingCallback(CallbackHook):
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, tuple[URIRef, ...]]] = []
+
+    def run(self, context: RuleContext, *args: URIRef) -> None:  # type: ignore[override]
+        self.calls.append((context, args))
+        context.record({"callback": "recording", "args": args})  # type: ignore[attr-defined]
+
+
+class RecordingEventSink:
+    def __init__(self) -> None:
+        self.events: list[object] = []
+
+    def record(self, event: object) -> None:
+        self.events.append(event)
+
+
+class RecordingLogger(DerivationLogger):
+    def __init__(self) -> None:
+        self.records: list[DerivationRecord] = []
+
+    def record(self, record: DerivationRecord) -> None:
+        self.records.append(record)
 
 
 def test_rete_engine_init_and_close() -> None:
@@ -211,3 +239,289 @@ def test_rete_engine_add_triples_supports_builtin_predicates() -> None:
     inferred = engine.add_triples([triple])
 
     assert inferred == {(URIRef("urn:test:a"), RDFS.subClassOf, URIRef("urn:test:A"))}
+
+
+def test_rete_engine_add_triples_records_derivations_for_new_conclusions() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    logger = RecordingLogger()
+    context = BNode()
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="subclass"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    engine = RETEEngine(
+        context_data={"context": context, "derivation_logger": logger},
+        rules=[rule],
+    )
+    human = URIRef("urn:test:Human")
+    mammal = URIRef("urn:test:Mammal")
+    alice = URIRef("urn:test:alice")
+
+    inferred = engine.add_triples(
+        [
+            (alice, RDF.type, human),
+            (human, RDFS.subClassOf, mammal),
+        ]
+    )
+
+    assert inferred == {(alice, RDF.type, mammal)}
+    assert len(logger.records) == 1
+
+    record = logger.records[0]
+    assert record.context == context
+    assert record.rule_id == rule.id
+    assert record.depth == 1
+    assert [conclusion.triple for conclusion in record.conclusions] == [
+        (alice, RDF.type, mammal)
+    ]
+    assert {premise.triple for premise in record.premises} == {
+        (alice, RDF.type, human),
+        (human, RDFS.subClassOf, mammal),
+    }
+    assert [(binding.name, binding.value) for binding in record.bindings] == [
+        ("x", alice),
+        ("y", human),
+        ("z", mammal),
+    ]
+
+
+def test_rete_engine_processes_matches_in_agenda_order() -> None:
+    x = Variable("x")
+    logger = RecordingLogger()
+    context = BNode()
+    broad_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="broad"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=x,
+                    predicate=URIRef("urn:test:derived"),
+                    object=URIRef("urn:test:broad"),
+                )
+            ),
+        ),
+        salience=1,
+    )
+    prioritized_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="prioritized"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=x,
+                    predicate=URIRef("urn:test:derived"),
+                    object=URIRef("urn:test:priority"),
+                )
+            ),
+        ),
+        salience=10,
+    )
+    engine = RETEEngine(
+        context_data={"context": context, "derivation_logger": logger},
+        rules=[broad_rule, prioritized_rule],
+    )
+
+    inferred = engine.add_triples([(URIRef("urn:test:A"), RDF.type, RDFS.Class)])
+
+    assert inferred == {
+        (URIRef("urn:test:A"), URIRef("urn:test:derived"), URIRef("urn:test:broad")),
+        (
+            URIRef("urn:test:A"),
+            URIRef("urn:test:derived"),
+            URIRef("urn:test:priority"),
+        ),
+    }
+    assert [record.rule_id.rule_id for record in logger.records] == [
+        "prioritized",
+        "broad",
+    ]
+
+
+def test_rete_engine_add_triples_executes_callbacks_via_agenda() -> None:
+    x = Variable("x")
+    callback = RecordingCallback()
+    event_sink = RecordingEventSink()
+    context = BNode()
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="callback"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            CallbackConsequent(
+                callback="trace_class",
+                arguments=(x, URIRef("urn:test:marker")),
+            ),
+        ),
+        salience=4,
+    )
+    engine = RETEEngine(
+        context_data={
+            "context": context,
+            "builtins": {"callbacks": {"trace_class": callback}},
+            "callback_recorder": event_sink,
+        },
+        rules=[rule],
+    )
+
+    inferred = engine.add_triples([(URIRef("urn:test:A"), RDF.type, RDFS.Class)])
+
+    assert inferred == set()
+    assert len(callback.calls) == 1
+    callback_context, callback_args = callback.calls[0]
+    assert callback_args == (URIRef("urn:test:A"), URIRef("urn:test:marker"))
+    assert callback_context.context == context
+    assert callback_context.rule_id == rule.id
+    assert callback_context.bindings == {"x": URIRef("urn:test:A")}
+    assert callback_context.premises == ((URIRef("urn:test:A"), RDF.type, RDFS.Class),)
+    assert callback_context.depth == 0
+    assert event_sink.events == [
+        {
+            "callback": "recording",
+            "args": (URIRef("urn:test:A"), URIRef("urn:test:marker")),
+        }
+    ]
+
+
+def test_rete_engine_add_triples_rejects_unknown_callback_hook() -> None:
+    x = Variable("x")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="missing-callback"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(CallbackConsequent(callback="missing", arguments=(x,)),),
+    )
+    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+
+    with pytest.raises(FatalRuleError, match="Unknown callback hook `missing`"):
+        engine.add_triples([(URIRef("urn:test:A"), RDF.type, RDFS.Class)])
+
+
+def test_rete_engine_tracks_stated_and_derived_facts_in_working_memory() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="subclass"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    human = URIRef("urn:test:Human")
+    mammal = URIRef("urn:test:Mammal")
+    alice = URIRef("urn:test:alice")
+    stated = (alice, RDF.type, human)
+    derived = (alice, RDF.type, mammal)
+
+    inferred = engine.add_triples([stated, (human, RDFS.subClassOf, mammal)])
+
+    assert inferred == {derived}
+    stated_fact = engine.working_memory.get_fact(stated)
+    derived_fact = engine.working_memory.get_fact(derived)
+    assert stated_fact is not None
+    assert derived_fact is not None
+    assert stated_fact.stated is True
+    assert derived_fact.stated is False
+    assert engine.tms.is_supported(stated)
+    assert engine.tms.is_supported(derived)
+    assert engine.tms.support_count(derived) == 1
+
+
+def test_rete_engine_tracks_multiple_supports_for_one_derived_fact() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="subclass"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    alice = URIRef("urn:test:alice")
+    human = URIRef("urn:test:Human")
+    person = URIRef("urn:test:Person")
+    mammal = URIRef("urn:test:Mammal")
+    derived = (alice, RDF.type, mammal)
+
+    inferred = engine.add_triples(
+        [
+            (alice, RDF.type, human),
+            (alice, RDF.type, person),
+            (human, RDFS.subClassOf, mammal),
+            (person, RDFS.subClassOf, mammal),
+        ]
+    )
+
+    assert inferred == {derived}
+    supports = engine.tms.justifications_for(derived)
+    alice_human = engine.working_memory.get_fact((alice, RDF.type, human))
+    human_mammal = engine.working_memory.get_fact((human, RDFS.subClassOf, mammal))
+    alice_person = engine.working_memory.get_fact((alice, RDF.type, person))
+    person_mammal = engine.working_memory.get_fact((person, RDFS.subClassOf, mammal))
+    assert alice_human is not None
+    assert human_mammal is not None
+    assert alice_person is not None
+    assert person_mammal is not None
+    assert len(supports) == 2
+    assert {frozenset(justification.antecedent_ids) for justification in supports} == {
+        frozenset((alice_human.id, human_mammal.id)),
+        frozenset((alice_person.id, person_mammal.id)),
+    }
+    assert engine.tms.support_count(derived) == 2

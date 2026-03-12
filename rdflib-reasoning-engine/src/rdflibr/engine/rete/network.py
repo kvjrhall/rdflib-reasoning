@@ -14,7 +14,7 @@ from .compiler import (
     CompiledTripleCondition,
 )
 from .consequents import ActionInstance
-from .facts import Fact, PartialMatch
+from .facts import Fact, PartialMatch, fact_id_for_triple
 
 
 class AlphaNode(BaseModel):
@@ -150,7 +150,7 @@ class NetworkBuilder:
     @staticmethod
     def _predicate_key(condition: CompiledPredicateCondition) -> str:
         argument_parts = ",".join(
-            argument if isinstance(argument, str) else argument.n3()
+            f"?{argument}" if isinstance(argument, Variable) else argument.n3()
             for argument in condition.arguments
         )
         return f"predicate:{condition.predicate}:{argument_parts}"
@@ -260,9 +260,7 @@ class NetworkMatcher:
 
     @staticmethod
     def _fact_from_triple(triple: Triple) -> Fact:
-        return Fact(
-            id=f"fact:{triple[0].n3()} {triple[1].n3()} {triple[2].n3()}", triple=triple
-        )
+        return Fact(id=fact_id_for_triple(triple), triple=triple)
 
     @staticmethod
     def _partial_match_key(match: PartialMatch) -> str:
@@ -377,13 +375,47 @@ class NetworkMatcher:
         for match in matches:
             arguments: list[Node] = []
             for argument in node.condition.arguments:
-                if isinstance(argument, str):
-                    arguments.append(match.bindings[argument])
+                if isinstance(argument, Variable):
+                    arguments.append(match.bindings[str(argument)])
                 else:
                     arguments.append(argument)
             if hook.test(context, *arguments):
                 filtered.append(match)
         return tuple(filtered)
+
+    @staticmethod
+    def _root_matches(
+        terminal: TerminalNode,
+        partial_matches: dict[str, tuple[PartialMatch, ...]],
+    ) -> tuple[PartialMatch, ...]:
+        root_key = terminal.input_keys[0] if terminal.input_keys else None
+        if root_key is None:
+            return (PartialMatch(facts=(), bindings={}, depth=0),)
+        return partial_matches.get(root_key, ())
+
+    def _actions_for_terminal(
+        self,
+        terminal: TerminalNode,
+        partial_matches: dict[str, tuple[PartialMatch, ...]],
+    ) -> tuple[ActionInstance, ...]:
+        matches = self._root_matches(terminal, partial_matches)
+
+        for key in terminal.input_keys[1:]:
+            predicate_node = self.registry.predicate_nodes[key]
+            matches = self._apply_predicate(predicate_node, matches, terminal=terminal)
+
+        return tuple(
+            ActionInstance(
+                rule_id=terminal.rule.rule_id,
+                bindings=match.bindings,
+                premises=match.facts,
+                depth=match.depth,
+                salience=terminal.rule.salience,
+                productions=terminal.rule.productions,
+                callbacks=terminal.rule.callbacks,
+            )
+            for match in matches
+        )
 
     def match_terminal(
         self,
@@ -401,27 +433,7 @@ class NetworkMatcher:
 
         for key, beta_node in self.registry.beta_nodes.items():
             partial_matches[key] = self._join_beta(beta_node, partial_matches)
-
-        root_key = terminal.input_keys[0] if terminal.input_keys else None
-        matches = () if root_key is None else partial_matches.get(root_key, ())
-        if root_key is None:
-            matches = (PartialMatch(facts=(), bindings={}, depth=0),)
-
-        for key in terminal.input_keys[1:]:
-            predicate_node = self.registry.predicate_nodes[key]
-            matches = self._apply_predicate(predicate_node, matches, terminal=terminal)
-
-        return tuple(
-            ActionInstance(
-                rule_id=terminal.rule.rule_id,
-                bindings=match.bindings,
-                depth=match.depth,
-                salience=terminal.rule.salience,
-                productions=terminal.rule.productions,
-                callbacks=terminal.rule.callbacks,
-            )
-            for match in matches
-        )
+        return self._actions_for_terminal(terminal, partial_matches)
 
     def alpha_memory_size(self, key: str) -> int:
         return len(self.registry.alpha_memory[key])
@@ -434,8 +446,19 @@ class NetworkMatcher:
         terminals: Iterable[TerminalNode],
         facts: Iterable[Fact | Triple],
     ) -> tuple[ActionInstance, ...]:
-        facts_tuple = tuple(facts)
+        normalized_facts = tuple(
+            fact if isinstance(fact, Fact) else self._fact_from_triple(fact)
+            for fact in facts
+        )
+        partial_matches: dict[str, tuple[PartialMatch, ...]] = {}
+
+        for key, node in self.registry.alpha_nodes.items():
+            partial_matches[key] = self._match_alpha(node, normalized_facts)
+
+        for key, beta_node in self.registry.beta_nodes.items():
+            partial_matches[key] = self._join_beta(beta_node, partial_matches)
+
         actions: list[ActionInstance] = []
         for terminal in terminals:
-            actions.extend(self.match_terminal(terminal, facts_tuple))
+            actions.extend(self._actions_for_terminal(terminal, partial_matches))
         return tuple(actions)

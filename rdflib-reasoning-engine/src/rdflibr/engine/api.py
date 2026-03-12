@@ -1,11 +1,40 @@
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any, cast
 
 from rdflib.term import Node, Variable
 from rdflibr.axiom.common import ContextIdentifier, Triple
 
-from .rete import NetworkBuilder, NetworkMatcher, RuleCompiler, TerminalNode
-from .rules import ContextData, Rule
+from .derivation import DerivationLogger
+from .proof import DerivationRecord, TripleFact, VariableBinding
+from .rete import (
+    Agenda,
+    NetworkBuilder,
+    NetworkMatcher,
+    RuleCompiler,
+    TerminalNode,
+    TMSController,
+    WorkingMemory,
+)
+from .rules import CallbackHook, ContextData, Rule, RuleContext
+
+
+@dataclass
+class EngineCallbackContext(RuleContext):
+    """Read-only callback context for one fired rule activation."""
+
+    context: ContextIdentifier | None
+    rule_id: Any
+    bindings: Mapping[str, Node]
+    premises: tuple[Triple, ...]
+    depth: int
+    _events: list[Any] = field(default_factory=list)
+    _recorder: Any = None
+
+    def record(self, event: Any) -> None:
+        self._events.append(event)
+        if self._recorder is not None:
+            self._recorder.record(event)
 
 
 class FatalRuleError(RuntimeError):
@@ -26,6 +55,11 @@ class RETEEngine:
     terminals: tuple[TerminalNode, ...]
     known_triples: set[Triple]
     matcher: NetworkMatcher
+    derivation_logger: DerivationLogger | None
+    callbacks: dict[str, CallbackHook]
+    callback_recorder: Any
+    tms: TMSController
+    working_memory: WorkingMemory
 
     def __init__(self, context_data: ContextData, rules: Iterable[Rule]) -> None:
         self.context_data = context_data
@@ -35,11 +69,17 @@ class RETEEngine:
         self.terminals = builder.build_rules(compiled_rules)
         builtins = self.context_data.get("builtins", {})
         predicates = builtins.get("predicates", {})
+        self.callbacks = builtins.get("callbacks", {})
         self.matcher = NetworkMatcher(builder.registry, predicates=predicates)
         self.known_triples = set()
+        self.derivation_logger = self.context_data.get("derivation_logger")
+        self.callback_recorder = self.context_data.get("callback_recorder")
+        self.tms = TMSController()
+        self.working_memory = self.tms.working_memory
 
     def close(self) -> None:
         self.known_triples.clear()
+        self.tms.clear()
 
     @staticmethod
     def _instantiate_triple(
@@ -59,23 +99,45 @@ class RETEEngine:
                 instantiated.append(term)
         return cast(Triple, tuple(instantiated))
 
+    @staticmethod
+    def _resolve_callback_arguments(
+        arguments: tuple[Node, ...],
+        bindings: Mapping[str, Node],
+    ) -> tuple[Node, ...]:
+        resolved: list[Node] = []
+        for argument in arguments:
+            if isinstance(argument, Variable):
+                variable_name = str(argument)
+                if variable_name not in bindings:
+                    raise FatalRuleError(
+                        f"Missing binding for required variable `{variable_name}`"
+                    )
+                resolved.append(bindings[variable_name])
+            else:
+                resolved.append(argument)
+        return tuple(resolved)
+
     def add_triples(self, triples: Iterable[Triple]) -> set[Triple]:
         pending = {cast(Triple, triple) for triple in triples}
+        self.tms.register_stated(pending)
         self.known_triples.update(pending)
         newly_derived: set[Triple] = set()
+        context = self.context_data.get("context")
 
         while True:
             try:
                 actions = self.matcher.match_terminals(
-                    self.terminals, tuple(self.known_triples)
+                    self.terminals, self.working_memory.facts()
                 )
+                agenda = Agenda(actions)
             except Exception as exc:  # pragma: no cover - defensive wrapping
                 if isinstance(exc, FatalRuleError):
                     raise
                 raise FatalRuleError(str(exc)) from exc
 
             iteration_new: set[Triple] = set()
-            for action in actions:
+            for action in agenda:
+                action_new: list[Triple] = []
                 for production in action.productions:
                     pattern = (
                         production.pattern.subject,
@@ -83,8 +145,65 @@ class RETEEngine:
                         production.pattern.object,
                     )
                     triple = self._instantiate_triple(pattern, action.bindings)
-                    if triple not in self.known_triples:
+                    self.tms.record_derivation(
+                        triple,
+                        rule_id=action.rule_id,
+                        premises=action.premises,
+                        bindings=action.bindings,
+                        depth=action.depth,
+                    )
+                    if triple not in self.known_triples and triple not in iteration_new:
                         iteration_new.add(triple)
+                        action_new.append(triple)
+
+                callback_context = EngineCallbackContext(
+                    context=context,
+                    rule_id=action.rule_id,
+                    bindings=action.bindings,
+                    premises=tuple(fact.triple for fact in action.premises),
+                    depth=action.depth,
+                    _recorder=self.callback_recorder,
+                )
+                for callback in action.callbacks:
+                    hook = self.callbacks.get(callback.callback)
+                    if hook is None:
+                        raise FatalRuleError(
+                            f"Unknown callback hook `{callback.callback}`"
+                        )
+                    arguments = self._resolve_callback_arguments(
+                        callback.arguments, action.bindings
+                    )
+                    try:
+                        hook.run(callback_context, *arguments)
+                    except Exception as exc:  # pragma: no cover - defensive wrapping
+                        if isinstance(exc, FatalRuleError):
+                            raise
+                        raise FatalRuleError(str(exc)) from exc
+
+                if (
+                    context is not None
+                    and self.derivation_logger is not None
+                    and len(action_new) > 0
+                ):
+                    self.derivation_logger.record(
+                        DerivationRecord(
+                            context=context,
+                            conclusions=[
+                                TripleFact(context=context, triple=triple)
+                                for triple in action_new
+                            ],
+                            premises=[
+                                TripleFact(context=context, triple=fact.triple)
+                                for fact in action.premises
+                            ],
+                            rule_id=action.rule_id,
+                            bindings=[
+                                VariableBinding(name=name, value=value)
+                                for name, value in sorted(action.bindings.items())
+                            ],
+                            depth=action.depth,
+                        )
+                    )
 
             if not iteration_new:
                 break

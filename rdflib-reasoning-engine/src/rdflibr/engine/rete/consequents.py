@@ -7,6 +7,7 @@ from rdflib.term import Node
 
 from ..proof import RuleId
 from ..rules import TriplePattern
+from .facts import Fact
 
 
 class TripleProduction(BaseModel):
@@ -35,9 +36,9 @@ class CallbackSchedule(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     callback: str = Field(..., description="Callback registry key.")
-    arguments: tuple[Node | str, ...] = Field(
+    arguments: tuple[Node, ...] = Field(
         default_factory=tuple,
-        description="Normalized callback arguments as constants or variable names.",
+        description="Normalized callback arguments as RDFLib terms or Variables.",
     )
     required_variables: tuple[str, ...] = Field(
         default_factory=tuple,
@@ -58,6 +59,7 @@ class ActionInstance(BaseModel):
 
     rule_id: RuleId
     bindings: dict[str, Node]
+    premises: tuple[Fact, ...] = ()
     depth: int = 0
     salience: int = 0
     productions: tuple[TripleProduction, ...] = ()
