@@ -1,4 +1,6 @@
 # We need to _explicitly_ ignore these so that we can override it in `.cursorignore`
+docs/portfolio/*
+
 # ------------------------------------------------------------
 # Specification Directories (Dynamically Fetched)
 # ------------------------------------------------------------
