@@ -6,14 +6,16 @@ Reads only optimized.html; emits a Development Agent- and script-oriented index 
 optimized.html. Re-run after re-normalizing the spec (e.g. after w3c-normalize.py).
 
 Usage:
-  python create-index.py [--input PATH] [--output PATH]
+  python create-index.py [--input PATH] [--output PATH] [--json-output PATH]
 
-Defaults: input=optimized.html, output=INDEX.md, both in the script's directory.
+Defaults: input=optimized.html, output=INDEX.md, json-output=index-data.json,
+all in the script's directory.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from html.parser import HTMLParser
@@ -115,6 +117,13 @@ def _range_suffix(start: int, end: int) -> str:
     return f" — lines {start}–{end}"
 
 
+def _line_range_payload(line_range: tuple[int, int] | None) -> dict[str, int] | None:
+    """Convert an optional line range tuple into a JSON-friendly object."""
+    if line_range is None:
+        return None
+    return {"start": line_range[0], "end": line_range[1]}
+
+
 def main() -> int:
     script_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(
@@ -131,6 +140,12 @@ def main() -> int:
         type=Path,
         default=script_dir / "INDEX.md",
         help="Path to write INDEX.md",
+    )
+    parser.add_argument(
+        "--json-output",
+        type=Path,
+        default=script_dir / "index-data.json",
+        help="Path to write index-data.json",
     )
     args = parser.parse_args()
 
@@ -155,28 +170,61 @@ def main() -> int:
         "# Index: OWL 2 Mapping to RDF (Development Agent- and script-oriented)",
         "",
         "This index supports bidirectional navigation of the OWL 2 ↔ RDF mapping. "
-        "All links target `optimized.html`. "
+        "All links target `docs/specs/owl2-mapping-to-rdf/optimized.html`. "
         "Section 2 = structural specification → RDF; Section 3 = RDF → structural specification.",
         "",
         "## OWL → RDF (Section 2) — by construct",
         "",
     ]
+    constructs_payload: list[dict[str, object]] = []
     for _order, cid in collector.constructs:
         display = cid[2:] if cid.startswith("a_") else cid  # strip a_ prefix
         r = line_range_for_construct(html, cid)
         suffix = _range_suffix(r[0], r[1]) if r is not None else ""
         lines.append(f"- [{display}]({target}#{cid}){suffix}")
+        constructs_payload.append(
+            {
+                "id": display,
+                "anchor_id": cid,
+                "href": f"{target}#{cid}",
+                "line_range": _line_range_payload(r),
+            }
+        )
     lines.append("")
     lines.append("## Document sections")
     lines.append("")
+    sections_payload: list[dict[str, object]] = []
     for _order, sid in collector.sections:
         label = id_to_label(sid)
         r = line_range_for_section(section_start_lines, sid, last_line)
         suffix = _range_suffix(r[0], r[1]) if r is not None else ""
         lines.append(f"- [{label}]({target}#{sid}){suffix}")
+        sections_payload.append(
+            {
+                "id": sid,
+                "label": label,
+                "href": f"{target}#{sid}",
+                "line_range": _line_range_payload(r),
+            }
+        )
 
     args.output.resolve().parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    args.json_output.resolve().parent.mkdir(parents=True, exist_ok=True)
+    json_payload = {
+        "spec": {
+            "name": "owl2-mapping-to-rdf",
+            "title": "OWL 2 Mapping to RDF",
+            "source_html": target,
+            "generated_from": input_path.name,
+        },
+        "constructs": constructs_payload,
+        "sections": sections_payload,
+    }
+    args.json_output.write_text(
+        json.dumps(json_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return 0
 
 
