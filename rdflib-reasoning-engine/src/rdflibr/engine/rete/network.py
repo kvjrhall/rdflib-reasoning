@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from collections.abc import Iterable
 
+from pydantic import BaseModel, ConfigDict, Field
+from rdflib.term import Node, Variable
+from rdflibr.axiom.common import Triple
+
+from ..rules import PredicateHook, RuleContext
 from .compiler import (
     AlphaConstraint,
     CompiledPredicateCondition,
     CompiledRule,
     CompiledTripleCondition,
 )
+from .consequents import ActionInstance
+from .facts import Fact, PartialMatch
 
 
 class AlphaNode(BaseModel):
@@ -211,3 +218,175 @@ class NetworkBuilder:
 
     def build_rules(self, rules: tuple[CompiledRule, ...]) -> tuple[TerminalNode, ...]:
         return tuple(self.build_rule(rule) for rule in rules)
+
+
+class MatcherContext(RuleContext):
+    """Minimal read-only rule context for builtin predicate evaluation."""
+
+    def __init__(self, terminal: TerminalNode) -> None:
+        self.terminal = terminal
+
+
+class NetworkMatcher:
+    """Minimal matching pass over alpha, beta, predicate, and terminal nodes."""
+
+    registry: NodeRegistry
+    predicates: dict[str, PredicateHook]
+
+    def __init__(
+        self,
+        registry: NodeRegistry,
+        *,
+        predicates: dict[str, PredicateHook] | None = None,
+    ) -> None:
+        self.registry = registry
+        self.predicates = {} if predicates is None else predicates
+
+    @staticmethod
+    def _pattern_terms(
+        condition: CompiledTripleCondition,
+    ) -> tuple[object, object, object]:
+        return (
+            condition.pattern.subject,
+            condition.pattern.predicate,
+            condition.pattern.object,
+        )
+
+    @staticmethod
+    def _fact_from_triple(triple: Triple) -> Fact:
+        return Fact(
+            id=f"fact:{triple[0].n3()} {triple[1].n3()} {triple[2].n3()}", triple=triple
+        )
+
+    def _match_alpha(
+        self,
+        node: AlphaNode,
+        facts: tuple[Fact, ...],
+    ) -> tuple[PartialMatch, ...]:
+        matches: list[PartialMatch] = []
+        pattern_terms = self._pattern_terms(node.condition)
+        for fact in facts:
+            triple = fact.triple
+            bindings: dict[str, Node] = {}
+            matched = True
+            for pattern_term, triple_term in zip(pattern_terms, triple, strict=True):
+                if isinstance(pattern_term, Variable):
+                    variable_name = str(pattern_term)
+                    existing = bindings.get(variable_name)
+                    if existing is not None and existing != triple_term:
+                        matched = False
+                        break
+                    bindings[variable_name] = triple_term
+                elif pattern_term != triple_term:
+                    matched = False
+                    break
+            if matched:
+                matches.append(PartialMatch(facts=(fact,), bindings=bindings, depth=0))
+        return tuple(matches)
+
+    @staticmethod
+    def _bindings_compatible(
+        left: dict[str, Node],
+        right: dict[str, Node],
+    ) -> bool:
+        shared = set(left) & set(right)
+        return all(left[name] == right[name] for name in shared)
+
+    def _join_beta(
+        self,
+        node: BetaNode,
+        partial_matches: dict[str, tuple[PartialMatch, ...]],
+    ) -> tuple[PartialMatch, ...]:
+        left_matches = partial_matches.get(node.left_key, ())
+        right_matches = partial_matches.get(node.right_key, ())
+        joined: list[PartialMatch] = []
+        for left in left_matches:
+            for right in right_matches:
+                if not self._bindings_compatible(left.bindings, right.bindings):
+                    continue
+                merged_bindings = {**left.bindings, **right.bindings}
+                merged_facts = left.facts + tuple(
+                    fact
+                    for fact in right.facts
+                    if fact.id not in {f.id for f in left.facts}
+                )
+                joined.append(
+                    PartialMatch(
+                        facts=merged_facts,
+                        bindings=merged_bindings,
+                        depth=max(left.depth, right.depth) + 1,
+                    )
+                )
+        return tuple(joined)
+
+    def _apply_predicate(
+        self,
+        node: PredicateNode,
+        matches: tuple[PartialMatch, ...],
+        *,
+        terminal: TerminalNode,
+    ) -> tuple[PartialMatch, ...]:
+        hook = self.predicates.get(node.condition.predicate)
+        if hook is None:
+            raise KeyError(f"Unknown predicate hook `{node.condition.predicate}`")
+        context = MatcherContext(terminal)
+        filtered: list[PartialMatch] = []
+        for match in matches:
+            arguments: list[Node] = []
+            for argument in node.condition.arguments:
+                if isinstance(argument, str):
+                    arguments.append(match.bindings[argument])
+                else:
+                    arguments.append(argument)
+            if hook.test(context, *arguments):
+                filtered.append(match)
+        return tuple(filtered)
+
+    def match_terminal(
+        self,
+        terminal: TerminalNode,
+        facts: Iterable[Fact | Triple],
+    ) -> tuple[ActionInstance, ...]:
+        normalized_facts = tuple(
+            fact if isinstance(fact, Fact) else self._fact_from_triple(fact)
+            for fact in facts
+        )
+        partial_matches: dict[str, tuple[PartialMatch, ...]] = {}
+
+        for key, node in self.registry.alpha_nodes.items():
+            partial_matches[key] = self._match_alpha(node, normalized_facts)
+
+        for key, node in self.registry.beta_nodes.items():
+            partial_matches[key] = self._join_beta(node, partial_matches)
+
+        root_key = terminal.input_keys[0] if terminal.input_keys else None
+        matches = () if root_key is None else partial_matches.get(root_key, ())
+        if root_key is None:
+            matches = (PartialMatch(facts=(), bindings={}, depth=0),)
+
+        for key in terminal.input_keys[1:]:
+            predicate_node = self.registry.predicate_nodes[key]
+            matches = self._apply_predicate(predicate_node, matches, terminal=terminal)
+
+        return tuple(
+            ActionInstance(
+                rule_id=terminal.rule.rule_id,
+                bindings=match.bindings,
+                depth=match.depth,
+                salience=terminal.rule.salience,
+                productions=terminal.rule.productions,
+                callbacks=terminal.rule.callbacks,
+            )
+            for match in matches
+        )
+
+    def match_terminals(
+        self,
+        terminals: Iterable[TerminalNode],
+        facts: Iterable[Fact | Triple],
+    ) -> tuple[ActionInstance, ...]:
+        facts_tuple = tuple(facts)
+        actions: list[ActionInstance] = []
+        for terminal in terminals:
+            actions.extend(self.match_terminal(terminal, facts_tuple))
+        return tuple(actions)
