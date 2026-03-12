@@ -68,6 +68,7 @@ Inference middleware is responsible for exposing reasoner-backed behavior to the
 - Inference middleware MUST compose over dataset middleware so that inference operates on the same dataset-backed state as retrieval and manual graph updates.
 - Inference execution, derivation tracing, and proof or explanation generation SHOULD be exposed as explicit runtime capabilities rather than being implicit side effects of unrelated operations.
 - If derivations are exposed to the Research Agent, they SHOULD be available through a structured proof representation such as `DirectProof`, so that baseline and tool-enabled conditions can be compared against a common output schema.
+- Middleware MAY reconstruct `DirectProof` values from engine-native derivation logs, agent-proposed proof content, or both, but the runtime boundary SHOULD expose a stable proof schema rather than raw engine internals.
 
 ### Engine event contract and entrypoint
 
@@ -80,6 +81,8 @@ This subsection codifies the contract and flow so that RETEStore and Development
 - **Persistence contract:** On open or attach, `RETEStore` MUST treat the current contents of the backing store as authoritative facts for each context. It MUST seed the engine from the fully materialized contents of that context; it MUST NOT attempt to reconstruct an asserted-versus-derived distinction from persisted RDF alone.
 - **Warm-start contract:** Warm-start MUST proceed by creating the engine, reading the existing triples for the context from the backing store, warming the engine from those triples, and materializing any non-silent warmup deductions back into the store.
 - **Engine update contract:** `RETEEngine.add_triples()` MUST be idempotent for already-known triples when derivation logging is disabled. `RETEEngine.add_triples()` and `RETEEngine.warmup()` MUST compute a fixed point for their input update set. `BatchDispatcher` provides store-level fixed-point iteration across reentrant materialization; it MUST NOT be relied upon to compensate for a partially saturating engine update step.
+- **Derivation logging contract:** If derivation logging is enabled, the engine MUST record rule applications in an engine-native structured form centered on the derived conclusion, its supporting premises, the rule identifier, and the context. Engine-native derivation logs MUST support arbitrary custom rules and MUST NOT require every derivation step to map one-to-one to a named OWL 2 structural axiom.
+- **Explanation reconstruction contract:** Explanation reconstruction is distinct from derivation logging. The engine and related packages MAY reconstruct user-facing proof structures such as `DirectProof` from derivation logs, but `DirectProof` is not the engine's primitive execution format.
 
 These rules are aligned with [DR-004 RETE Store Persistence and Engine Update Contract](decision-records/DR-004%20RETE%20Store%20Persistence%20and%20Engine%20Update%20Contract.md).
 
@@ -100,6 +103,7 @@ This harness is Development Agent evaluation infrastructure for assessing Resear
 - The proof evaluation harness MUST expose framework-agnostic structured inputs and outputs using Pydantic models so that notebooks, scripts, and multiple orchestration frameworks can consume the same contract.
 - The proof evaluation harness MAY provide thin framework-specific adapters such as LangChain integration, but those adapters MUST remain secondary to the framework-agnostic data model and evaluation contract.
 - The proof evaluation harness SHOULD begin with a single-pass structured assessment flow rather than a full planning agent. A multi-step Research Agent evaluator MAY be added later if experiments justify it.
+- The proof evaluation harness SHOULD treat `DirectProof` as the common proof interchange format for baseline experiments, regardless of whether a proof originated from a Research Agent, a reconstructed engine derivation, or a hybrid of both.
 
 ### Proof evaluation harness inputs and outputs
 
@@ -108,6 +112,7 @@ The initial proof evaluation harness is intended to support a baseline notebook 
 - Inputs SHOULD include an input document, a proposed `DirectProof`, and any task metadata needed to interpret the assessment.
 - Outputs SHOULD include a typed assessment object whose fields can be consumed by notebooks and later batch experiments.
 - The output schema SHOULD support both coarse verdicts and fine-grained error categories so that observed Research Agent mistakes can guide future feature prioritization.
+- `DirectProof` SHOULD support proof payloads represented as graph-scoped Pydantic objects where that yields a natural typed claim or support, but it MUST also support triple-level claims directly because not every derivation step is most naturally represented as an OWL structural element.
 
 ### Baseline scope
 
@@ -136,4 +141,52 @@ The following concerns are explicitly out of the initial baseline scope and SHOU
 - Open World assumption handling for negative assertions
 - Exhaustive completeness over all extractable entities and relations
 
-## Analysis Notebooks
+## RETE Engine Design
+
+### Overview
+
+The engine MUST implement a forward-chaining **RETE-style** architecture with RETE-OO-inspired internals, specifically optimized for **OWL 2 RL** and **RDFS** entailment.
+The design diverges from classic RETE by treating RDF triples as first-class objects and allowing Python extensibility, but the logical core MUST remain a pure RDF entailment engine.
+
+- **Logical consequents** MUST be represented as declarative triple production handled by the engine itself.
+- **Predicates / builtins** MAY use Python functions, but they MUST be read-only tests used during matching or internal evaluation.
+- **Callbacks / hooks** MAY use Python functions for observability or integration, but they MUST NOT add triples, retract triples, or otherwise mutate graph state.
+
+### Rule Matching & Network Topology
+
+The engine SHOULD employ a **Left-Deep** join tree by default but MUST support **Structural Node Sharing** through a canonicalizing `NodeRegistry`.
+
+- **Alpha Layer**: MUST support literal constraints (e.g., `Triple p == "rdf:type"`) and `PredicateNodes`. `PredicateNodes` SHOULD wrap duck-typed Python callables. To minimize interpreter overhead, the `NetworkBuilder` SHOULD position `PredicateNodes` after literal `AlphaNodes` but before `BetaNodes`.
+- **Beta Layer**: MUST maintain memories of `PartialMatch` objects. The `JoinOptimizer` SHOULD use basic selectivity heuristics (e.g., specific properties are more selective than `rdf:type`) to order joins.
+- **Terminal Layer**: Upon a full match, the engine MUST produce an engine-managed logical production and MAY additionally enqueue non-mutating callbacks.
+
+### Truth Maintenance System (TMS)
+
+The engine MUST provide a **Justification-based Truth Maintenance System (JTMS)** to manage the deductive closure of the RDF graph.
+
+- **Multi-Parent Support**: The `TMSController` MUST support multiple justifications for a single Fact. A Fact is considered logically supported if it has at least one valid `Justification` or is flagged as "Stated" (User-inserted).
+- **Dependency Tracking**: Every `Justification` MUST capture a `PartialMatch` (as a tuple of FactIDs) to enable full **Derivation Tree** traversal. This is REQUIRED for both recursive retraction and generating human-readable explanations (e.g., Graphviz).
+- **Recursive Retraction**: When a `Fact` is retracted, the `TMSController` MUST perform a **Mark-Verify-Sweep** operation. It MUST only retract downstream consequences if their `Justification` set becomes empty.
+
+### Execution & Side Effects
+
+Rule execution MUST be decoupled from matching via an `Agenda`.
+
+- **Conflict Resolution**: The `Agenda` SHOULD prioritize execution based on **Salience** (user-defined) and **Inference Depth** (Breadth-First). Breadth-First execution is RECOMMENDED to ensure shorter derivation paths are found before complex property chains.
+- **Logical Production Path**: Logical triple production MUST occur only through engine-managed rule heads. Python callbacks MUST NOT be an alternate inference channel or graph-mutation path.
+- **Callbacks**: Callbacks MUST interact with the engine only through a read-only `RuleContext` or equivalent hook context. They MAY emit logs, metrics, traces, or other external signals, but they MUST NOT modify graph state.
+- **Retraction Compatibility**: Because callbacks are non-logical and non-mutating, `RetractionNotImplemented` MUST be interpreted as meaning that no reversal is required for logical consistency. Retraction support remains a future design goal; the initial implementation MAY remain add-only so long as its data structures and rule model do not preclude JTMS-backed removal later.
+
+### Type Safety and Validation
+
+The engine SHOULD utilize Python's `inspect` and `typing` modules at **Construction-Time** to validate rule signatures.
+
+- Callback functions MUST accept `RuleContext` as the first argument.
+- Subsequent callback arguments SHOULD be type-hinted as `Node` or `Fact` to facilitate "duck-typing" in the RETE network.
+
+### Rationale
+
+This hybrid approach balances the formal logic requirements of **OWL 2 RL** with the pragmatic need for procedural Python hooks. By separating declarative triple production from read-only predicates and non-mutating callbacks, the engine preserves deterministic fixed-point materialization while still supporting instrumentation and internal extensibility. By embedding the `PartialMatch` in the `Justification`, we ensure the engine is "Self-Explaining," while the `NodeRegistry` prevents the memory explosion typically associated with unoptimized RETE implementations.
+
+These rules are aligned with [DR-005 RETE Consequent Partitioning and Retraction Compatibility](decision-records/DR-005%20RETE%20Consequent%20Partitioning%20and%20Retraction%20Compatibility.md).
+Proof reconstruction and `DirectProof` layering are further aligned with [DR-006 Derivation Logging and DirectProof Reconstruction](decision-records/DR-006%20Derivation%20Logging%20and%20DirectProof%20Reconstruction.md).
