@@ -11,6 +11,7 @@ The `rdflib-reasoning-engine` package provides an efficient general purpose forw
 Status values:
 
 - `Implemented`: available in the package today
+- `In progress`: scaffolding or partial implementation exists, but the feature is not yet wired end-to-end
 - `Not started`: identified feature target with no concrete implementation yet
 
 ### RDFS entailment rules
@@ -66,8 +67,8 @@ This matrix tracks functional engine features independent of standards coverage.
 | Inference materialization | Not started | Emitting derived triples into working memory or output graphs |
 | Builtin predicate / function support | Not started | Datatype, comparison, and other builtin evaluation hooks |
 | Rule action callbacks | Not started | Allow host-provided code to run when a rule fires |
-| Derivation / trace logging | Not started | Capturing justifications while rules fire |
-| Explanation reconstruction | Not started | Reifying traces into user-facing proof or derivation structures |
+| Derivation / trace logging | In progress | Engine-native `DerivationRecord` scaffolding for captured rule applications and justifications |
+| Explanation reconstruction | In progress | Reifying derivation logs into `DirectProof` or related proof structures |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
 
 The `rdflib-reasoning-engine` package is part of the `rdflib-reasoning` metapackage.

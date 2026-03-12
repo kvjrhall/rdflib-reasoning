@@ -6,15 +6,17 @@ from rdflib import Dataset, Graph, Namespace
 from rdflib.plugins.stores.memory import Memory
 from rdflib.store import VALID_STORE, Store
 from rdflib.term import BNode
+from rdflibr.engine.api import RETEEngine, RETEEngineFactory
 from rdflibr.engine.batch_dispatcher import TripleAddedBatchEvent
-from rdflibr.engine.rete_engine import RETEEngine, RETEEngineFactory, Rule
+from rdflibr.engine.proof import RuleId
 from rdflibr.engine.rete_store import RETEStore
+from rdflibr.engine.rules import Rule
 
 _NS = Namespace("https://example.org/")
 
 
 class DummyRule(Rule):
-    pass
+    id: RuleId = RuleId(ruleset="test", rule_id="dummy-rule")
 
 
 class DummyEngine(RETEEngine):

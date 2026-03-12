@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [DR-007 Proof Model and Derivation Semantics Refinement](DR-007%20Proof%20Model%20and%20Derivation%20Semantics%20Refinement.md)
 
 ## Context
 
@@ -44,6 +44,6 @@ The architecture therefore needs a stable separation between:
 - Arbitrary custom rules remain explainable because the derivation model does not depend on OWL-only terminology.
 - Future implementation can add richer proof operators or semantic adapters without changing the core separation between engine-native traces and reconstructed proofs.
 
-## Supersedes
+## Superseded By
 
-None.
+- [DR-007 Proof Model and Derivation Semantics Refinement](DR-007%20Proof%20Model%20and%20Derivation%20Semantics%20Refinement.md)

@@ -4,8 +4,8 @@ from typing import Any
 from rdflib import Dataset, Namespace
 from rdflib.plugins.stores.memory import Memory
 from rdflib.term import BNode
+from rdflibr.engine.api import RETEEngine, RETEEngineFactory
 from rdflibr.engine.batch_dispatcher import TripleAddedBatchEvent
-from rdflibr.engine.rete_engine import RETEEngine, RETEEngineFactory
 from rdflibr.engine.store_wrapper import StoreWrapper
 
 _NS = Namespace("https://example.org/")

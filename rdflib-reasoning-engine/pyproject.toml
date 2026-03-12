@@ -5,10 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "rdflib-reasoning-engine"
 version = "0.1.0"
+license = "MIT"
 description = "RETE-based RDFS and OWL 2 RL entailment for RDFLib"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["rdflib"]
+dependencies = ["pydantic", "rdflib", "rdflib-reasoning-axioms"]
 
 [project.optional-dependencies]
 dev = ["pytest"]

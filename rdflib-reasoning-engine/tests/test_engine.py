@@ -2,18 +2,15 @@ from collections.abc import Iterable
 
 import pytest
 from rdflib.term import BNode
-from rdflibr.engine.rete_engine import (
-    ContextData,
-    RETEEngine,
-    RETEEngineFactory,
-    Rule,
-)
+from rdflibr.engine.api import RETEEngine, RETEEngineFactory
+from rdflibr.engine.proof import RuleId
+from rdflibr.engine.rules import ContextData, Rule
 
 
 class DummyRule(Rule):
     """Concrete Rule subclass for type-checking purposes."""
 
-    pass
+    id: RuleId = RuleId(ruleset="test", rule_id="dummy-rule")
 
 
 class WarmupEngine(RETEEngine):
@@ -35,7 +32,10 @@ class WarmupEngine(RETEEngine):
 def test_rete_engine_init_and_close() -> None:
     context = BNode()
     context_data: ContextData = {"context": context}
-    rules: list[Rule] = [DummyRule(), DummyRule()]
+    rules: list[Rule] = [
+        DummyRule(id=RuleId(ruleset="test", rule_id="dummy-rule-1")),
+        DummyRule(id=RuleId(ruleset="test", rule_id="dummy-rule-2")),
+    ]
 
     engine = RETEEngine(context_data=context_data, rules=rules)
 
