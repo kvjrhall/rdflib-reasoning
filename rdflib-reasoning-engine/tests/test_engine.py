@@ -98,6 +98,20 @@ def test_rete_engine_factory_context_template_is_preserved() -> None:
     factory = RETEEngineFactory(foo="bar", answer=42)
 
     assert factory.context_template == {"foo": "bar", "answer": 42}
+    assert factory.rules_template == ()
+
+
+def test_rete_engine_factory_new_engine_uses_configured_rules_and_context() -> None:
+    context = BNode()
+    rule = DummyRule(id=RuleId(ruleset="test", rule_id="factory-rule"))
+    factory = RETEEngineFactory(rules=[rule], foo="bar")
+
+    engine = factory.new_engine(context)
+
+    assert isinstance(engine, RETEEngine)
+    assert engine.context_data["context"] == context
+    assert engine.context_data["foo"] == "bar"
+    assert engine.rules == (rule,)
 
 
 def test_rete_engine_add_triples_materializes_inference_to_fixed_point() -> None:

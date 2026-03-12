@@ -108,13 +108,15 @@ class RETEEngineFactory:
     """Factory for per-context engine instances and contextual hook registries."""
 
     context_template: dict[str, Any]
+    rules_template: tuple[Rule, ...]
 
-    def __init__(self, **context_data: Any) -> None:
+    def __init__(self, *, rules: Iterable[Rule] = (), **context_data: Any) -> None:
         if "context" in context_data:
             raise ValueError("context is a reserved keyword")
         self.context_template = context_data
+        self.rules_template = tuple(rules)
 
     def new_engine(self, context: ContextIdentifier) -> RETEEngine:
         raw_context_data: dict[str, Any] = {"context": context, **self.context_template}
-        context_data = cast(ContextData, raw_context_data)  # noqa: F841
-        raise NotImplementedError("RETEEngineFactory.new_engine is not implemented")
+        context_data = cast(ContextData, raw_context_data)
+        return RETEEngine(context_data=context_data, rules=self.rules_template)

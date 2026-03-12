@@ -3,10 +3,10 @@ from typing import Any
 
 import pytest
 from rdflib import Dataset, Graph, Namespace
-from rdflib.namespace import RDF
+from rdflib.namespace import RDF, RDFS
 from rdflib.plugins.stores.memory import Memory
 from rdflib.store import VALID_STORE, Store
-from rdflib.term import BNode, Variable
+from rdflib.term import BNode, URIRef, Variable
 from rdflibr.engine.api import RETEEngine, RETEEngineFactory
 from rdflibr.engine.batch_dispatcher import TripleAddedBatchEvent
 from rdflibr.engine.proof import RuleId
@@ -222,3 +222,36 @@ def test_rete_store_does_not_rematerialize_existing_inferred_triple() -> None:
     engine = factory.engines[dataset.default_graph.identifier]
     assert engine.add_triples_calls == [set(), {seed}, {inferred}]
     assert list(dataset.default_graph.triples(inferred)) == [inferred]
+
+
+def test_rete_store_uses_real_factory_engine_to_materialize_inference() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="subclass"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    dataset = Dataset(store=store)
+    alice = URIRef("urn:test:alice")
+    human = URIRef("urn:test:Human")
+    mammal = URIRef("urn:test:Mammal")
+
+    dataset.default_graph.add((alice, RDF.type, human))
+    dataset.default_graph.add((human, RDFS.subClassOf, mammal))
+
+    assert (alice, RDF.type, mammal) in dataset.default_graph
