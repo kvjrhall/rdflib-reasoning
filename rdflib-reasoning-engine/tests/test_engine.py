@@ -428,3 +428,100 @@ def test_rete_engine_add_triples_rejects_unknown_callback_hook() -> None:
 
     with pytest.raises(FatalRuleError, match="Unknown callback hook `missing`"):
         engine.add_triples([(URIRef("urn:test:A"), RDF.type, RDFS.Class)])
+
+
+def test_rete_engine_tracks_stated_and_derived_facts_in_working_memory() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="subclass"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    human = URIRef("urn:test:Human")
+    mammal = URIRef("urn:test:Mammal")
+    alice = URIRef("urn:test:alice")
+    stated = (alice, RDF.type, human)
+    derived = (alice, RDF.type, mammal)
+
+    inferred = engine.add_triples([stated, (human, RDFS.subClassOf, mammal)])
+
+    assert inferred == {derived}
+    stated_fact = engine.working_memory.get_fact(stated)
+    derived_fact = engine.working_memory.get_fact(derived)
+    assert stated_fact is not None
+    assert derived_fact is not None
+    assert stated_fact.stated is True
+    assert derived_fact.stated is False
+    assert engine.tms.is_supported(stated)
+    assert engine.tms.is_supported(derived)
+    assert engine.tms.support_count(derived) == 1
+
+
+def test_rete_engine_tracks_multiple_supports_for_one_derived_fact() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="subclass"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    alice = URIRef("urn:test:alice")
+    human = URIRef("urn:test:Human")
+    person = URIRef("urn:test:Person")
+    mammal = URIRef("urn:test:Mammal")
+    derived = (alice, RDF.type, mammal)
+
+    inferred = engine.add_triples(
+        [
+            (alice, RDF.type, human),
+            (alice, RDF.type, person),
+            (human, RDFS.subClassOf, mammal),
+            (person, RDFS.subClassOf, mammal),
+        ]
+    )
+
+    assert inferred == {derived}
+    supports = engine.tms.justifications_for(derived)
+    alice_human = engine.working_memory.get_fact((alice, RDF.type, human))
+    human_mammal = engine.working_memory.get_fact((human, RDFS.subClassOf, mammal))
+    alice_person = engine.working_memory.get_fact((alice, RDF.type, person))
+    person_mammal = engine.working_memory.get_fact((person, RDFS.subClassOf, mammal))
+    assert alice_human is not None
+    assert human_mammal is not None
+    assert alice_person is not None
+    assert person_mammal is not None
+    assert len(supports) == 2
+    assert {frozenset(justification.antecedent_ids) for justification in supports} == {
+        frozenset((alice_human.id, human_mammal.id)),
+        frozenset((alice_person.id, person_mammal.id)),
+    }
+    assert engine.tms.support_count(derived) == 2
