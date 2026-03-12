@@ -356,8 +356,8 @@ class NetworkMatcher:
         for key, node in self.registry.alpha_nodes.items():
             partial_matches[key] = self._match_alpha(node, normalized_facts)
 
-        for key, node in self.registry.beta_nodes.items():
-            partial_matches[key] = self._join_beta(node, partial_matches)
+        for key, beta_node in self.registry.beta_nodes.items():
+            partial_matches[key] = self._join_beta(beta_node, partial_matches)
 
         root_key = terminal.input_keys[0] if terminal.input_keys else None
         matches = () if root_key is None else partial_matches.get(root_key, ())

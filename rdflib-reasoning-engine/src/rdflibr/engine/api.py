@@ -1,8 +1,10 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, cast
 
+from rdflib.term import Node, Variable
 from rdflibr.axiom.common import ContextIdentifier, Triple
 
+from .rete import NetworkBuilder, NetworkMatcher, RuleCompiler, TerminalNode
 from .rules import ContextData, Rule
 
 
@@ -21,16 +23,76 @@ class RETEEngine:
 
     context_data: ContextData
     rules: Sequence[Rule]
+    terminals: tuple[TerminalNode, ...]
+    known_triples: set[Triple]
+    matcher: NetworkMatcher
 
     def __init__(self, context_data: ContextData, rules: Iterable[Rule]) -> None:
         self.context_data = context_data
         self.rules = tuple(rules)
+        compiled_rules = tuple(RuleCompiler.compile_rule(rule) for rule in self.rules)
+        builder = NetworkBuilder()
+        self.terminals = builder.build_rules(compiled_rules)
+        builtins = self.context_data.get("builtins", {})
+        predicates = builtins.get("predicates", {})
+        self.matcher = NetworkMatcher(builder.registry, predicates=predicates)
+        self.known_triples = set()
 
     def close(self) -> None:
-        pass
+        self.known_triples.clear()
+
+    @staticmethod
+    def _instantiate_triple(
+        pattern: tuple[Node | Variable, Node | Variable, Node | Variable],
+        bindings: Mapping[str, Node],
+    ) -> Triple:
+        instantiated: list[Node] = []
+        for term in pattern:
+            if isinstance(term, Variable):
+                variable_name = str(term)
+                if variable_name not in bindings:
+                    raise FatalRuleError(
+                        f"Missing binding for required variable `{variable_name}`"
+                    )
+                instantiated.append(bindings[variable_name])
+            else:
+                instantiated.append(term)
+        return cast(Triple, tuple(instantiated))
 
     def add_triples(self, triples: Iterable[Triple]) -> set[Triple]:
-        raise NotImplementedError("RETEEngine.add_triple is not implemented")
+        pending = {cast(Triple, triple) for triple in triples}
+        self.known_triples.update(pending)
+        newly_derived: set[Triple] = set()
+
+        while True:
+            try:
+                actions = self.matcher.match_terminals(
+                    self.terminals, tuple(self.known_triples)
+                )
+            except Exception as exc:  # pragma: no cover - defensive wrapping
+                if isinstance(exc, FatalRuleError):
+                    raise
+                raise FatalRuleError(str(exc)) from exc
+
+            iteration_new: set[Triple] = set()
+            for action in actions:
+                for production in action.productions:
+                    pattern = (
+                        production.pattern.subject,
+                        production.pattern.predicate,
+                        production.pattern.object,
+                    )
+                    triple = self._instantiate_triple(pattern, action.bindings)
+                    if triple not in self.known_triples:
+                        iteration_new.add(triple)
+
+            if not iteration_new:
+                break
+
+            self.known_triples.update(iteration_new)
+            newly_derived.update(iteration_new)
+
+        return newly_derived
 
     def retract_triples(self, triple: Triple) -> None:
         raise NotImplementedError("RETEEngine.retract_triple is not implemented")

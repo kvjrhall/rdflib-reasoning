@@ -1,6 +1,6 @@
 import functools
 from collections.abc import Callable
-from typing import Any, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar, cast
 
 from .facts import Fact
 
@@ -43,6 +43,6 @@ def rule_action(undo: Callable | None = None, salience: int = 0):
         def wrapper(context: CallbackContext, *args: Fact, **kwargs):
             return func(context, *args, **kwargs)
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
