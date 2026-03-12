@@ -1,9 +1,15 @@
 from rdflibr.engine import (
+    RDFS_RULES,
+    CallbackConsequent,
     DerivationLogger,
     DirectProof,
     ExplanationReconstructor,
+    PredicateCondition,
     RETEEngine,
     RETEEngineFactory,
+    TripleCondition,
+    TripleConsequent,
+    TriplePattern,
 )
 from rdflibr.engine.api import RETEEngine as ApiEngine
 from rdflibr.engine.derivation import (
@@ -27,3 +33,12 @@ def test_rete_package_exposes_split_internal_stubs() -> None:
     assert Fact.__name__ == "Fact"
     assert RuleCompiler.__name__ == "RuleCompiler"
     assert TMSController.__name__ == "TMSController"
+
+
+def test_public_rule_ir_and_rulesets_are_exposed() -> None:
+    assert TriplePattern.__name__ == "TriplePattern"
+    assert TripleCondition.__name__ == "TripleCondition"
+    assert PredicateCondition.__name__ == "PredicateCondition"
+    assert TripleConsequent.__name__ == "TripleConsequent"
+    assert CallbackConsequent.__name__ == "CallbackConsequent"
+    assert len(RDFS_RULES) >= 1

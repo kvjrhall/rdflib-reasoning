@@ -21,15 +21,25 @@ from .proof import (
 )
 from .rules import (
     Builtins,
+    CallbackConsequent,
     CallbackHook,
     ContextData,
+    PatternTerm,
+    PredicateCondition,
     PredicateHook,
     Rule,
+    RuleCondition,
+    RuleConsequent,
     RuleContext,
+    TripleCondition,
+    TripleConsequent,
+    TriplePattern,
 )
+from .rulesets import RDFS_RULES
 
 __all__ = [
     "Builtins",
+    "CallbackConsequent",
     "CallbackHook",
     "AuthorityReference",
     "ContradictionClaim",
@@ -39,11 +49,16 @@ __all__ = [
     "DirectProof",
     "ExplanationReconstructor",
     "FatalRuleError",
+    "PatternTerm",
+    "PredicateCondition",
     "PredicateHook",
     "ProofLeaf",
+    "RDFS_RULES",
     "RETEEngine",
     "RETEEngineFactory",
     "Rule",
+    "RuleCondition",
+    "RuleConsequent",
     "RuleApplication",
     "RuleDescription",
     "RuleContext",
@@ -51,6 +66,9 @@ __all__ = [
     "SourceSpan",
     "StructuralClaim",
     "TextClaim",
+    "TripleCondition",
+    "TripleConsequent",
+    "TriplePattern",
     "TripleFact",
     "VariableBinding",
 ]

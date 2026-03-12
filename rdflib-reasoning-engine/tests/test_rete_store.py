@@ -3,20 +3,32 @@ from typing import Any
 
 import pytest
 from rdflib import Dataset, Graph, Namespace
+from rdflib.namespace import RDF
 from rdflib.plugins.stores.memory import Memory
 from rdflib.store import VALID_STORE, Store
-from rdflib.term import BNode
+from rdflib.term import BNode, Variable
 from rdflibr.engine.api import RETEEngine, RETEEngineFactory
 from rdflibr.engine.batch_dispatcher import TripleAddedBatchEvent
 from rdflibr.engine.proof import RuleId
 from rdflibr.engine.rete_store import RETEStore
-from rdflibr.engine.rules import Rule
+from rdflibr.engine.rules import Rule, TripleCondition, TripleConsequent, TriplePattern
 
 _NS = Namespace("https://example.org/")
+_X = Variable("x")
 
 
 class DummyRule(Rule):
     id: RuleId = RuleId(ruleset="test", rule_id="dummy-rule")
+    body: tuple[TripleCondition, ...] = (
+        TripleCondition(
+            pattern=TriplePattern(subject=_X, predicate=RDF.type, object=_X)
+        ),
+    )
+    head: tuple[TripleConsequent, ...] = (
+        TripleConsequent(
+            pattern=TriplePattern(subject=_X, predicate=RDF.type, object=_X)
+        ),
+    )
 
 
 class DummyEngine(RETEEngine):

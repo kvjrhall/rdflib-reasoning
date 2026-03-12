@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 from rdflib import BNode, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
+from rdflib.term import Variable
 from rdflibr.engine.proof import (
     AuthorityReference,
     ContradictionClaim,
@@ -14,7 +15,7 @@ from rdflibr.engine.proof import (
     TripleFact,
     VariableBinding,
 )
-from rdflibr.engine.rules import Rule
+from rdflibr.engine.rules import Rule, TripleCondition, TripleConsequent, TriplePattern
 
 
 def test_triple_fact_uses_discriminated_kind() -> None:
@@ -75,6 +76,31 @@ def test_direct_proof_supports_rule_application_tree() -> None:
             rule_id="rdfs9",
         ),
         description=rule_description,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(
+                    subject=Variable("x"),
+                    predicate=RDFS.subClassOf,
+                    object=Variable("y"),
+                )
+            ),
+            TripleCondition(
+                pattern=TriplePattern(
+                    subject=Variable("a"),
+                    predicate=RDF.type,
+                    object=Variable("x"),
+                )
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=Variable("a"),
+                    predicate=RDF.type,
+                    object=Variable("y"),
+                )
+            ),
+        ),
     )
 
     proof = DirectProof(

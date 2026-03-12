@@ -1,16 +1,35 @@
 from collections.abc import Iterable
 
 import pytest
-from rdflib.term import BNode
+from rdflib.namespace import RDF
+from rdflib.term import BNode, Variable
 from rdflibr.engine.api import RETEEngine, RETEEngineFactory
 from rdflibr.engine.proof import RuleId
-from rdflibr.engine.rules import ContextData, Rule
+from rdflibr.engine.rules import (
+    ContextData,
+    Rule,
+    TripleCondition,
+    TripleConsequent,
+    TriplePattern,
+)
+
+_X = Variable("x")
 
 
 class DummyRule(Rule):
     """Concrete Rule subclass for type-checking purposes."""
 
     id: RuleId = RuleId(ruleset="test", rule_id="dummy-rule")
+    body: tuple[TripleCondition, ...] = (
+        TripleCondition(
+            pattern=TriplePattern(subject=_X, predicate=RDF.type, object=_X)
+        ),
+    )
+    head: tuple[TripleConsequent, ...] = (
+        TripleConsequent(
+            pattern=TriplePattern(subject=_X, predicate=RDF.type, object=_X)
+        ),
+    )
 
 
 class WarmupEngine(RETEEngine):
