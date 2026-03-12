@@ -65,6 +65,7 @@ Status values:
 | Inference execution | Not started | Trigger rule materialization against current dataset state |
 | Direct proof generation | Not started | Return a `DirectProof` for a supplied claim, structural element, or contradiction |
 | Derivation trace access | Not started | Expose rule-level derivation traces produced by the engine |
+| Proof rendering | Not started | Render canonical proof objects into notebook-friendly or other human-facing views without changing the underlying proof data |
 | Consistency / contradiction checks | Not started | Detect and report contradictions or unsatisfiable states |
 
 ### Concrete middleware profiles
