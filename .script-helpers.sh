@@ -60,49 +60,99 @@ function trim_string() {
 	printf '%s' "$var"
 }
 
+# Portable canonical path (resolve symlinks). Works on macOS and Linux.
+# Must not trigger errexit so trap handlers can safely call this.
+function resolve_path() {
+	local path="$1"
+	local dir base
+	if [[ -z "$path" ]]; then echo ""; return 0; fi
+	(realpath -q "$path" 2>/dev/null) && return 0
+	(readlink -f "$path" 2>/dev/null) && return 0
+	dir=$(cd -P "$(dirname "$path")" 2>/dev/null && pwd)
+	base=$(basename "$path")
+	if [[ -n "$dir" ]]; then echo "$dir/$base"; else echo "$path"; fi
+	return 0
+}
+
+# Portable relative path from base to target. Pure bash.
+# Must not trigger errexit; avoid infinite loop on bad input.
+function relative_path() {
+	local target="$1" base="$2"
+	[[ -z "$target" || -z "$base" ]] && { echo "$target"; return 0; }
+	[[ "$target" != /* ]] && target=$(resolve_path "$target")
+	[[ "$base" != /* ]] && base=$(resolve_path "$base")
+	base="${base%/}/"
+	local result="" count=0
+	while [[ "${target#"$base"}" == "$target" ]]; do
+		((++count)); [[ $count -gt 100 ]] && { echo "$target"; return 0; }
+		base=$(dirname "$base")
+		base="${base%/}/"
+		result="../${result}"
+		[[ "$base" == "/" ]] && { result="${target#/}"; echo "${result#/}"; return 0; }
+	done
+	result="${result}${target#"$base"}"
+	echo "${result#./}"
+	return 0
+}
+
 function stack_frame() {
+	set +e
 	local depth=$(("$1" + 1))
 	shift 1
 	local format="${*}"
 
-	local funcName="${FUNCNAME[$depth]}"
-	local lineNumber="${BASH_LINENO[$((depth - 1))]}"
-	local sourceFile="${SCRIPT_DIR}/${BASH_SOURCE[$depth]}"
-	sourceFile=$(readlink -f "${sourceFile}")
-	sourceFile=$(realpath --relative-to="${SCRIPT_DIR}" "${sourceFile}")
+	local funcName="${FUNCNAME[$depth]:-?}"
+	local lineNumber="${BASH_LINENO[$((depth - 1))]:-?}"
+	local rawSource="${BASH_SOURCE[$depth]:-}"
+	local sourceFile="${SCRIPT_DIR}/${rawSource}"
+	sourceFile=$(resolve_path "${sourceFile}")
+	local relFile
+	relFile=$(relative_path "${sourceFile}" "${SCRIPT_DIR}")
+	[[ -z "$relFile" ]] && relFile="${sourceFile:-$rawSource}"
 
 	local sourceCode=""
-	if [[ "${format}" = "table" ]]; then
-		sourceCode=$(sed "${lineNumber}q;d" "$(readlink -f "${SCRIPT_DIR}/$sourceFile")")
-		sourceCode=$(echo -e "${sourceCode}" | head -n 1)
-		sourceCode=$(trim_string "${sourceCode}")
-		sourceCode="=${sourceCode}"
+	if [[ "${format}" = "table" && -n "$sourceFile" ]]; then
+		local resolved
+		resolved=$(resolve_path "${sourceFile}")
+		if [[ -r "${resolved}" ]]; then
+			sourceCode=$(sed -n "${lineNumber}p" "$resolved" 2>/dev/null) || true
+			sourceCode=$(trim_string "${sourceCode}")
+			sourceCode="=${sourceCode}"
+		fi
 	fi
-	echo "$funcName($sourceFile:$lineNumber)${sourceCode}"
+
+	# Prefer workspace-relative paths: if the path starts with WORKSPACE_DIR (or PWD), strip that prefix.
+	local displayFile="$relFile"
+	if [[ "$displayFile" == /* ]]; then
+		local base="${WORKSPACE_DIR:-$PWD}"
+		base="${base%/}"
+		if [[ -n "$base" && "$displayFile" == "$base"* ]]; then
+			displayFile="${displayFile#"$base"/}"
+		fi
+	fi
+
+	echo "$funcName($displayFile:$lineNumber)${sourceCode}"
+	set -e 2>/dev/null || true
 }
 
 function get_stack() {
+	set +e
 	local start=${1:-1}
 	local indent=''
 	local stack=""
+	local i
 	for ((i = start; i < ${#FUNCNAME[@]}; i++)); do
 		local newline
 		if [[ $i -eq $start ]]; then newline=''; else newline=$'\n'; fi
-		stack+="${newline}${indent}$(stack_frame $i "${2:-}")"
+		stack+="${newline}${indent}$(stack_frame $i "${2:-}")" || stack+="${newline}${indent}?(stack_frame failed)"
 	done
-	echo -e "$stack" | column --table-columns-limit 2 --separator "=" --table
-
-	# local frame=0 lineNumber funcName fileName
-	# while read lineNumber funcName fileName < <(caller $frame); do
-	#     printf '  %s @ %s:%s' "${funcName}" "${fileName}" "${lineNumber}"
-	#     ((frame++))
-	# done
-	#
-	# local i lineNumber funcName fileName
-	# for (( i=0; i<${#FUNCNAME[@]}; i++ )); do
-	#     read lineNumber funcName fileName < <(caller $i)
-	#     printf '  %s @ %s:%s' "${funcName}\n" "${fileName}" "${lineNumber}"
-	# done
+	# Portable: macOS column has different options than GNU column
+	if column -t -s '=' 2>/dev/null <<< "$stack" | head -1 >/dev/null 2>&1; then
+		echo -e "$stack" | column -t -s '='
+	else
+		echo -e "$stack"
+	fi
+	set -e 2>/dev/null || true
 }
 
 # Print an iso-8601 timestamp (converting UTC offsets to Z)
@@ -124,7 +174,7 @@ declare -a LOGGER
 LOGGER+=("$(basename "${BASH_SOURCE[0]}")")
 
 function push_logger() {
-	LOGGER+=("$(basename "${BASH_SOURCE[1]}")")
+	LOGGER+=("$(basename "${BASH_SOURCE[1]:-.script-helpers.sh}")")
 }
 function pop_logger() {
 	unset "LOGGER[${#LOGGER[@]}-1]"
@@ -172,7 +222,7 @@ function _logany() {
 	readonly message
 
 	local call_site
-	call_site=$(printf "%20s:%-3s" "${LOGGER[${#LOGGER[@]} - 1]}" "${BASH_LINENO[1]}")
+	call_site=$(printf "%20s:%-3s" "${LOGGER[${#LOGGER[@]} - 1]:-?}" "${BASH_LINENO[1]:-?}")
 	readonly call_site
 
 	# shellcheck disable=SC2059
@@ -193,15 +243,23 @@ function logfail() { _logany "FAIL" "${@}"; }
 # -----------------------------------------------------------------------------
 function errexit() {
 	local code=$?
+	set +e
 	push_logger
 	logfail "script terminating unexpectedly with code=${code}\n$(get_stack 1)"
+	set -e 2>/dev/null || true
 }
 trap errexit EXIT
 
 function onerr() {
 	local code=$?
+	set +e
+	set +u
 	push_logger
-	logfail "command exited with error; code=${code}\n$(get_stack 1 'table')"
+	local stack_msg
+	stack_msg=$(get_stack 1 'table') || stack_msg="(get_stack failed)"
+	logfail "command exited with error; code=${code}\n${stack_msg}"
+	set -e 2>/dev/null || true
+	set -u 2>/dev/null || true
 }
 trap onerr ERR
 

@@ -32,6 +32,7 @@ validate: check  # run mypy type check & all pre-commit hooks
 
 specs-fetch:  # fetch raw W3C specs into docs/specs/<name>/raw.html
 	bash docs/specs/fetch-w3c.sh
+	bash docs/specs/jena-inspiration/fetch-jena.sh
 
 specs-normalize:  # normalize each existing raw.html to optimized.html
 	for raw in docs/specs/*/raw.html; do \
