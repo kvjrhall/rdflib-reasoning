@@ -442,3 +442,56 @@ def test_network_matcher_persists_beta_memory_across_incremental_updates() -> No
     assert len(joined_actions) == 1
     assert len(repeated_actions) == 0
     assert matcher.beta_memory_size(beta_key) == 1
+
+
+def test_network_matcher_fans_shared_matches_out_to_multiple_terminals() -> None:
+    x = Variable("x")
+    shared_body = (
+        TripleCondition(
+            pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+        ),
+    )
+    first_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="first-shared"),
+        description=RuleDescription(label="First shared"),
+        body=shared_body,
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=x,
+                    predicate=RDFS.subClassOf,
+                    object=RDFS.Resource,
+                )
+            ),
+        ),
+        salience=1,
+    )
+    second_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="second-shared"),
+        description=RuleDescription(label="Second shared"),
+        body=shared_body,
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        salience=2,
+    )
+    builder = NetworkBuilder()
+    terminals = builder.build_rules(
+        (
+            RuleCompiler.compile_rule(first_rule),
+            RuleCompiler.compile_rule(second_rule),
+        )
+    )
+    matcher = NetworkMatcher(builder.registry)
+
+    actions = matcher.match_terminals(
+        terminals,
+        ((URIRef("urn:test:A"), RDF.type, RDFS.Class),),
+    )
+
+    assert [action.rule_id.rule_id for action in actions] == [
+        "first-shared",
+        "second-shared",
+    ]

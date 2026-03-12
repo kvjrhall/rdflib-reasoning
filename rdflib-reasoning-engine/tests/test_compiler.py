@@ -13,6 +13,7 @@ from rdflibr.engine import (
 )
 from rdflibr.engine.rete import (
     ActionInstance,
+    Agenda,
     Fact,
     JoinOptimizer,
     PartialMatch,
@@ -156,3 +157,39 @@ def test_action_instance_and_partial_match_capture_normalized_runtime_state() ->
     assert action.kind == "mixed"
     assert action.depth == 2
     assert action.bindings["x"] == URIRef("urn:test:s")
+
+
+def test_agenda_orders_actions_by_salience_then_depth_then_insertion_order() -> None:
+    high_salience = ActionInstance(
+        rule_id=RuleId(ruleset="test", rule_id="high-salience"),
+        bindings={},
+        salience=10,
+        depth=3,
+    )
+    shallow = ActionInstance(
+        rule_id=RuleId(ruleset="test", rule_id="shallow"),
+        bindings={},
+        salience=5,
+        depth=0,
+    )
+    deep = ActionInstance(
+        rule_id=RuleId(ruleset="test", rule_id="deep"),
+        bindings={},
+        salience=5,
+        depth=2,
+    )
+    shallow_later = ActionInstance(
+        rule_id=RuleId(ruleset="test", rule_id="shallow-later"),
+        bindings={},
+        salience=5,
+        depth=0,
+    )
+
+    agenda = Agenda((deep, shallow, high_salience, shallow_later))
+
+    assert [action.rule_id.rule_id for action in agenda] == [
+        "high-salience",
+        "shallow",
+        "shallow-later",
+        "deep",
+    ]
