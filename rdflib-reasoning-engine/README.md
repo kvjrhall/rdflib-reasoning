@@ -62,11 +62,11 @@ This matrix tracks functional engine features independent of standards coverage.
 | --- | --- | --- |
 | Alpha memory / node support | Not started | RETE alpha-side filtering and storage |
 | Beta memory / join node support | Not started | RETE beta-side joins and partial match propagation |
-| Triple pattern matching | Not started | Matching RDF triples against rule antecedents |
-| Rule firing and agenda management | Not started | Scheduling and executing rule activations |
-| Inference materialization | Not started | Emitting derived triples into working memory or output graphs |
-| Builtin predicate / function support | Not started | Datatype, comparison, and other builtin evaluation hooks |
-| Rule action callbacks | Not started | Allow host-provided code to run when a rule fires |
+| Triple pattern matching | In progress | Public Rule IR and compiler normalization now model RDFLib-variable triple patterns and alpha constraints |
+| Rule firing and agenda management | In progress | `salience`, `depth`, and `ActionInstance` scaffolding exist, but no agenda executor is wired yet |
+| Inference materialization | In progress | `RETEStore` materializes engine outputs, but compiled logical productions are not yet executed end-to-end |
+| Builtin predicate / function support | In progress | Predicate conditions and compiler validation exist; runtime predicate evaluation is not yet wired |
+| Rule action callbacks | In progress | Callback consequents and normalized callback schedules exist; runtime callback execution is not yet wired |
 | Derivation / trace logging | In progress | Engine-native `DerivationRecord` scaffolding for captured rule applications and justifications |
 | Explanation reconstruction | In progress | Reifying derivation logs into `DirectProof` or related proof structures |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
