@@ -71,4 +71,9 @@ This matrix tracks functional engine features independent of standards coverage.
 | Explanation reconstruction | In progress | Reifying derivation logs into `DirectProof` or related proof structures |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
 
+## Current integration baseline
+
+The supported RDFLib integration path is `Store` events -> `BatchDispatcher` ->
+`RETEStore` -> `RETEEngine`.
+
 The `rdflib-reasoning-engine` package is part of the `rdflib-reasoning` metapackage.
