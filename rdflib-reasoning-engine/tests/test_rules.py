@@ -1,0 +1,118 @@
+import pytest
+from pydantic import ValidationError
+from rdflib.namespace import RDF, RDFS
+from rdflib.term import Variable
+from rdflibr.engine import (
+    RDFS_RULES,
+    CallbackConsequent,
+    PredicateCondition,
+    Rule,
+    RuleDescription,
+    RuleId,
+    TripleCondition,
+    TripleConsequent,
+    TriplePattern,
+)
+
+
+def test_rule_ir_uses_rdflib_variables_in_patterns() -> None:
+    x = Variable("x")
+    p = Variable("p")
+    y = Variable("y")
+
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="triple-copy"),
+        description=RuleDescription(label="Copy matched triple"),
+        body=(
+            TripleCondition(pattern=TriplePattern(subject=x, predicate=p, object=y)),
+        ),
+        head=(
+            TripleConsequent(pattern=TriplePattern(subject=x, predicate=p, object=y)),
+        ),
+    )
+
+    assert rule.body[0].kind == "triple"
+    assert rule.head[0].kind == "triple"
+    assert rule.body[0].pattern.subject == x
+    assert rule.head[0].pattern.object == y
+
+
+def test_rule_ir_supports_body_predicates_and_callback_consequents() -> None:
+    x = Variable("x")
+
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="predicate-and-callback"),
+        description=RuleDescription(label="Predicate and callback"),
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+            PredicateCondition(predicate="not_literal", arguments=(x,)),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDFS.subClassOf, object=x)
+            ),
+            CallbackConsequent(callback="trace_rule", arguments=(x,)),
+        ),
+        salience=10,
+    )
+
+    assert rule.body[1].kind == "predicate"
+    assert rule.head[1].kind == "callback"
+    assert rule.salience == 10
+
+
+def test_rule_validation_rejects_empty_body() -> None:
+    x = Variable("x")
+
+    with pytest.raises(ValidationError, match="at least 1 item"):
+        Rule(
+            id=RuleId(ruleset="test", rule_id="empty-body"),
+            description=RuleDescription(label="Empty body"),
+            body=(),
+            head=(
+                TripleConsequent(
+                    pattern=TriplePattern(subject=x, predicate=RDF.type, object=x)
+                ),
+            ),
+        )
+
+
+def test_rule_validation_rejects_empty_head() -> None:
+    x = Variable("x")
+
+    with pytest.raises(ValidationError, match="at least 1 item"):
+        Rule(
+            id=RuleId(ruleset="test", rule_id="empty-head"),
+            description=RuleDescription(label="Empty head"),
+            body=(
+                TripleCondition(
+                    pattern=TriplePattern(subject=x, predicate=RDF.type, object=x)
+                ),
+            ),
+            head=(),
+        )
+
+
+def test_rdfs_rule_examples_cover_core_entailment_shapes() -> None:
+    rule_ids = {rule.id.rule_id for rule in RDFS_RULES}
+
+    assert {"rdfs2", "rdfs3", "rdfs5", "rdfs7", "rdfs9"} <= rule_ids
+
+    rdfs2 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs2")
+    assert len(rdfs2.body) == 2
+    assert isinstance(rdfs2.body[0], TripleCondition)
+    assert rdfs2.head[0].pattern.predicate == RDF.type
+
+    rdfs7 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs7")
+    assert rdfs7.head[0].pattern.subject == Variable("x")
+    assert rdfs7.head[0].pattern.object == Variable("y")
+
+    all_reference_uris = {
+        str(reference.uri)
+        for rule in RDFS_RULES
+        if rule.description is not None
+        for reference in rule.description.references
+    }
+    assert "https://www.w3.org/TR/rdf11-mt/#RDFS_Interpretations" in all_reference_uris

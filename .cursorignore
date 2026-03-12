@@ -1,7 +1,15 @@
-# We need to explicitly override the gitignore so that cursor can see the content
+# The Development Agent shouldn't see example 'Development Agent' chats
 docs/example-chats/*
 !docs/example-chats/AGENTS.md
+
+# We need to explicitly override the gitignore so that Development Agent can see the content
+!docs/portfolio/*
+
+!docs/specs/jena-inspiration/jena-docs/*
+!docs/specs/jena-inspiration/jena-source/*
+
 !docs/specs/owl2-conformance/*
+!docs/specs/owl2-crosswalks/*
 !docs/specs/owl2-mapping-to-rdf/*
 !docs/specs/owl2-overview/*
 !docs/specs/owl2-reasoning-profiles/*

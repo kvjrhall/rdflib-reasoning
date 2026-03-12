@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 from itertools import chain
-from typing import Self
+from typing import ClassVar, Literal, Self, get_args, get_origin, get_type_hints
 
-from pydantic import BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 from rdflib import RDF, IdentifiedNode
 
 from .common import ContextIdentifier, Quad, Triple
@@ -24,6 +24,29 @@ class GraphBacked(BaseModel, ABC):
     context: ContextIdentifier = Field(
         ..., description="The graph (context) wherein this entity is defined."
     )
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+    _require_concrete_kind: ClassVar[bool] = True
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs) -> None:
+        super().__pydantic_init_subclass__(**kwargs)
+
+        if cls is GraphBacked or not cls._require_concrete_kind:
+            return
+
+        annotation = get_type_hints(cls, include_extras=True).get("kind")
+        if annotation is None:
+            raise TypeError(f"{cls.__name__} MUST define `kind: Literal[...]`.")
+
+        if get_origin(annotation) is not Literal:
+            raise TypeError(f"{cls.__name__}.kind MUST be typed as `Literal[...]`.")
+
+        values = get_args(annotation)
+        if len(values) != 1 or not isinstance(values[0], str):
+            raise TypeError(
+                f"{cls.__name__}.kind MUST be a single string `Literal`, "
+                'e.g. `Literal["my_kind"]`.'
+            )
 
 
 class StructuralElement(GraphBacked, ABC):
@@ -36,14 +59,16 @@ class StructuralElement(GraphBacked, ABC):
     as_triples MUST NOT recurse into related elements.
     """
 
-    @abstractmethod
+    _require_concrete_kind: ClassVar[bool] = False
+
     @property
+    @abstractmethod
     def name(self) -> IdentifiedNode:
         """Canonical identifier for this element; SHOULD be the subject of a rdf:type triple."""
         pass
 
-    @abstractmethod
     @property
+    @abstractmethod
     def as_triples(self) -> Sequence[Triple]:
         """Triples representing this element as RDF; MUST NOT recurse into related elements."""
         pass
@@ -56,6 +81,8 @@ class StructuralElement(GraphBacked, ABC):
 
 class Seq[T: StructuralElement](StructuralElement):
     """A Sequence of Structural Elements and their corresponding `rdf:List` nodes."""
+
+    kind: Literal["seq"] = "seq"
 
     names: Sequence[IdentifiedNode] = Field(
         ...,
@@ -111,3 +138,17 @@ class Seq[T: StructuralElement](StructuralElement):
                     "ContextIdentifier for all elements in this sequence."
                 )
         return self
+
+
+class DeclarationElement(StructuralElement, ABC):
+    _require_concrete_kind: ClassVar[bool] = False
+
+    @property
+    @abstractmethod
+    def rdf_type(self) -> IdentifiedNode:
+        pass
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def as_triples(self) -> Sequence[Triple]:
+        return ((self.name, RDF.type, self.rdf_type),)

@@ -16,8 +16,8 @@ from rdflib.store import VALID_STORE, Store
 from rdflib.term import Identifier
 from rdflibr.axiom.common import ContextIdentifier, Triple
 
+from .api import RETEEngine, RETEEngineFactory
 from .batch_dispatcher import BatchDispatcher, TripleAddedBatchEvent
-from .rete_engine import RETEEngine, RETEEngineFactory
 
 # Return type for open(): rdflib stores use 1, 0, -1 (VALID_STORE, CORRUPTED_STORE, NO_STORE)
 _OpenResult = Literal[1, 0, -1] | None

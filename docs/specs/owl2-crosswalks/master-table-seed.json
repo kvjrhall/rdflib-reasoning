@@ -1,0 +1,1550 @@
+{
+  "status_vocabulary": {
+    "Confirmed": "Reviewed and usable as a cross-spec bridge for Development Agent retrieval.",
+    "Partial": "Useful bridge with at least one unresolved or approximate cross-spec association.",
+    "Seeded": "Coverage placeholder present for planning and retrieval, but major associations still need curation."
+  },
+  "rows": [
+    {
+      "structural_element_subtype": "SubClassOf",
+      "owl_structural_construct": "SubClassOf",
+      "mapping_to_rdf_construct_id": "SubClassOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_RDFS_Vocabulary"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cax-sco",
+        "scm-sco"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs9",
+        "rdfs11"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "Subclass propagation rules are operational evidence for a SubClassOf proof step, but schema-closure rules may reflect background closure rather than a directly asserted source axiom.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "EquivalentClasses",
+      "owl_structural_construct": "EquivalentClasses",
+      "mapping_to_rdf_construct_id": "EquivalentClasses",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cax-eqc1",
+        "cax-eqc2",
+        "scm-eqc1",
+        "scm-eqc2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "EquivalentClasses often reconstructs from paired subclass-style consequences. A trace that uses cax-eqc1 or cax-eqc2 alone is usually partial evidence rather than a complete reconstructed axiom.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "DisjointClasses",
+      "owl_structural_construct": "DisjointClasses",
+      "mapping_to_rdf_construct_id": "DisjointClasses",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cax-dw"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "cax-dw gives direct operational support for pairwise disjointness; reconstruction still needs the source disjointness triple rather than just the derived contradiction pattern.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "DisjointClasses",
+      "owl_structural_construct": "DisjointClassesNary",
+      "mapping_to_rdf_construct_id": "DisjointClassesNary",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_N-ary_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cax-adc"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "N-ary disjointness is operationalized through list-oriented support. The trace usually identifies the list structure plus pairwise consequences, so reconstructed proof objects may need an aggregation step.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DisjointUnion",
+      "owl_structural_construct": "DisjointUnion",
+      "mapping_to_rdf_construct_id": "DisjointUnion",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness",
+        "Semantic_Conditions_for_N-ary_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cax-eqc1",
+        "cax-eqc2",
+        "cax-adc"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "DisjointUnion combines equivalence and n-ary disjointness. No single RL rule identifies the construct, so reconstruction needs to compose evidence from both families.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "ObjectIntersectionOf",
+      "owl_structural_construct": "ObjectIntersectionOf",
+      "mapping_to_rdf_construct_id": "ObjectIntersectionOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Boolean_Connectives"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-int1",
+        "cls-int2",
+        "scm-int"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "Intersection traces usually include both decomposition and introduction style steps. The originating list structure is needed to reconstruct the full class expression rather than only its consequences.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "ObjectUnionOf",
+      "owl_structural_construct": "ObjectUnionOf",
+      "mapping_to_rdf_construct_id": "ObjectUnionOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Boolean_Connectives"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-uni",
+        "scm-uni"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "Union support is tied to RDF list structure plus class membership propagation. Reconstruction should preserve the original operand ordering only if the consuming proof format cares about it.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "ObjectComplementOf",
+      "owl_structural_construct": "ObjectComplementOf",
+      "mapping_to_rdf_construct_id": "ObjectComplementOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Boolean_Connectives"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-com"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "Complement reasoning is often observed indirectly through inconsistency-producing steps. The explicit complement triple is the safer reconstruction pivot.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "ObjectOneOf",
+      "owl_structural_construct": "ObjectOneOf",
+      "mapping_to_rdf_construct_id": "ObjectOneOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Enumerations"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-oo"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "Enumeration support depends on the RDF list that names the individuals. Reconstruct the full ObjectOneOf expression from that list, not just the derived class assertions.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "ObjectSomeValuesFrom",
+      "owl_structural_construct": "ObjectSomeValuesFrom",
+      "mapping_to_rdf_construct_id": "ObjectSomeValuesFrom",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-svf1",
+        "cls-svf2",
+        "scm-svf1",
+        "scm-svf2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Existential restriction traces may include witness-style intermediate nodes. Preserve the restriction structure and property target rather than treating the witness as part of the final proof object.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "ObjectAllValuesFrom",
+      "owl_structural_construct": "ObjectAllValuesFrom",
+      "mapping_to_rdf_construct_id": "ObjectAllValuesFrom",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-avf",
+        "scm-avf1",
+        "scm-avf2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Universal restriction support often appears as propagated type assertions on property successors. Reconstruction should reattach those consequences to the originating allValuesFrom structure.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "ObjectHasValue",
+      "owl_structural_construct": "ObjectHasValue",
+      "mapping_to_rdf_construct_id": "ObjectHasValue",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-hv1",
+        "cls-hv2",
+        "scm-hv"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "HasValue reasoning couples a property assertion with an equality check on the target. The explicit hasValue filler should remain part of the reconstructed class expression.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "ObjectMaxCardinality",
+      "owl_structural_construct": "ObjectMaxCardinality",
+      "mapping_to_rdf_construct_id": "ObjectMaxCardinality",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-maxc1",
+        "cls-maxc2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Unqualified max-cardinality support is identifiable, but proof reconstruction may need explicit equality-merging steps to explain why two fillers collapse.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "ObjectMaxCardinality",
+      "owl_structural_construct": "ObjectMaxCardinalityQualified",
+      "mapping_to_rdf_construct_id": "ObjectMaxCardinalityQualified",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cls-maxqc1",
+        "cls-maxqc2",
+        "cls-maxqc3",
+        "cls-maxqc4"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Qualified max-cardinality combines counting pressure with a qualifier class. Reconstruction should keep both the bound and the qualifier, even if the trace only exposes equality consequences.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "SubObjectPropertyOf",
+      "owl_structural_construct": "SubObjectPropertyOf",
+      "mapping_to_rdf_construct_id": "SubObjectPropertyOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_RDFS_Vocabulary"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-spo1",
+        "scm-spo"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs5",
+        "rdfs7"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Subproperty traces can arise from asserted property hierarchies or schema closure. The asserted subPropertyOf triple is the right proof-object pivot when available.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "SubObjectPropertyOf",
+      "owl_structural_construct": "SubObjectPropertyOfChain",
+      "mapping_to_rdf_construct_id": "SubObjectPropertyOfChain",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Sub_Property_Chains"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-spo2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Property-chain support is one of the clearer cases for trace-to-axiom reconstruction because the rule is already tied to the chain list structure.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "EquivalentObjectProperties",
+      "owl_structural_construct": "EquivalentObjectProperties",
+      "mapping_to_rdf_construct_id": "EquivalentObjectProperties",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-eqp1",
+        "prp-eqp2",
+        "scm-eqp1",
+        "scm-eqp2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "EquivalentObjectProperties usually reconstructs from two directional property inclusions. One directional trace is evidence, not the whole axiom.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "DisjointObjectProperties",
+      "owl_structural_construct": "DisjointObjectProperties",
+      "mapping_to_rdf_construct_id": "DisjointObjectProperties",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-pdw"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Pairwise property disjointness is directly represented, but traces may surface only through contradiction-style consequences or allDifferent support around fillers.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DisjointObjectProperties",
+      "owl_structural_construct": "DisjointObjectPropertiesNary",
+      "mapping_to_rdf_construct_id": "DisjointObjectPropertiesNary",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_N-ary_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-adp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "N-ary disjoint properties depend on list structure, so proof reconstruction should aggregate the participating properties rather than emitting only pairwise fragments.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "ObjectPropertyDomain",
+      "owl_structural_construct": "ObjectPropertyDomain",
+      "mapping_to_rdf_construct_id": "ObjectPropertyDomain",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Properties",
+        "Semantic_Conditions_for_the_RDFS_Vocabulary"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-dom",
+        "scm-dom1",
+        "scm-dom2"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs2"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "prp-dom operationalizes the consequence of a domain axiom. Reconstruction to ObjectPropertyDomain needs the originating domain triple pattern, not just an entailed type assertion.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "ObjectPropertyRange",
+      "owl_structural_construct": "ObjectPropertyRange",
+      "mapping_to_rdf_construct_id": "ObjectPropertyRange",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Properties",
+        "Semantic_Conditions_for_the_RDFS_Vocabulary"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-rng",
+        "scm-rng1",
+        "scm-rng2"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs3"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Range traces are usually seen as type propagation on property objects. Reconstruct the ObjectPropertyRange axiom from the source range triple, not from the propagated class assertion alone.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "InverseObjectProperties",
+      "owl_structural_construct": "InverseObjectProperties",
+      "mapping_to_rdf_construct_id": "InverseObjectProperties",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Inverse_Properties"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-inv1",
+        "prp-inv2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "InverseObjectProperties is relatively direct: the trace usually exposes both directions. Reconstruction should still preserve the original property pair instead of collapsing to symmetric assertions.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "FunctionalObjectProperty",
+      "owl_structural_construct": "FunctionalObjectProperty",
+      "mapping_to_rdf_construct_id": "FunctionalObjectProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Characteristics"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-fp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Functional-property traces typically produce equality between fillers. The reconstructed axiom should refer to the property characteristic, not only the induced sameAs step.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "InverseFunctionalObjectProperty",
+      "owl_structural_construct": "InverseFunctionalObjectProperty",
+      "mapping_to_rdf_construct_id": "InverseFunctionalObjectProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Characteristics"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-ifp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Inverse-functional traces collapse subjects that share an object. The axiom-level proof step should remain property-centric rather than equality-centric.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "IrreflexiveObjectProperty",
+      "owl_structural_construct": "IrreflexiveObjectProperty",
+      "mapping_to_rdf_construct_id": "IrreflexiveObjectProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Characteristics"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-irp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Irreflexivity is usually visible only when a self-edge yields inconsistency. The source irreflexive property declaration should anchor the proof object.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "SymmetricObjectProperty",
+      "owl_structural_construct": "SymmetricObjectProperty",
+      "mapping_to_rdf_construct_id": "SymmetricObjectProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Characteristics"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-symp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Symmetry produces the reverse property assertion operationally. Reconstruction should point back to the property characteristic rather than treating the reverse edge as a standalone source fact.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "AsymmetricObjectProperty",
+      "owl_structural_construct": "AsymmetricObjectProperty",
+      "mapping_to_rdf_construct_id": "AsymmetricObjectProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Characteristics"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-asyp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Asymmetry is typically observed through contradiction when both directions occur. Preserve the property characteristic as the proof step and treat the conflicting edges as evidence.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "TransitiveObjectProperty",
+      "owl_structural_construct": "TransitiveObjectProperty",
+      "mapping_to_rdf_construct_id": "TransitiveObjectProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Characteristics"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-trp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Transitivity is one of the more direct trace-to-axiom mappings: the derived edge is operational support for the declared transitive property.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "SubDataPropertyOf",
+      "owl_structural_construct": "SubDataPropertyOf",
+      "mapping_to_rdf_construct_id": "SubDataPropertyOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_RDFS_Vocabulary"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Data_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-spo1",
+        "scm-spo"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs5",
+        "rdfs7"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "The RL operational support is shared with generic subproperty reasoning, so the row is useful but still needs validation against data-property-specific traces.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "EquivalentDataProperties",
+      "owl_structural_construct": "EquivalentDataProperties",
+      "mapping_to_rdf_construct_id": "EquivalentDataProperties",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Data_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-eqp1",
+        "prp-eqp2",
+        "scm-eqp1",
+        "scm-eqp2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "EquivalentDataProperties likely shares the generic property-equivalence operational rules, but this row should still be validated against data-property-specific examples.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DisjointDataProperties",
+      "owl_structural_construct": "DisjointDataProperties",
+      "mapping_to_rdf_construct_id": "DisjointDataProperties",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Data_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-pdw"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "The RL rule support is generic to property disjointness; treat this as a useful but still reviewable mapping for data properties.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DisjointDataProperties",
+      "owl_structural_construct": "DisjointDataPropertiesNary",
+      "mapping_to_rdf_construct_id": "DisjointDataPropertiesNary",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_N-ary_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Data_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-adp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "N-ary data-property disjointness should be treated as a list-backed aggregate reconstruction, similar to the object-property case.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DataPropertyDomain",
+      "owl_structural_construct": "DataPropertyDomain",
+      "mapping_to_rdf_construct_id": "DataPropertyDomain",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Properties",
+        "Semantic_Conditions_for_the_RDFS_Vocabulary"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Data_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-dom",
+        "scm-dom1",
+        "scm-dom2"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs2"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "The operational support is shared with object-property domains. This row is usable, but we should still validate the data-property-specific reconstruction path.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DataPropertyRange",
+      "owl_structural_construct": "DataPropertyRange",
+      "mapping_to_rdf_construct_id": "DataPropertyRange",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Properties",
+        "Semantic_Conditions_for_Datatype_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Data_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-rng",
+        "dt-type2"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs3"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Data-property ranges mix generic range propagation with datatype membership support. The row is helpful now, but the datatype side needs closer validation.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "FunctionalDataProperty",
+      "owl_structural_construct": "FunctionalDataProperty",
+      "mapping_to_rdf_construct_id": "FunctionalDataProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Characteristics"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Data_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-fp"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "FunctionalDataProperty likely shares the generic functional-property operational rule, but this should be confirmed against datatype-valued traces.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DatatypeDefinition",
+      "owl_structural_construct": "DatatypeDefinition",
+      "mapping_to_rdf_construct_id": "DatatypeDefinition",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Datatype_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Datatype_Definitions",
+      "owl_2_rl_rules": [
+        "dt-eq",
+        "dt-diff",
+        "dt-not-type"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs1"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-datatype",
+        "item-axiomatic-rdfs-literal"
+      ],
+      "reconstruction_note": "DatatypeDefinition is not captured by a single RL rule family. The current links are intended as a starting point for datatype-oriented proof reconstruction rather than a finished mapping.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "HasKey",
+      "owl_structural_construct": "HasKey",
+      "mapping_to_rdf_construct_id": "HasKey",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Keys"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Keys",
+      "owl_2_rl_rules": [
+        "prp-key"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "HasKey has a dedicated RL rule, which makes it a good candidate for future trace-to-proof-object reconstruction.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "SameIndividual",
+      "owl_structural_construct": "SameIndividual",
+      "mapping_to_rdf_construct_id": "SameIndividual",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [
+        "eq-ref",
+        "eq-sym",
+        "eq-trans"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "sameAs closure is broader than a single asserted SameIndividual axiom. Reconstruct assertions from explicit sameAs support when possible, and treat closure-only steps as derived evidence.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "DifferentIndividuals",
+      "owl_structural_construct": "DifferentIndividuals",
+      "mapping_to_rdf_construct_id": "DifferentIndividuals",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [
+        "eq-diff1"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Pairwise DifferentIndividuals is directly supported, but traces are often easiest to interpret when paired with the conflicting sameAs evidence they block.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "DifferentIndividuals",
+      "owl_structural_construct": "DifferentIndividualsNary",
+      "mapping_to_rdf_construct_id": "DifferentIndividualsNary",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_N-ary_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [
+        "eq-diff2",
+        "eq-diff3"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "N-ary differentIndividuals support is list-backed. Reconstruction should aggregate the individual set rather than emit only pairwise fragments.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "NegativeObjectPropertyAssertion",
+      "owl_structural_construct": "NegativeObjectPropertyAssertion",
+      "mapping_to_rdf_construct_id": "NegativeObjectPropertyAssertion",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Negative_Property_Assertions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [
+        "prp-npa1",
+        "prp-npa2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Negative property assertions have dedicated RL support. These are strong candidates for direct proof-object reconstruction once the corresponding StructuralElement exists.",
+      "status": "Confirmed"
+    },
+    {
+      "structural_element_subtype": "NegativeDataPropertyAssertion",
+      "owl_structural_construct": "NegativeDataPropertyAssertion",
+      "mapping_to_rdf_construct_id": "NegativeDataPropertyAssertion",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Negative_Property_Assertions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [
+        "prp-npa1",
+        "prp-npa2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "The RL rule family is shared with negative object-property assertions. This row is a reasonable starting point, but it still needs confirmation against datatype-valued examples.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "ClassAssertion",
+      "owl_structural_construct": "ClassAssertion",
+      "mapping_to_rdf_construct_id": "ClassAssertion",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-resource",
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "ClassAssertion is central for proof objects, but its operational support is distributed across many rule families. This row is present mainly as a retrieval anchor for future refinement.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "ObjectPropertyAssertion",
+      "owl_structural_construct": "ObjectPropertyAssertion",
+      "mapping_to_rdf_construct_id": "ObjectPropertyAssertion",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-resource",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "ObjectPropertyAssertion is included as a target proof-object row, but we have not yet curated the distributed rule evidence that most often leads to it.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "ObjectPropertyAssertion",
+      "owl_structural_construct": "ObjectPropertyAssertionInverseOf",
+      "mapping_to_rdf_construct_id": "ObjectPropertyAssertionInverseOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Inverse_Properties"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [
+        "prp-inv1",
+        "prp-inv2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-resource",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "This assertion form is close to inverse-property support, but the proof object depends on whether the source syntax used an explicit inverse expression or an ordinary assertion.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DataPropertyAssertion",
+      "owl_structural_construct": "DataPropertyAssertion",
+      "mapping_to_rdf_construct_id": "DataPropertyAssertion",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Assertions",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-resource",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-literal"
+      ],
+      "reconstruction_note": "DataPropertyAssertion is included for coverage planning. Its operational support is still distributed enough that this row should be treated as a scaffold rather than a finished mapping.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "SEQ",
+      "owl_structural_construct": "SEQ",
+      "mapping_to_rdf_construct_id": "SEQ",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "SEQ is a repository helper for RDF list handling rather than an OWL axiom. It is included here because many mapping constructs depend on ordered RDF collections.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "Ontology",
+      "owl_structural_construct": "Ontology",
+      "mapping_to_rdf_construct_id": "Ontology",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "The ontology header is structurally important for proof containers and imports management, but it does not have direct OWL RL operational support.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "Ontology",
+      "owl_structural_construct": "imports",
+      "mapping_to_rdf_construct_id": "imports",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Ontology imports matter for closure and proof scope, but they are not represented by OWL RL entailment rules.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "Ontology",
+      "owl_structural_construct": "version",
+      "mapping_to_rdf_construct_id": "version",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Version metadata belongs in the inventory because it affects ontology identity and packaging, not because it has rule-level operational support.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DeclarationDatatype",
+      "owl_structural_construct": "DeclarationDatatype",
+      "mapping_to_rdf_construct_id": "DeclarationDatatype",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Parts_of_the_Universe"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Datatype declarations are inventory-important even though they do not map cleanly to dedicated OWL RL operational rules.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DeclarationClass",
+      "owl_structural_construct": "DeclarationClass",
+      "mapping_to_rdf_construct_id": "DeclarationClass",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Classes"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "reconstruction_note": "Class declarations help inventory structural intent even when no dedicated RL rule refers to the declaration itself.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DeclarationObjectProperty",
+      "owl_structural_construct": "DeclarationObjectProperty",
+      "mapping_to_rdf_construct_id": "DeclarationObjectProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Properties"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Object-property declarations are currently inventory rows rather than operational proof targets.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DeclarationDataProperty",
+      "owl_structural_construct": "DeclarationDataProperty",
+      "mapping_to_rdf_construct_id": "DeclarationDataProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Properties"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Data-property declarations are included for structural completeness and future feature-matrix alignment.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DeclarationAnnotationProperty",
+      "owl_structural_construct": "DeclarationAnnotationProperty",
+      "mapping_to_rdf_construct_id": "DeclarationAnnotationProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Properties"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Annotation-property declarations are tracked for inventory completeness; they are not part of the OWL RL entailment core.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "NamedIndividual",
+      "owl_structural_construct": "NamedIndividual",
+      "mapping_to_rdf_construct_id": "NamedIndividual",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Parts_of_the_Universe"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-resource"
+      ],
+      "reconstruction_note": "Named-individual declarations matter for structural inventory and future proof serialization, even though operational traces usually reference assertions instead.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "ObjectInverseOf",
+      "owl_structural_construct": "ObjectInverseOf",
+      "mapping_to_rdf_construct_id": "ObjectInverseOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Inverse_Properties"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "ObjectInverseOf is a structural building block used by multiple axiom forms. It deserves its own row even though the current operational mappings are indirect.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DataIntersectionOf",
+      "owl_structural_construct": "DataIntersectionOf",
+      "mapping_to_rdf_construct_id": "DataIntersectionOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Boolean_Connectives"
+      ],
+      "direct_semantics_anchor": "",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Data-range boolean connectives are structurally important, but the direct-semantics and operational links still need deeper curation.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DataUnionOf",
+      "owl_structural_construct": "DataUnionOf",
+      "mapping_to_rdf_construct_id": "DataUnionOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Boolean_Connectives"
+      ],
+      "direct_semantics_anchor": "",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "DataUnionOf is seeded with its semantic family, but still needs a more precise bridge into proof reconstruction workflows.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DataComplementOf",
+      "owl_structural_construct": "DataComplementOf",
+      "mapping_to_rdf_construct_id": "DataComplementOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Boolean_Connectives"
+      ],
+      "direct_semantics_anchor": "",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "DataComplementOf is inventory-complete here, but still awaits better operational and direct-semantics linkage.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DataOneOf",
+      "owl_structural_construct": "DataOneOf",
+      "mapping_to_rdf_construct_id": "DataOneOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Enumerations"
+      ],
+      "direct_semantics_anchor": "",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-datatype",
+        "item-axiomatic-rdfs-literal"
+      ],
+      "reconstruction_note": "Literal enumerations belong in the structural inventory even before we have trace-driven reconstruction guidance for them.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "DatatypeRestriction",
+      "owl_structural_construct": "DatatypeRestriction",
+      "mapping_to_rdf_construct_id": "DatatypeRestriction",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Datatype_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Datatype_Definitions",
+      "owl_2_rl_rules": [
+        "dt-type1",
+        "dt-type2"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs1"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-datatype",
+        "item-axiomatic-rdfs-literal"
+      ],
+      "reconstruction_note": "DatatypeRestriction is likely to matter in typed-literal reasoning, but the present mapping should still be treated as an early bridge rather than a finished one.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "ObjectHasSelf",
+      "owl_structural_construct": "ObjectHasSelf",
+      "mapping_to_rdf_construct_id": "ObjectHasSelf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "ObjectHasSelf has a clear semantic home but no curated operational mapping yet in this seed.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "ObjectMinCardinality",
+      "owl_structural_construct": "ObjectMinCardinality",
+      "mapping_to_rdf_construct_id": "ObjectMinCardinality",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Minimum cardinality is included for completeness, but its RL support and reconstruction strategy have not yet been curated.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "ObjectMinCardinality",
+      "owl_structural_construct": "ObjectMinCardinalityQualified",
+      "mapping_to_rdf_construct_id": "ObjectMinCardinalityQualified",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Qualified minimum cardinality remains a scaffold row for now.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "ObjectExactCardinality",
+      "owl_structural_construct": "ObjectExactCardinality",
+      "mapping_to_rdf_construct_id": "ObjectExactCardinality",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Exact cardinality generally decomposes to min and max semantics; this row exists now so the construct inventory is not silent about it.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "ObjectExactCardinality",
+      "owl_structural_construct": "ObjectExactCardinalityQualified",
+      "mapping_to_rdf_construct_id": "ObjectExactCardinalityQualified",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "Qualified exact cardinality is included as a structural target even though its operational reconstruction path is still open.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataSomeValuesFrom",
+      "owl_structural_construct": "DataSomeValuesFrom",
+      "mapping_to_rdf_construct_id": "DataSomeValuesFrom",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "DataSomeValuesFrom is part of the inventory now so class-expression coverage is not missing the data-property restriction family.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataSomeValuesFrom",
+      "owl_structural_construct": "DataSomeValuesFromNary",
+      "mapping_to_rdf_construct_id": "DataSomeValuesFromNary",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "The n-ary form is listed separately because the mapping uses RDF lists and deserves its own retrieval handle.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataAllValuesFrom",
+      "owl_structural_construct": "DataAllValuesFrom",
+      "mapping_to_rdf_construct_id": "DataAllValuesFrom",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "DataAllValuesFrom is present as a structural inventory row pending more precise operational linkage.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataAllValuesFrom",
+      "owl_structural_construct": "DataAllValuesFromNary",
+      "mapping_to_rdf_construct_id": "DataAllValuesFromNary",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "The list-backed n-ary variant is separated so Development Agents can target the precise mapping construct.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataHasValue",
+      "owl_structural_construct": "DataHasValue",
+      "mapping_to_rdf_construct_id": "DataHasValue",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-literal"
+      ],
+      "reconstruction_note": "DataHasValue is a useful proof-object target even though it is not yet connected here to a curated rule-level reconstruction path.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataMinCardinality",
+      "owl_structural_construct": "DataMinCardinality",
+      "mapping_to_rdf_construct_id": "DataMinCardinality",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Data minimum cardinality is included for inventory completeness.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataMinCardinality",
+      "owl_structural_construct": "DataMinCardinalityQualified",
+      "mapping_to_rdf_construct_id": "DataMinCardinalityQualified",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Qualified data minimum cardinality remains a placeholder row for future refinement.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataMaxCardinality",
+      "owl_structural_construct": "DataMaxCardinality",
+      "mapping_to_rdf_construct_id": "DataMaxCardinality",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Data maximum cardinality is tracked here even though its operational consequences are not yet curated.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataMaxCardinality",
+      "owl_structural_construct": "DataMaxCardinalityQualified",
+      "mapping_to_rdf_construct_id": "DataMaxCardinalityQualified",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Qualified data maximum cardinality is retained as a scaffold row.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataExactCardinality",
+      "owl_structural_construct": "DataExactCardinality",
+      "mapping_to_rdf_construct_id": "DataExactCardinality",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Exact cardinality for data restrictions is represented now so the inventory mirrors the mapping spec.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "DataExactCardinality",
+      "owl_structural_construct": "DataExactCardinalityQualified",
+      "mapping_to_rdf_construct_id": "DataExactCardinalityQualified",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Restrictions"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class",
+        "item-axiomatic-rdfs-property",
+        "item-axiomatic-rdfs-datatype"
+      ],
+      "reconstruction_note": "Qualified exact cardinality for data restrictions is included as an inventory placeholder.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "ReflexiveObjectProperty",
+      "owl_structural_construct": "ReflexiveObjectProperty",
+      "mapping_to_rdf_construct_id": "ReflexiveObjectProperty",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Property_Characteristics"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "reconstruction_note": "ReflexiveObjectProperty has a clear semantic anchor but currently no curated RL operational row in this crosswalk.",
+      "status": "Partial"
+    },
+    {
+      "structural_element_subtype": "AnnotationAssertion",
+      "owl_structural_construct": "AnnotationAssertion",
+      "mapping_to_rdf_construct_id": "AnnotationAssertion",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Annotation assertions are intentionally present in the inventory even though they sit outside the OWL RL entailment core.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "SubAnnotationPropertyOf",
+      "owl_structural_construct": "SubAnnotationPropertyOf",
+      "mapping_to_rdf_construct_id": "SubAnnotationPropertyOf",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Subannotation-property axioms are tracked for structural completeness rather than current rule support.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "AnnotationPropertyDomain",
+      "owl_structural_construct": "AnnotationPropertyDomain",
+      "mapping_to_rdf_construct_id": "AnnotationPropertyDomain",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Annotation property domain is present as a structural target pending richer semantics cross-references.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "AnnotationPropertyRange",
+      "owl_structural_construct": "AnnotationPropertyRange",
+      "mapping_to_rdf_construct_id": "AnnotationPropertyRange",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Annotation property range is included for inventory completeness.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "Annotation",
+      "owl_structural_construct": "Annotation",
+      "mapping_to_rdf_construct_id": "Annotation",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "The base annotation construct is represented now so annotation-valued structures are not absent from the master inventory.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "Annotation",
+      "owl_structural_construct": "AnnotationWithAnnotation",
+      "mapping_to_rdf_construct_id": "AnnotationWithAnnotation",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Nested annotations are inventory rows at this stage; they will matter more once annotation-preserving proof objects exist.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "AxiomAnnotation",
+      "owl_structural_construct": "AxiomAnnotationMainTriple",
+      "mapping_to_rdf_construct_id": "AxiomAnnotationMainTriple",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Annotated-axiom support is represented by separate mapping rows because the RDF encoding shape matters for future reconstruction.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "AxiomAnnotation",
+      "owl_structural_construct": "AxiomAnnotationMultipleTriple",
+      "mapping_to_rdf_construct_id": "AxiomAnnotationMultipleTriple",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "This row keeps the multiple-triple annotated-axiom encoding visible to Development Agents.",
+      "status": "Seeded"
+    },
+    {
+      "structural_element_subtype": "AxiomAnnotation",
+      "owl_structural_construct": "AxiomAnnotationBlankNode",
+      "mapping_to_rdf_construct_id": "AxiomAnnotationBlankNode",
+      "rdf_based_semantics_section_ids": [],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Ontologies",
+      "owl_2_rl_rules": [],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [],
+      "reconstruction_note": "Blank-node annotated axioms are tracked separately because they affect how proof objects would need to preserve source structure.",
+      "status": "Seeded"
+    }
+  ]
+}
