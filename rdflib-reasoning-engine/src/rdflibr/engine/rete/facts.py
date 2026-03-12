@@ -3,6 +3,11 @@ from rdflib.term import Node
 from rdflibr.axiom.common import Triple
 
 
+def fact_id_for_triple(triple: Triple) -> str:
+    """Return the canonical internal id for one RDFLib triple."""
+    return f"fact:{triple[0].n3()} {triple[1].n3()} {triple[2].n3()}"
+
+
 class Fact(BaseModel):
     """
     Fundamental unit of data within the RETE internals.

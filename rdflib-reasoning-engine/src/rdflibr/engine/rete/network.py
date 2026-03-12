@@ -14,7 +14,7 @@ from .compiler import (
     CompiledTripleCondition,
 )
 from .consequents import ActionInstance
-from .facts import Fact, PartialMatch
+from .facts import Fact, PartialMatch, fact_id_for_triple
 
 
 class AlphaNode(BaseModel):
@@ -260,9 +260,7 @@ class NetworkMatcher:
 
     @staticmethod
     def _fact_from_triple(triple: Triple) -> Fact:
-        return Fact(
-            id=f"fact:{triple[0].n3()} {triple[1].n3()} {triple[2].n3()}", triple=triple
-        )
+        return Fact(id=fact_id_for_triple(triple), triple=triple)
 
     @staticmethod
     def _partial_match_key(match: PartialMatch) -> str:

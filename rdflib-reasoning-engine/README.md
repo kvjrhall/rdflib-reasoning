@@ -68,7 +68,7 @@ This matrix tracks functional engine features independent of standards coverage.
 | Builtin predicate / function support | In progress | Predicate conditions compile and execute through the RETE matcher using injected read-only predicate hooks |
 | Rule action callbacks | In progress | Callback consequents now execute through the agenda with read-only invocation context; richer signature validation and retraction-time policy remain future work |
 | Derivation / trace logging | In progress | Engine-native `DerivationRecord` values are now emitted for new logical conclusions produced by fired rules |
-| JTMS-compatible support bookkeeping | In progress | `Fact`, `PartialMatch`, and `Justification` scaffolding exist, but derived-fact support sets are not yet recorded at production time |
+| JTMS-compatible support bookkeeping | In progress | `WorkingMemory`, `DependencyGraph`, and `Justification` records now track stated facts and multi-parent support for derived facts; recursive retraction remains future work |
 | Explanation reconstruction | In progress | Proof models and reconstruction protocol exist, but derivation records are not yet rebuilt into concrete `DirectProof` paths |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
 

@@ -7,7 +7,15 @@ from rdflibr.axiom.common import ContextIdentifier, Triple
 
 from .derivation import DerivationLogger
 from .proof import DerivationRecord, TripleFact, VariableBinding
-from .rete import Agenda, NetworkBuilder, NetworkMatcher, RuleCompiler, TerminalNode
+from .rete import (
+    Agenda,
+    NetworkBuilder,
+    NetworkMatcher,
+    RuleCompiler,
+    TerminalNode,
+    TMSController,
+    WorkingMemory,
+)
 from .rules import CallbackHook, ContextData, Rule, RuleContext
 
 
@@ -50,6 +58,8 @@ class RETEEngine:
     derivation_logger: DerivationLogger | None
     callbacks: dict[str, CallbackHook]
     callback_recorder: Any
+    tms: TMSController
+    working_memory: WorkingMemory
 
     def __init__(self, context_data: ContextData, rules: Iterable[Rule]) -> None:
         self.context_data = context_data
@@ -64,9 +74,12 @@ class RETEEngine:
         self.known_triples = set()
         self.derivation_logger = self.context_data.get("derivation_logger")
         self.callback_recorder = self.context_data.get("callback_recorder")
+        self.tms = TMSController()
+        self.working_memory = self.tms.working_memory
 
     def close(self) -> None:
         self.known_triples.clear()
+        self.tms.clear()
 
     @staticmethod
     def _instantiate_triple(
@@ -106,6 +119,7 @@ class RETEEngine:
 
     def add_triples(self, triples: Iterable[Triple]) -> set[Triple]:
         pending = {cast(Triple, triple) for triple in triples}
+        self.tms.register_stated(pending)
         self.known_triples.update(pending)
         newly_derived: set[Triple] = set()
         context = self.context_data.get("context")
@@ -113,7 +127,7 @@ class RETEEngine:
         while True:
             try:
                 actions = self.matcher.match_terminals(
-                    self.terminals, tuple(self.known_triples)
+                    self.terminals, self.working_memory.facts()
                 )
                 agenda = Agenda(actions)
             except Exception as exc:  # pragma: no cover - defensive wrapping
@@ -131,7 +145,14 @@ class RETEEngine:
                         production.pattern.object,
                     )
                     triple = self._instantiate_triple(pattern, action.bindings)
-                    if triple not in self.known_triples:
+                    self.tms.record_derivation(
+                        triple,
+                        rule_id=action.rule_id,
+                        premises=action.premises,
+                        bindings=action.bindings,
+                        depth=action.depth,
+                    )
+                    if triple not in self.known_triples and triple not in iteration_new:
                         iteration_new.add(triple)
                         action_new.append(triple)
 
