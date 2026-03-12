@@ -279,3 +279,66 @@ def test_rete_engine_add_triples_records_derivations_for_new_conclusions() -> No
         ("y", human),
         ("z", mammal),
     ]
+
+
+def test_rete_engine_processes_matches_in_agenda_order() -> None:
+    x = Variable("x")
+    logger = RecordingLogger()
+    context = BNode()
+    broad_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="broad"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=x,
+                    predicate=URIRef("urn:test:derived"),
+                    object=URIRef("urn:test:broad"),
+                )
+            ),
+        ),
+        salience=1,
+    )
+    prioritized_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="prioritized"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=x,
+                    predicate=URIRef("urn:test:derived"),
+                    object=URIRef("urn:test:priority"),
+                )
+            ),
+        ),
+        salience=10,
+    )
+    engine = RETEEngine(
+        context_data={"context": context, "derivation_logger": logger},
+        rules=[broad_rule, prioritized_rule],
+    )
+
+    inferred = engine.add_triples([(URIRef("urn:test:A"), RDF.type, RDFS.Class)])
+
+    assert inferred == {
+        (URIRef("urn:test:A"), URIRef("urn:test:derived"), URIRef("urn:test:broad")),
+        (
+            URIRef("urn:test:A"),
+            URIRef("urn:test:derived"),
+            URIRef("urn:test:priority"),
+        ),
+    }
+    assert [record.rule_id.rule_id for record in logger.records] == [
+        "prioritized",
+        "broad",
+    ]

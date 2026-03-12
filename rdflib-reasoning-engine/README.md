@@ -63,7 +63,7 @@ This matrix tracks functional engine features independent of standards coverage.
 | Alpha memory / node support | Not started | RETE alpha-side filtering and storage |
 | Beta memory / join node support | Not started | RETE beta-side joins and partial match propagation |
 | Triple pattern matching | In progress | Public Rule IR and compiler normalization now model RDFLib-variable triple patterns and alpha constraints |
-| Rule firing and agenda management | In progress | `salience`, `depth`, and `ActionInstance` scaffolding exist, but no agenda executor is wired yet |
+| Rule firing and agenda management | In progress | `Agenda` now orders activations by salience and breadth-first depth; callback dispatch and richer conflict resolution remain to be wired |
 | Inference materialization | In progress | `RETEStore` materializes engine outputs, but compiled logical productions are not yet executed end-to-end |
 | Builtin predicate / function support | In progress | Predicate conditions and compiler validation exist; runtime predicate evaluation is not yet wired |
 | Rule action callbacks | In progress | Callback consequents and normalized callback schedules exist; runtime callback execution is not yet wired |

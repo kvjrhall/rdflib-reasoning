@@ -6,7 +6,7 @@ from rdflibr.axiom.common import ContextIdentifier, Triple
 
 from .derivation import DerivationLogger
 from .proof import DerivationRecord, TripleFact, VariableBinding
-from .rete import NetworkBuilder, NetworkMatcher, RuleCompiler, TerminalNode
+from .rete import Agenda, NetworkBuilder, NetworkMatcher, RuleCompiler, TerminalNode
 from .rules import ContextData, Rule
 
 
@@ -74,13 +74,14 @@ class RETEEngine:
                 actions = self.matcher.match_terminals(
                     self.terminals, tuple(self.known_triples)
                 )
+                agenda = Agenda(actions)
             except Exception as exc:  # pragma: no cover - defensive wrapping
                 if isinstance(exc, FatalRuleError):
                     raise
                 raise FatalRuleError(str(exc)) from exc
 
             iteration_new: set[Triple] = set()
-            for action in actions:
+            for action in agenda:
                 action_new: list[Triple] = []
                 for production in action.productions:
                     pattern = (
