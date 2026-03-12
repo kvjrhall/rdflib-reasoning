@@ -415,6 +415,7 @@ class NetworkMatcher:
             ActionInstance(
                 rule_id=terminal.rule.rule_id,
                 bindings=match.bindings,
+                premises=match.facts,
                 depth=match.depth,
                 salience=terminal.rule.salience,
                 productions=terminal.rule.productions,

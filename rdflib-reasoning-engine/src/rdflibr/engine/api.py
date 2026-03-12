@@ -4,6 +4,8 @@ from typing import Any, cast
 from rdflib.term import Node, Variable
 from rdflibr.axiom.common import ContextIdentifier, Triple
 
+from .derivation import DerivationLogger
+from .proof import DerivationRecord, TripleFact, VariableBinding
 from .rete import NetworkBuilder, NetworkMatcher, RuleCompiler, TerminalNode
 from .rules import ContextData, Rule
 
@@ -26,6 +28,7 @@ class RETEEngine:
     terminals: tuple[TerminalNode, ...]
     known_triples: set[Triple]
     matcher: NetworkMatcher
+    derivation_logger: DerivationLogger | None
 
     def __init__(self, context_data: ContextData, rules: Iterable[Rule]) -> None:
         self.context_data = context_data
@@ -37,6 +40,7 @@ class RETEEngine:
         predicates = builtins.get("predicates", {})
         self.matcher = NetworkMatcher(builder.registry, predicates=predicates)
         self.known_triples = set()
+        self.derivation_logger = self.context_data.get("derivation_logger")
 
     def close(self) -> None:
         self.known_triples.clear()
@@ -63,6 +67,7 @@ class RETEEngine:
         pending = {cast(Triple, triple) for triple in triples}
         self.known_triples.update(pending)
         newly_derived: set[Triple] = set()
+        context = self.context_data.get("context")
 
         while True:
             try:
@@ -76,6 +81,7 @@ class RETEEngine:
 
             iteration_new: set[Triple] = set()
             for action in actions:
+                action_new: list[Triple] = []
                 for production in action.productions:
                     pattern = (
                         production.pattern.subject,
@@ -85,6 +91,32 @@ class RETEEngine:
                     triple = self._instantiate_triple(pattern, action.bindings)
                     if triple not in self.known_triples:
                         iteration_new.add(triple)
+                        action_new.append(triple)
+
+                if (
+                    context is not None
+                    and self.derivation_logger is not None
+                    and len(action_new) > 0
+                ):
+                    self.derivation_logger.record(
+                        DerivationRecord(
+                            context=context,
+                            conclusions=[
+                                TripleFact(context=context, triple=triple)
+                                for triple in action_new
+                            ],
+                            premises=[
+                                TripleFact(context=context, triple=fact.triple)
+                                for fact in action.premises
+                            ],
+                            rule_id=action.rule_id,
+                            bindings=[
+                                VariableBinding(name=name, value=value)
+                                for name, value in sorted(action.bindings.items())
+                            ],
+                            depth=action.depth,
+                        )
+                    )
 
             if not iteration_new:
                 break
