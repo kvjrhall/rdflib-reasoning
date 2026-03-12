@@ -355,3 +355,90 @@ def test_network_matcher_applies_predicate_filters_before_emitting_action() -> N
     assert len(actions) == 1
     assert actions[0].bindings["x"] == URIRef("urn:test:A")
     assert actions[0].kind == "mixed"
+
+
+def test_network_matcher_persists_alpha_memory_across_incremental_updates() -> None:
+    x = Variable("x")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="alpha-memory"),
+        description=RuleDescription(label="Alpha memory"),
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=x, predicate=RDFS.subClassOf, object=RDFS.Resource
+                )
+            ),
+        ),
+    )
+    builder = NetworkBuilder()
+    terminal = builder.build_rule(RuleCompiler.compile_rule(rule))
+    matcher = NetworkMatcher(builder.registry)
+    alpha_key = terminal.input_keys[0]
+
+    first_actions = matcher.match_terminal(
+        terminal,
+        ((URIRef("urn:test:A"), RDF.type, RDFS.Class),),
+    )
+    second_actions = matcher.match_terminal(
+        terminal,
+        ((URIRef("urn:test:A"), RDF.type, RDFS.Class),),
+    )
+    third_actions = matcher.match_terminal(
+        terminal,
+        ((URIRef("urn:test:B"), RDF.type, RDFS.Class),),
+    )
+
+    assert len(first_actions) == 1
+    assert len(second_actions) == 0
+    assert len(third_actions) == 1
+    assert matcher.alpha_memory_size(alpha_key) == 2
+
+
+def test_network_matcher_persists_beta_memory_across_incremental_updates() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="beta-memory"),
+        description=RuleDescription(label="Beta memory"),
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    builder = NetworkBuilder()
+    terminal = builder.build_rule(RuleCompiler.compile_rule(rule))
+    matcher = NetworkMatcher(builder.registry)
+    beta_key = terminal.input_keys[0]
+
+    no_actions = matcher.match_terminal(
+        terminal,
+        ((URIRef("urn:test:a"), RDF.type, URIRef("urn:test:Human")),),
+    )
+    joined_actions = matcher.match_terminal(
+        terminal,
+        ((URIRef("urn:test:Human"), RDFS.subClassOf, URIRef("urn:test:Mammal")),),
+    )
+    repeated_actions = matcher.match_terminal(
+        terminal,
+        ((URIRef("urn:test:Human"), RDFS.subClassOf, URIRef("urn:test:Mammal")),),
+    )
+
+    assert len(no_actions) == 0
+    assert len(joined_actions) == 1
+    assert len(repeated_actions) == 0
+    assert matcher.beta_memory_size(beta_key) == 1

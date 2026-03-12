@@ -104,15 +104,21 @@ class NodeRegistry(BaseModel):
     predicate_nodes: dict[str, PredicateNode] = Field(default_factory=dict)
     beta_nodes: dict[str, BetaNode] = Field(default_factory=dict)
     terminal_nodes: dict[str, TerminalNode] = Field(default_factory=dict)
+    alpha_memory: dict[str, dict[str, PartialMatch]] = Field(default_factory=dict)
+    beta_memory: dict[str, dict[str, PartialMatch]] = Field(default_factory=dict)
 
     def get_or_create_alpha(self, node: AlphaNode) -> AlphaNode:
-        return self.alpha_nodes.setdefault(node.key, node)
+        created = self.alpha_nodes.setdefault(node.key, node)
+        self.alpha_memory.setdefault(node.key, {})
+        return created
 
     def get_or_create_predicate(self, node: PredicateNode) -> PredicateNode:
         return self.predicate_nodes.setdefault(node.key, node)
 
     def get_or_create_beta(self, node: BetaNode) -> BetaNode:
-        return self.beta_nodes.setdefault(node.key, node)
+        created = self.beta_nodes.setdefault(node.key, node)
+        self.beta_memory.setdefault(node.key, {})
+        return created
 
     def add_terminal(self, node: TerminalNode) -> TerminalNode:
         self.terminal_nodes[node.key] = node
@@ -258,6 +264,27 @@ class NetworkMatcher:
             id=f"fact:{triple[0].n3()} {triple[1].n3()} {triple[2].n3()}", triple=triple
         )
 
+    @staticmethod
+    def _partial_match_key(match: PartialMatch) -> str:
+        fact_ids = ",".join(fact.id for fact in match.facts)
+        binding_parts = ",".join(
+            f"{name}={value.n3()}" for name, value in sorted(match.bindings.items())
+        )
+        return f"facts={fact_ids}|bindings={binding_parts}|depth={match.depth}"
+
+    def _store_matches(
+        self,
+        memory: dict[str, PartialMatch],
+        matches: Iterable[PartialMatch],
+    ) -> tuple[PartialMatch, ...]:
+        new_matches: list[PartialMatch] = []
+        for match in matches:
+            match_key = self._partial_match_key(match)
+            if match_key not in memory:
+                memory[match_key] = match
+                new_matches.append(match)
+        return tuple(new_matches)
+
     def _match_alpha(
         self,
         node: AlphaNode,
@@ -282,7 +309,7 @@ class NetworkMatcher:
                     break
             if matched:
                 matches.append(PartialMatch(facts=(fact,), bindings=bindings, depth=0))
-        return tuple(matches)
+        return self._store_matches(self.registry.alpha_memory[node.key], matches)
 
     @staticmethod
     def _bindings_compatible(
@@ -297,27 +324,43 @@ class NetworkMatcher:
         node: BetaNode,
         partial_matches: dict[str, tuple[PartialMatch, ...]],
     ) -> tuple[PartialMatch, ...]:
+        left_memory = self.registry.alpha_memory.get(
+            node.left_key, self.registry.beta_memory.get(node.left_key, {})
+        )
+        right_memory = self.registry.alpha_memory.get(
+            node.right_key, self.registry.beta_memory.get(node.right_key, {})
+        )
         left_matches = partial_matches.get(node.left_key, ())
         right_matches = partial_matches.get(node.right_key, ())
         joined: list[PartialMatch] = []
-        for left in left_matches:
-            for right in right_matches:
-                if not self._bindings_compatible(left.bindings, right.bindings):
-                    continue
-                merged_bindings = {**left.bindings, **right.bindings}
-                merged_facts = left.facts + tuple(
-                    fact
-                    for fact in right.facts
-                    if fact.id not in {f.id for f in left.facts}
-                )
-                joined.append(
-                    PartialMatch(
-                        facts=merged_facts,
-                        bindings=merged_bindings,
-                        depth=max(left.depth, right.depth) + 1,
+
+        def join_pairs(
+            new_left: Iterable[PartialMatch],
+            all_right: Iterable[PartialMatch],
+        ) -> None:
+            for left in new_left:
+                left_fact_ids = {fact.id for fact in left.facts}
+                for right in all_right:
+                    if any(fact.id in left_fact_ids for fact in right.facts):
+                        continue
+                    if not self._bindings_compatible(left.bindings, right.bindings):
+                        continue
+                    merged_bindings = {**left.bindings, **right.bindings}
+                    merged_facts = left.facts + tuple(
+                        fact for fact in right.facts if fact.id not in left_fact_ids
                     )
-                )
-        return tuple(joined)
+                    joined.append(
+                        PartialMatch(
+                            facts=merged_facts,
+                            bindings=merged_bindings,
+                            depth=max(left.depth, right.depth) + 1,
+                        )
+                    )
+
+        join_pairs(left_matches, right_memory.values())
+        join_pairs(left_memory.values(), right_matches)
+
+        return self._store_matches(self.registry.beta_memory[node.key], joined)
 
     def _apply_predicate(
         self,
@@ -379,6 +422,12 @@ class NetworkMatcher:
             )
             for match in matches
         )
+
+    def alpha_memory_size(self, key: str) -> int:
+        return len(self.registry.alpha_memory[key])
+
+    def beta_memory_size(self, key: str) -> int:
+        return len(self.registry.beta_memory[key])
 
     def match_terminals(
         self,
