@@ -3,10 +3,12 @@ from collections.abc import Iterable
 import pytest
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import BNode, URIRef, Variable
-from rdflibr.engine.api import RETEEngine, RETEEngineFactory
+from rdflibr.engine.api import FatalRuleError, RETEEngine, RETEEngineFactory
 from rdflibr.engine.derivation import DerivationLogger
 from rdflibr.engine.proof import DerivationRecord, RuleId
 from rdflibr.engine.rules import (
+    CallbackConsequent,
+    CallbackHook,
     ContextData,
     PredicateCondition,
     PredicateHook,
@@ -56,6 +58,23 @@ class SameTermPredicate(PredicateHook):
     def test(self, context: RuleContext, *args: URIRef) -> bool:  # type: ignore[override]
         _ = context
         return len(args) == 2 and args[0] == args[1]
+
+
+class RecordingCallback(CallbackHook):
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, tuple[URIRef, ...]]] = []
+
+    def run(self, context: RuleContext, *args: URIRef) -> None:  # type: ignore[override]
+        self.calls.append((context, args))
+        context.record({"callback": "recording", "args": args})  # type: ignore[attr-defined]
+
+
+class RecordingEventSink:
+    def __init__(self) -> None:
+        self.events: list[object] = []
+
+    def record(self, event: object) -> None:
+        self.events.append(event)
 
 
 class RecordingLogger(DerivationLogger):
@@ -342,3 +361,70 @@ def test_rete_engine_processes_matches_in_agenda_order() -> None:
         "prioritized",
         "broad",
     ]
+
+
+def test_rete_engine_add_triples_executes_callbacks_via_agenda() -> None:
+    x = Variable("x")
+    callback = RecordingCallback()
+    event_sink = RecordingEventSink()
+    context = BNode()
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="callback"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            CallbackConsequent(
+                callback="trace_class",
+                arguments=(x, URIRef("urn:test:marker")),
+            ),
+        ),
+        salience=4,
+    )
+    engine = RETEEngine(
+        context_data={
+            "context": context,
+            "builtins": {"callbacks": {"trace_class": callback}},
+            "callback_recorder": event_sink,
+        },
+        rules=[rule],
+    )
+
+    inferred = engine.add_triples([(URIRef("urn:test:A"), RDF.type, RDFS.Class)])
+
+    assert inferred == set()
+    assert len(callback.calls) == 1
+    callback_context, callback_args = callback.calls[0]
+    assert callback_args == (URIRef("urn:test:A"), URIRef("urn:test:marker"))
+    assert callback_context.context == context
+    assert callback_context.rule_id == rule.id
+    assert callback_context.bindings == {"x": URIRef("urn:test:A")}
+    assert callback_context.premises == ((URIRef("urn:test:A"), RDF.type, RDFS.Class),)
+    assert callback_context.depth == 0
+    assert event_sink.events == [
+        {
+            "callback": "recording",
+            "args": (URIRef("urn:test:A"), URIRef("urn:test:marker")),
+        }
+    ]
+
+
+def test_rete_engine_add_triples_rejects_unknown_callback_hook() -> None:
+    x = Variable("x")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="missing-callback"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(CallbackConsequent(callback="missing", arguments=(x,)),),
+    )
+    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+
+    with pytest.raises(FatalRuleError, match="Unknown callback hook `missing`"):
+        engine.add_triples([(URIRef("urn:test:A"), RDF.type, RDFS.Class)])

@@ -7,7 +7,7 @@ from heapq import heappop, heappush
 from .consequents import ActionInstance
 
 
-@dataclass(order=True, frozen=True)
+@dataclass(order=True, frozen=True, slots=True)
 class AgendaEntry:
     """Sortable agenda entry implementing conflict-resolution priorities."""
 

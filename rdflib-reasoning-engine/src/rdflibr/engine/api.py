@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any, cast
 
 from rdflib.term import Node, Variable
@@ -7,7 +8,25 @@ from rdflibr.axiom.common import ContextIdentifier, Triple
 from .derivation import DerivationLogger
 from .proof import DerivationRecord, TripleFact, VariableBinding
 from .rete import Agenda, NetworkBuilder, NetworkMatcher, RuleCompiler, TerminalNode
-from .rules import ContextData, Rule
+from .rules import CallbackHook, ContextData, Rule, RuleContext
+
+
+@dataclass
+class EngineCallbackContext(RuleContext):
+    """Read-only callback context for one fired rule activation."""
+
+    context: ContextIdentifier | None
+    rule_id: Any
+    bindings: Mapping[str, Node]
+    premises: tuple[Triple, ...]
+    depth: int
+    _events: list[Any] = field(default_factory=list)
+    _recorder: Any = None
+
+    def record(self, event: Any) -> None:
+        self._events.append(event)
+        if self._recorder is not None:
+            self._recorder.record(event)
 
 
 class FatalRuleError(RuntimeError):
@@ -29,6 +48,8 @@ class RETEEngine:
     known_triples: set[Triple]
     matcher: NetworkMatcher
     derivation_logger: DerivationLogger | None
+    callbacks: dict[str, CallbackHook]
+    callback_recorder: Any
 
     def __init__(self, context_data: ContextData, rules: Iterable[Rule]) -> None:
         self.context_data = context_data
@@ -38,9 +59,11 @@ class RETEEngine:
         self.terminals = builder.build_rules(compiled_rules)
         builtins = self.context_data.get("builtins", {})
         predicates = builtins.get("predicates", {})
+        self.callbacks = builtins.get("callbacks", {})
         self.matcher = NetworkMatcher(builder.registry, predicates=predicates)
         self.known_triples = set()
         self.derivation_logger = self.context_data.get("derivation_logger")
+        self.callback_recorder = self.context_data.get("callback_recorder")
 
     def close(self) -> None:
         self.known_triples.clear()
@@ -62,6 +85,24 @@ class RETEEngine:
             else:
                 instantiated.append(term)
         return cast(Triple, tuple(instantiated))
+
+    @staticmethod
+    def _resolve_callback_arguments(
+        arguments: tuple[Node, ...],
+        bindings: Mapping[str, Node],
+    ) -> tuple[Node, ...]:
+        resolved: list[Node] = []
+        for argument in arguments:
+            if isinstance(argument, Variable):
+                variable_name = str(argument)
+                if variable_name not in bindings:
+                    raise FatalRuleError(
+                        f"Missing binding for required variable `{variable_name}`"
+                    )
+                resolved.append(bindings[variable_name])
+            else:
+                resolved.append(argument)
+        return tuple(resolved)
 
     def add_triples(self, triples: Iterable[Triple]) -> set[Triple]:
         pending = {cast(Triple, triple) for triple in triples}
@@ -93,6 +134,30 @@ class RETEEngine:
                     if triple not in self.known_triples:
                         iteration_new.add(triple)
                         action_new.append(triple)
+
+                callback_context = EngineCallbackContext(
+                    context=context,
+                    rule_id=action.rule_id,
+                    bindings=action.bindings,
+                    premises=tuple(fact.triple for fact in action.premises),
+                    depth=action.depth,
+                    _recorder=self.callback_recorder,
+                )
+                for callback in action.callbacks:
+                    hook = self.callbacks.get(callback.callback)
+                    if hook is None:
+                        raise FatalRuleError(
+                            f"Unknown callback hook `{callback.callback}`"
+                        )
+                    arguments = self._resolve_callback_arguments(
+                        callback.arguments, action.bindings
+                    )
+                    try:
+                        hook.run(callback_context, *arguments)
+                    except Exception as exc:  # pragma: no cover - defensive wrapping
+                        if isinstance(exc, FatalRuleError):
+                            raise
+                        raise FatalRuleError(str(exc)) from exc
 
                 if (
                     context is not None

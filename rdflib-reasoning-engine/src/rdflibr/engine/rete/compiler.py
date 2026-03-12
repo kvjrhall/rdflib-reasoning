@@ -46,7 +46,7 @@ class CompiledPredicateCondition(BaseModel):
 
     source_index: int
     predicate: str
-    arguments: tuple[Node | str, ...] = Field(default_factory=tuple)
+    arguments: tuple[Node, ...] = Field(default_factory=tuple)
     required_variables: tuple[str, ...] = Field(default_factory=tuple)
 
 
@@ -129,9 +129,7 @@ class RuleCompiler:
     """
 
     @staticmethod
-    def _normalize_term(term: PatternTerm) -> Node | str:
-        if isinstance(term, Variable):
-            return str(term)
+    def _normalize_term(term: PatternTerm) -> Node:
         return term
 
     @staticmethod
