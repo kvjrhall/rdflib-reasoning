@@ -26,28 +26,13 @@ for key in "${!my_array[@]}"; do
     spec_dir="${specs_dir}/${key}"
     spec_url="${my_array[$key]}"
     spec_raw="${spec_dir}/raw.html"
-    spec_opt="${spec_dir}/optimized.html"
 
-    if [[ -f "${spec_opt}" ]]; then
-        loginfo "Found optimized spec: ${key}"
-    else
-        logdebug "Optimized spec not found: ${spec_opt}"
-        if [[ -f "${spec_raw}" ]]; then
-            logdebug "Raw spec found: ${spec_raw}"
-        else
-            loginfo "Downloading latest: ${key}"
-            mkdir -p "${spec_dir}"
-            curl -s -o "${spec_raw}" "${spec_url}"
-        fi
-    fi
-done
-
-for key in "${!my_array[@]}"; do
-    spec_raw="${specs_dir}/${key}/raw.html"
-    spec_opt="${specs_dir}/${key}/optimized.html"
     if [[ -f "${spec_raw}" ]]; then
-        loginfo "Normalizing: ${key}"
-        python "${WORKSPACE_DIR}/docs/specs/w3c-normalize.py" "${spec_raw}" -o "${spec_opt}"
+        loginfo "Found raw spec: ${key}"
+    else
+        loginfo "Downloading latest: ${key}"
+        mkdir -p "${spec_dir}"
+        curl -s -o "${spec_raw}" "${spec_url}"
     fi
 done
 

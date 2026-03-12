@@ -1,0 +1,70 @@
+{
+  "rows": [
+    {
+      "structural_element_subtype": "SubClassOf",
+      "owl_structural_construct": "SubClassOf",
+      "mapping_to_rdf_construct_id": "SubClassOf",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_RDFS_Vocabulary"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cax-sco",
+        "scm-sco"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs9",
+        "rdfs11"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "implementation_status": "Not started",
+      "reconstruction_note": "Subclass propagation rules are operational evidence for a SubClassOf proof step, but schema-closure rules may reflect background closure rather than a directly asserted source axiom."
+    },
+    {
+      "structural_element_subtype": "EquivalentClasses",
+      "owl_structural_construct": "EquivalentClasses",
+      "mapping_to_rdf_construct_id": "EquivalentClasses",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_Equivalence_and_Disjointness"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Class_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "cax-eqc1",
+        "cax-eqc2",
+        "scm-eqc1",
+        "scm-eqc2"
+      ],
+      "optional_rdfs_support_rules": [],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-class"
+      ],
+      "implementation_status": "Not started",
+      "reconstruction_note": "EquivalentClasses often reconstructs from paired subclass-style consequences. A trace that uses cax-eqc1 or cax-eqc2 alone is usually partial evidence rather than a complete reconstructed axiom."
+    },
+    {
+      "structural_element_subtype": "ObjectPropertyDomain",
+      "owl_structural_construct": "ObjectPropertyDomain",
+      "mapping_to_rdf_construct_id": "ObjectPropertyDomain",
+      "rdf_based_semantics_section_ids": [
+        "Semantic_Conditions_for_the_Vocabulary_Properties",
+        "Semantic_Conditions_for_the_RDFS_Vocabulary"
+      ],
+      "direct_semantics_anchor": "docs/specs/owl2-semantics-direct/optimized.html#Object_Property_Expression_Axioms",
+      "owl_2_rl_rules": [
+        "prp-dom",
+        "scm-dom1",
+        "scm-dom2"
+      ],
+      "optional_rdfs_support_rules": [
+        "rdfs2"
+      ],
+      "rdfs_axiomatic_triple_ids": [
+        "item-axiomatic-rdfs-property"
+      ],
+      "implementation_status": "Not started",
+      "reconstruction_note": "prp-dom operationalizes the consequence of a domain axiom. Reconstruction to ObjectPropertyDomain needs the originating domain triple pattern, not just an entailed type assertion."
+    }
+  ]
+}

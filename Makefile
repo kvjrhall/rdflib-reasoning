@@ -1,5 +1,7 @@
 .PHONY: check help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
 
+PYTHON ?= python
+
 help:  # show this help (targets and descriptions)
 	@echo "Targets:"
 	@awk -F'[:#]' '/^[a-zA-Z0-9_-]+:.*#/ {gsub(/^[ \t]+/,"",$$3); printf "  %-12s %s\n", $$1, $$3}' $(MAKEFILE_LIST)
@@ -31,13 +33,17 @@ validate: check  # run mypy type check & all pre-commit hooks
 specs-fetch:  # fetch raw W3C specs into docs/specs/<name>/raw.html
 	bash docs/specs/fetch-w3c.sh
 
-specs-normalize: specs-fetch  # normalize each raw.html to optimized.html
+specs-normalize:  # normalize each existing raw.html to optimized.html
 	for raw in docs/specs/*/raw.html; do \
 	  dir=$$(dirname "$$raw"); \
-	  python docs/specs/w3c-normalize.py "$$raw" -o "$$dir/optimized.html"; \
+	  $(PYTHON) docs/specs/w3c-normalize.py "$$raw" -o "$$dir/optimized.html"; \
 	done
 
-specs-index: specs-normalize  # generate INDEX.md for owl2-mapping-to-rdf
-	python docs/specs/owl2-mapping-to-rdf/create-index.py
+specs-index:  # generate INDEX.md and index-data.json for indexed specs and crosswalks
+	$(PYTHON) docs/specs/rdf11-semantics/create-index.py
+	$(PYTHON) docs/specs/owl2-mapping-to-rdf/create-index.py
+	$(PYTHON) docs/specs/owl2-reasoning-profiles/create-index.py
+	$(PYTHON) docs/specs/owl2-semantics-rdf/create-index.py
+	$(PYTHON) docs/specs/owl2-crosswalks/create-crosswalks.py
 
-specs: specs-index  # fetch, normalize, and build OWL-RDF index (run all specs pipeline)
+specs: specs-fetch specs-normalize specs-index  # fetch, normalize, and build all indexed spec and crosswalk artifacts
