@@ -117,19 +117,21 @@ class BatchDispatcher(Dispatcher):
 
         if not self._handling_addition:
             self._handling_addition = True
-            while event_context_id in self._current_additions:
-                additions = self._current_additions.pop(event_context_id)
-                if len(additions) == 0:
-                    continue
+            try:
+                while self._current_additions:
+                    next_context_id = next(iter(self._current_additions))
+                    additions = self._current_additions.pop(next_context_id)
+                    if len(additions) == 0:
+                        continue
 
-                if self._has_any_subscriber(TripleAddedBatchEvent):
-                    batch_event = TripleAddedBatchEvent(
-                        events=set(additions),
-                        context_id=event_context_id,
-                    )
-                    self.dispatch(batch_event)
-
-            self._handling_addition = False
+                    if self._has_any_subscriber(TripleAddedBatchEvent):
+                        batch_event = TripleAddedBatchEvent(
+                            events=set(additions),
+                            context_id=next_context_id,
+                        )
+                        self.dispatch(batch_event)
+            finally:
+                self._handling_addition = False
 
     def _on_triple_removed(self, event: TripleRemovedEvent):
         triple = cast(Triple, event.triple)  # type: ignore[attr-defined]
@@ -147,18 +149,20 @@ class BatchDispatcher(Dispatcher):
 
         if not self._handling_removal:
             self._handling_removal = True
-            while event_context_id in self._current_removals:
-                removals = self._current_removals.pop(event_context_id)
-                if len(removals) == 0:
-                    continue
+            try:
+                while self._current_removals:
+                    next_context_id = next(iter(self._current_removals))
+                    removals = self._current_removals.pop(next_context_id)
+                    if len(removals) == 0:
+                        continue
 
-                batch_event = TripleRemovedBatchEvent(
-                    events=set(removals),
-                    context_id=event_context_id,
-                )
-                self._safe_dispatch(batch_event)
-
-            self._handling_removal = False
+                    batch_event = TripleRemovedBatchEvent(
+                        events=set(removals),
+                        context_id=next_context_id,
+                    )
+                    self._safe_dispatch(batch_event)
+            finally:
+                self._handling_removal = False
 
     def _safe_dispatch[T: Event](self, event: T) -> None:
         if self._has_any_subscriber(type(event)):

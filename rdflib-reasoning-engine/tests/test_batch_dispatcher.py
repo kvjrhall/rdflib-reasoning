@@ -120,6 +120,36 @@ def test_reentrant_add_to_default_graph_by_dataset(empty_store: Store) -> None:
     assert listener.added_batches[1].events == {quads[1][:3], quads[2][:3]}
 
 
+def test_reentrant_add_to_different_context_is_not_stranded(empty_store: Store) -> None:
+    """Reentrant additions in another context must also drain before returning."""
+    dispatcher = create_dispatcher(empty_store)
+    listener = BatchCollector(dispatcher)
+    dataset = Dataset(store=empty_store)
+
+    default_graph = dataset.default_graph
+    other_graph = dataset.graph(_NS.g)
+    initial = (_NS.s, _NS.p, _NS.o)
+    inferred = (_NS.d, _NS.e, _NS.f)
+    called = False
+
+    def on_batch(_: TripleAddedBatchEvent) -> None:
+        nonlocal called
+        if called:
+            return
+        called = True
+        other_graph.add(inferred)
+
+    dispatcher.subscribe(TripleAddedBatchEvent, on_batch)
+
+    default_graph.add(initial)
+
+    assert len(listener.added_batches) == 2
+    assert listener.added_batches[0].context_id == default_graph.identifier
+    assert listener.added_batches[0].events == {initial}
+    assert listener.added_batches[1].context_id == other_graph.identifier
+    assert listener.added_batches[1].events == {inferred}
+
+
 def test_add_to_default_graph_by_graph(empty_store: Store) -> None:
     dispatcher = create_dispatcher(empty_store)
     listener = BatchCollector(dispatcher)
@@ -381,6 +411,74 @@ def test_triple_removed_event_deduplicated_via_exists_in_store() -> None:
     batch = listener.removed_batches[0]
     assert batch.context_id == g.identifier
     assert batch.events == {triple}
+
+
+def test_triple_removed_event_different_context_is_not_stranded() -> None:
+    """Reentrant removals in another context must also drain before returning."""
+    backing = Memory()
+    dispatcher = create_dispatcher(backing)
+    listener = BatchCollector(dispatcher)
+
+    g1 = Graph(identifier="https://example.org/g1")
+    g2 = Graph(identifier="https://example.org/g2")
+    triple_1 = (_NS.s, _NS.p, _NS.o)
+    triple_2 = (_NS.d, _NS.e, _NS.f)
+    event_1 = TripleRemovedEvent(triple=triple_1, context=g1)
+    event_2 = TripleRemovedEvent(triple=triple_2, context=g2)
+    called = False
+
+    def on_removed_batch(_: TripleRemovedBatchEvent) -> None:
+        nonlocal called
+        if called:
+            return
+        called = True
+        dispatcher._on_triple_removed(event_2)  # type: ignore[attr-defined]
+
+    dispatcher.subscribe(TripleRemovedBatchEvent, on_removed_batch)
+
+    with mock.patch.object(
+        dispatcher,
+        "_exists_in_store",
+        autospec=True,
+        side_effect=[True, True],
+    ):
+        dispatcher._on_triple_removed(event_1)  # type: ignore[attr-defined]
+
+    assert len(listener.removed_batches) == 2
+    assert listener.removed_batches[0].context_id == g1.identifier
+    assert listener.removed_batches[0].events == {triple_1}
+    assert listener.removed_batches[1].context_id == g2.identifier
+    assert listener.removed_batches[1].events == {triple_2}
+
+
+def test_batch_dispatcher_resets_handling_flag_after_batch_subscriber_error(
+    empty_store: Store,
+) -> None:
+    """A failing batch subscriber must not leave the dispatcher wedged."""
+    dispatcher = create_dispatcher(empty_store)
+    dataset = Dataset(store=empty_store)
+    failures = 0
+
+    def raising_subscriber(_: TripleAddedBatchEvent) -> None:
+        nonlocal failures
+        failures += 1
+        raise RuntimeError("boom")
+
+    dispatcher.subscribe(TripleAddedBatchEvent, raising_subscriber)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        dataset.default_graph.add((_NS.s, _NS.p, _NS.o))
+
+    assert dispatcher._handling_addition is False
+    assert dispatcher._dispatch_map is not None
+    dispatcher._dispatch_map[TripleAddedBatchEvent].remove(raising_subscriber)
+    listener = BatchCollector(dispatcher)
+
+    dataset.default_graph.add((_NS.d, _NS.e, _NS.f))
+
+    assert failures == 1
+    assert len(listener.added_batches) == 1
+    assert listener.added_batches[0].events == {(_NS.d, _NS.e, _NS.f)}
 
 
 def test_add_by_SPARQL_update(empty_store: Store) -> None:

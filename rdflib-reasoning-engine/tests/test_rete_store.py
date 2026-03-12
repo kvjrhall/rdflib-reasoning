@@ -52,6 +52,44 @@ class DummyFactory(RETEEngineFactory):
         return engine
 
 
+class ScriptedEngine(RETEEngine):
+    def __init__(
+        self,
+        *,
+        scripted_results: dict[
+            frozenset[tuple[Any, Any, Any]], set[tuple[Any, Any, Any]]
+        ],
+    ) -> None:
+        super().__init__(context_data={}, rules=[])
+        self.scripted_results = scripted_results
+        self.add_triples_calls: list[set[tuple[Any, Any, Any]]] = []
+
+    def add_triples(
+        self, triples: Iterable[tuple[Any, Any, Any]]
+    ) -> set[tuple[Any, Any, Any]]:  # type: ignore[override]
+        materialized = set(triples)
+        self.add_triples_calls.append(materialized)
+        return self.scripted_results.get(frozenset(materialized), set())
+
+
+class ScriptedFactory(RETEEngineFactory):
+    def __init__(
+        self,
+        *,
+        scripted_results: dict[
+            frozenset[tuple[Any, Any, Any]], set[tuple[Any, Any, Any]]
+        ],
+    ) -> None:
+        super().__init__()
+        self.scripted_results = scripted_results
+        self.engines: dict[Any, ScriptedEngine] = {}
+
+    def new_engine(self, context: Any) -> ScriptedEngine:  # type: ignore[override]
+        engine = ScriptedEngine(scripted_results=self.scripted_results)
+        self.engines[context] = engine
+        return engine
+
+
 def test_rete_store_requires_context_aware_store() -> None:
     class NonContextAwareStore(Store):
         context_aware = False
@@ -123,3 +161,52 @@ def test_rete_store_add_graph_ensures_engine_and_delegates() -> None:
 
     # Engine must be created for the graph identifier.
     assert _NS.g in factory.engines
+
+
+def test_rete_store_dataset_add_drives_batch_dispatch_and_materialization() -> None:
+    backing = Memory()
+    seed = (_NS.s, _NS.p, _NS.o)
+    first_inference = (_NS.a, _NS.b, _NS.c)
+    second_inference = (_NS.x, _NS.y, _NS.z)
+    factory = ScriptedFactory(
+        scripted_results={
+            frozenset({seed}): {first_inference},
+            frozenset({first_inference}): {second_inference},
+            frozenset({second_inference}): set(),
+        }
+    )
+    store = RETEStore(backing, factory)
+    dataset = Dataset(store=store)
+
+    dataset.default_graph.add(seed)
+
+    engine = factory.engines[dataset.default_graph.identifier]
+    assert engine.add_triples_calls == [
+        set(),
+        {seed},
+        {first_inference},
+        {second_inference},
+    ]
+    assert seed in dataset.default_graph
+    assert first_inference in dataset.default_graph
+    assert second_inference in dataset.default_graph
+
+
+def test_rete_store_does_not_rematerialize_existing_inferred_triple() -> None:
+    backing = Memory()
+    seed = (_NS.s, _NS.p, _NS.o)
+    inferred = (_NS.a, _NS.b, _NS.c)
+    factory = ScriptedFactory(
+        scripted_results={
+            frozenset({seed}): {inferred},
+            frozenset({inferred}): {inferred},
+        }
+    )
+    store = RETEStore(backing, factory)
+    dataset = Dataset(store=store)
+
+    dataset.default_graph.add(seed)
+
+    engine = factory.engines[dataset.default_graph.identifier]
+    assert engine.add_triples_calls == [set(), {seed}, {inferred}]
+    assert list(dataset.default_graph.triples(inferred)) == [inferred]
