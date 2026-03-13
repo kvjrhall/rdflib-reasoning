@@ -42,3 +42,10 @@ After making changes to Markdown documents, the Developtment Agent MUST run `mak
 - Use `make install-all` when a `.venv` environment does not exist or when dependencies change
 - Use `make check` to lint everything **except** type checking
 - Use `make validate` to lint everything **including** type checking
+
+## Development Agent use of architecture and roadmap
+
+- The Development Agent SHOULD consult `docs/dev/roadmap.md` before starting substantial feature work, release planning work, or any task where implementation priority or intended scope is unclear.
+- The Development Agent MUST treat `docs/dev/architecture.md` as the authoritative intended design and `docs/dev/roadmap.md` as the authoritative release- and priority-oriented scope plan.
+- The Development Agent MUST stop and verify that `docs/dev/roadmap.md` remains accurate before concluding substantial Python, middleware, or architecture-affecting work.
+- The Development Agent MUST consider reprioritizing tasks and/or changing the intended scope of a release when implementation reveals an under-specified feature, a hidden dependency, a validation failure that changes delivery risk, or a mismatch between `docs/dev/roadmap.md` and `docs/dev/architecture.md`.
