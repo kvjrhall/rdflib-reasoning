@@ -7,7 +7,8 @@
 			"ms-python.python",
 			"charliermarsh.ruff",
 			"timonwong.shellcheck",
-			"davidanson.vscode-markdownlint"
+			"davidanson.vscode-markdownlint",
+			"bierner.markdown-mermaid"
 		]
 	},
 	"folders": [

@@ -50,6 +50,10 @@ generated HTML output with `make docs-serve`.
 Research on agents takes place in [Analysis Notebooks](./notebooks/), uses the [LangChain ecosystem](https://www.langchain.com/), and depends on packages defined in this repository. Those packages build on [RDFLib](https://github.com/RDFLib/rdflib) for semantic-web support and on [Pydantic](https://docs.pydantic.dev/latest/) for Research Agent-friendly schemas.
 
 ```mermaid
+---
+config:
+  theme: 'base'
+---
 block-beta
 columns 3
   Notebooks("Analysis Notebooks"):3
