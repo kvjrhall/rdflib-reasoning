@@ -7,7 +7,7 @@ help:  # show this help (targets and descriptions)
 	@awk -F'[:#]' '/^[a-zA-Z0-9_-]+:.*#/ {gsub(/^[ \t]+/,"",$$3); printf "  %-12s %s\n", $$1, $$3}' $(MAKEFILE_LIST)
 
 check:  # execute all pre-commit hooks
-	pre-commit run --all-files
+	uv run pre-commit run --all-files
 
 install:  # install the base metapackage workspace
 	uv sync

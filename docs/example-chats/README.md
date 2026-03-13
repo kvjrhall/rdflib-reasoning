@@ -85,3 +85,23 @@ If I just charged ahead without reviewing the architecture, then the agent would
 
 - "The architecture document is a standalone description of the system as it is intended"
 - Reading the document, it contains references to DRs. Should I assume that all relevent content already exists in this document and that these are optional references?
+
+### 2.5. RDFS Entailment Test Suite
+
+Prior to this task we:
+
+- Iterated on the RETE engine design documentation. Each iteration modified:
+  - Stubs of the python classes that we would use and their docstrings
+  - [`architecture.md`](../dev/architecture.md), [feature matrices](../../rdflib-reasoning-engine/README.md), and [decision records](../dev/decision-records/)
+- Implemented or started the majority of the rete engine, arriving at an implementation capable of `rdfs2`, `rdfs2`, `rdfs5`, `rdfs7`, and `rdfs9`
+- Hand-crafted an initial [test suite](../../rdflib-reasoning-engine/tests/test_ruleset_rdfs.py)
+
+The goal at this point is to have complete coverage of the full set of RDFS rules and edge cases.
+Many/most of these cases are expected to fail, but they allow us to track progress and link our expected behavior directly to the specification.
+This is important for validation of compliance, but has other practical purposes with respect to agents.
+
+Like any developer, the agent may get lost in the weeds during implementation.
+Any developer would review the failing test case, which will immediately direct them back to canonical examples and specifications.
+For agents starting a fresh chat or new engineers joining the project, these links will immediately familiarize themselves with the context.
+[Example-005 RDFS Entailment Test Suite](./EXAMPLE-005%20RDFS%20Entailment%20Test%20Suite.md) is a demonstration of the _"treat an agent like a junior engineer"_-principle.
+The chat makes reference to a plan [which you can find here](./EXAMPLE-005%20RDFS%20Entailment%20Test%20Suite.plan.md).

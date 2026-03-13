@@ -32,6 +32,10 @@ This repository MUST support research into agents and their interoperability wit
 
 ## Development Agent Commands
 
+The Development Agent MUST check that `uv` and `pre-commit` are available in their environment; if they are not, the Development Agent SHOULD use `conda run -n rdflib-reasoning make` in lieu of `make`.
+After making significant python changes, the Development Agent MUST run `make validate test` and correct any errors.
+After making changes to Markdown documents, the Developtment Agent MUST run `make check` and correct any markdownlint errors.
+
 - `make` commands may require usage of a conda environment (i.e., `conda run -n rdflib-reasoning make`)
 - Use `make test` to run unit tests (should automatically use the virtual environment of `.venv`)
 - `make test` outputs coverage details to the console produces artifacts: `.coverage`, `coverage.xml`, `htmlcov/`
