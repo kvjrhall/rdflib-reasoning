@@ -20,19 +20,19 @@ This matrix tracks the intermediate RDFS rule target using the cached RDF 1.1 Se
 
 | Feature | Spec reference | Status |
 | --- | --- | --- |
-| Datatype typing propagation | `rdfs1` | Not started |
-| Domain inference | `rdfs2` | Not started |
-| Range inference | `rdfs3` | Not started |
-| Resource typing axioms | `rdfs4a`, `rdfs4b` | Not started |
-| Subproperty transitivity | `rdfs5` | Not started |
-| Every property is a subproperty of itself | `rdfs6` | Not started |
-| Subproperty inheritance | `rdfs7` | Not started |
-| Class typing for `rdfs:Class` | `rdfs8` | Not started |
-| Subclass typing from membership in `rdfs:Class` | `rdfs9` | Not started |
-| Every class is a subclass of itself | `rdfs10` | Not started |
-| Subclass transitivity | `rdfs11` | Not started |
-| Container membership property typing | `rdfs12` | Not started |
-| Datatype subclass typing | `rdfs13` | Not started |
+| Property typing | `rdfs1` | Implemented |
+| Domain inference | `rdfs2` | Implemented |
+| Range inference | `rdfs3` | Implemented |
+| Resource typing axioms | `rdfs4a`, `rdfs4b` | Implemented |
+| Subproperty transitivity | `rdfs5` | Implemented |
+| Every property is a subproperty of itself | `rdfs6` | Implemented |
+| Subproperty inheritance | `rdfs7` | Implemented |
+| Class typing for `rdfs:Class` | `rdfs8` | Implemented |
+| Subclass typing propagation | `rdfs9` | Implemented |
+| Every class is a subclass of itself | `rdfs10` | Implemented |
+| Subclass transitivity | `rdfs11` | Implemented |
+| Container membership property inheritance | `rdfs12` | Implemented |
+| Datatype subclass typing | `rdfs13` | Implemented |
 
 ### OWL 2 RL rules
 

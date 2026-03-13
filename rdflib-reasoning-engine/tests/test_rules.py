@@ -98,7 +98,22 @@ def test_rule_validation_rejects_empty_head() -> None:
 def test_rdfs_rule_examples_cover_core_entailment_shapes() -> None:
     rule_ids = {rule.id.rule_id for rule in RDFS_RULES}
 
-    assert {"rdfs2", "rdfs3", "rdfs5", "rdfs7", "rdfs9"} <= rule_ids
+    assert {
+        "rdfs1",
+        "rdfs2",
+        "rdfs3",
+        "rdfs4a",
+        "rdfs4b",
+        "rdfs5",
+        "rdfs6",
+        "rdfs7",
+        "rdfs8",
+        "rdfs9",
+        "rdfs10",
+        "rdfs11",
+        "rdfs12",
+        "rdfs13",
+    } <= rule_ids
 
     rdfs2 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs2")
     assert len(rdfs2.body) == 2
@@ -108,6 +123,10 @@ def test_rdfs_rule_examples_cover_core_entailment_shapes() -> None:
     rdfs7 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs7")
     assert rdfs7.head[0].pattern.subject == Variable("x")
     assert rdfs7.head[0].pattern.object == Variable("y")
+
+    rdfs11 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs11")
+    assert len(rdfs11.body) == 2
+    assert rdfs11.head[0].pattern.predicate == RDFS.subClassOf
 
     all_reference_uris = {
         str(reference.uri)

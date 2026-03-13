@@ -34,7 +34,7 @@ This release establishes the minimum coherent platform for graph-backed reasonin
    - Preserve `GraphBacked` and `StructuralElement` as the schema-facing contract between middleware and Research Agents.
    - Architecture: [Structural elements and middleware](architecture.md#structural-elements-and-middleware)
 1. RETE engine add-only baseline
-   - Deliver the supported store integration path, fixed-point update behavior, derivation logging contract, and add-only JTMS-compatible support bookkeeping.
+   - Deliver the supported store integration path, fixed-point update behavior, derivation logging contract, complete informative RDFS entailment rules (`rdfs1`-`rdfs13`), and add-only JTMS-compatible support bookkeeping.
    - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)
    - Architecture: [RETE Engine Design](architecture.md#rete-engine-design)
    - Architecture: [Truth Maintenance System (TMS)](architecture.md#truth-maintenance-system-tms)
@@ -58,6 +58,7 @@ This release establishes the minimum coherent platform for graph-backed reasonin
 
 - A Research Agent can operate over dataset-backed state with inference capability exposed only through explicit middleware composition.
 - The engine supports the documented add-only fixed-point flow and derivation logging baseline.
+- The engine provides the complete informative RDFS entailment baseline (`rdfs1`-`rdfs13`) within that add-only flow.
 - Proofs can be represented, assessed, and rendered through stable typed interfaces.
 - Any `0.1.0` feature lacking sufficient architectural detail MUST either be clarified in `architecture.md` before implementation or deferred to a later release.
 
