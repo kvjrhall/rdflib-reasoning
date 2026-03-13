@@ -65,6 +65,7 @@ This matrix tracks functional engine features independent of standards coverage.
 | Triple pattern matching | In progress | Public Rule IR, compiler normalization, and `NetworkMatcher` now execute RDFLib-variable triple patterns end-to-end |
 | Rule firing and agenda management | In progress | `Agenda` now orders activations by salience and breadth-first depth; richer conflict resolution policy remains future work |
 | Inference materialization | In progress | Compiled logical productions now execute to fixed point in `RETEEngine`, and `RETEStore` materializes inferred triples into RDFLib contexts |
+| RDF triple well-formedness enforcement | Implemented | The engine rejects or warns-and-skips triples with literal subjects or non-IRI predicates, preventing malformed triples from entering working memory or derived outputs |
 | Builtin predicate / function support | In progress | Predicate conditions compile and execute through the RETE matcher using injected read-only predicate hooks |
 | Rule action callbacks | In progress | Callback consequents now execute through the agenda with read-only invocation context; richer signature validation and retraction-time policy remain future work |
 | Derivation / trace logging | In progress | Engine-native `DerivationRecord` values are now emitted for new logical conclusions produced by fired rules |

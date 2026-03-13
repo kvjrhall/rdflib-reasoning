@@ -255,15 +255,20 @@ def test_rdfs_entailment_micro(
         # There may be multiple derivations for the same entailed triple as the
         # ruleset evolves. Assert that at least one derivation record matches
         # the micro example for the intended rule.
-        matching_records = [
-            record
-            for record in logger.records
-            if record.rule_id.rule_id == test_case.rule_id
-        ]
-        assert matching_records, (
-            f"Expected at least one derivation for rule {test_case.rule_id} "
-            f"(example {test_case.example_number})"
-        )
+        for output in test_case.outputs:
+            matching_records = [
+                record
+                for record in logger.records
+                if record.rule_id.rule_id == test_case.rule_id
+                and any(
+                    conclusion.triple == output for conclusion in record.conclusions
+                )
+            ]
+            assert matching_records, (
+                "Expected a derivation record for "
+                f"{output!r} from rule {test_case.rule_id} "
+                f"(example {test_case.example_number})"
+            )
 
 
 def test_rdfs_rule_ids_are_known_to_spec_index() -> None:
