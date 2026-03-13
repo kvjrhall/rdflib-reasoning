@@ -1,6 +1,10 @@
 # rdflib-reasoning
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rdflib-reasoning)
 
 [![Coverage](https://raw.githubusercontent.com/kvjrhall/rdflib-reasoning/python-coverage-comment-action-data/badge.svg)](https://github.com/kvjrhall/rdflib-reasoning/tree/python-coverage-comment-action-data)
 
@@ -37,6 +41,9 @@ This repository distinguishes between two agent types. Canonical definitions are
 | [rdflib-reasoning-middleware](./rdflib-reasoning-middleware/) | Middleware and Research Agent-facing data interchange |
 | [docs/dev](./docs/dev/) | Architecture notes, decision records, and development guidance |
 | [docs/specs](./docs/specs/) | Cached specifications optimized for development work |
+
+API and developer documentation can be generated locally with `make docs` and served from the
+generated HTML output with `make docs-serve`.
 
 ## Component Overview
 

@@ -40,6 +40,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: Build documentation site
+        run: make docs
+
       - name: Publish coverage comment and badge data
         if: always()
         uses: py-cov-action/python-coverage-comment-action@v3
@@ -85,6 +88,32 @@ jobs:
         with:
           name: python-distributions
           path: dist
+
+  docs-linkcheck:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install workspace
+        run: make install-all
+
+      - name: Check documentation links
+        run: make docs-linkcheck
 
   release-drafter:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

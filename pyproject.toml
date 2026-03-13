@@ -17,7 +17,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["beautifulsoup4", "mypy", "pytest", "pytest-cov", "ruff"]
+dev = [
+  "beautifulsoup4",
+  "build",
+  "mypy",
+  "myst-parser",
+  "pre-commit",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "sphinx",
+  "sphinx-autoapi",
+  "twine",
+]
 research = ["ipykernel", "jupyterlab"]
 
 [tool.uv.sources]

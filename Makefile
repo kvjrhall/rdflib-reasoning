@@ -1,4 +1,4 @@
-.PHONY: check help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
+.PHONY: check clean docs docs-linkcheck docs-serve help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
 
 PYTHON ?= python
 
@@ -8,6 +8,32 @@ help:  # show this help (targets and descriptions)
 
 check:  # execute all pre-commit hooks
 	uv run pre-commit run --all-files
+
+clean:  # remove generated docs, test, coverage, and build artifacts
+	rm -rf .pytest_cache
+	rm -rf .mypy_cache
+	rm -rf .ruff_cache
+	rm -rf docs-build
+	rm -rf docs-src/autoapi
+	rm -rf htmlcov
+	rm -rf site
+	rm -rf dist
+	rm -rf build
+	rm -rf src/*.egg-info
+	rm -rf rdflib-reasoning-axioms/src/*.egg-info
+	rm -rf rdflib-reasoning-engine/src/*.egg-info
+	rm -rf rdflib-reasoning-middleware/src/*.egg-info
+	rm -f .coverage
+	rm -f coverage.xml
+
+docs: install-dev  # build the Sphinx documentation site
+	uv run sphinx-build -W --keep-going -b html docs-src docs-build/html
+
+docs-linkcheck: install-dev  # validate external links referenced by the Sphinx docs
+	uv run sphinx-build -W --keep-going -b linkcheck docs-src docs-build/linkcheck
+
+docs-serve: install-dev  # serve the Sphinx documentation site locally
+	uv run python -m http.server 8000 --directory docs-build/html
 
 install:  # install the base metapackage workspace
 	uv sync

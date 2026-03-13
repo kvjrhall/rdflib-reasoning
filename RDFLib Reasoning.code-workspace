@@ -16,10 +16,10 @@
 		}
 	],
 	"settings": {
-		"[jsonc]": {
+		"[json]": {
 			"json.sortOnSave.enable": true
 		},
-		"[json]": {
+		"[jsonc]": {
 			"json.sortOnSave.enable": true
 		},
 		"[notebook]": {
@@ -33,6 +33,7 @@
 			}
 		},
 		"files.exclude": {
+			".coverage*": true,
 			".pytest_cache/**": true,
 			".ruff_cache/**": true,
 			".venv/**": true,
@@ -41,10 +42,10 @@
 			"**/.git": true,
 			"**/.mypy_cache/**": true,
 			"**/Thumbs.db": true,
-			"coverage.xml": true,
-			".coverage*": true
+			"coverage.xml": true
 		},
 		"files.watcherExclude": {
+			".coverage*": true,
 			".mypy_cache/**": true,
 			".pytest_cache/**": true,
 			".ruff_cache/**": true,
@@ -52,9 +53,9 @@
 			"**/__pycache__/**": true,
 			"**/.git/objects/**": true,
 			"**/.git/subtree-cache/**": true,
-			"htmlcov/**": true,
 			"coverage.xml": true,
-			".coverage*": true
+			"htmlcov/**": true,
+			"site/**": true
 		},
 		"markdownlint.lintWorkspaceGlobs": [
 			"**/*.{md,mkd,mdwn,mdown,markdown,markdn,mdtxt,mdtext,workbook}",
