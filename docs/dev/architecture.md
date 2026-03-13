@@ -119,6 +119,18 @@ The initial proof evaluation harness is intended to support a baseline notebook 
 - `DirectProof` SHOULD support proof payloads represented as graph-scoped Pydantic objects where that yields a natural typed claim or support, but it MUST also support triple-level claims directly because not every derivation step is most naturally represented as an OWL structural element.
 - `DirectProof` SHOULD support proof steps whose conclusions are grouped when a single inference step naturally establishes multiple related outputs.
 
+### Proof rendering
+
+Proof rendering is distinct from proof reconstruction and proof interchange.
+
+- Canonical proof structures such as `DirectProof` MUST remain machine-facing data models and MUST NOT be simplified in-place for presentation convenience.
+- Rendering SHOULD be implemented as a separate presentation layer over canonical proof data.
+- Rendering APIs MAY accept an RDFLib namespace source such as a `NamespaceManager`, graph, or dataset-derived equivalent in order to present compact names like `rdf:type` or `rdfs:subClassOf`.
+- Namespace-aware shortening MUST be treated as presentation only. It MUST NOT replace the canonical RDFLib term content stored in the proof models.
+- When no namespace source is available, renderers SHOULD fall back to a deterministic readable form rather than failing.
+- Proof rendering MUST NOT be implemented by changing `__repr__` on proof models to use namespace-aware shortening. Debug-oriented representation and human-facing rendering SHOULD remain separate concerns.
+- Notebook-friendly rendering is a desired future capability. Markdown-oriented rendering is RECOMMENDED as an initial target, and Mermaid-style structural rendering MAY be added later.
+
 ### Baseline scope
 
 The baseline notebook SHOULD establish a narrow and defensible experiment.
@@ -164,6 +176,7 @@ The engine SHOULD employ a **Left-Deep** join tree by default but MUST support *
 - **Alpha Layer**: MUST support literal constraints (e.g., `Triple p == "rdf:type"`) and `PredicateNodes`. `PredicateNodes` SHOULD wrap duck-typed Python callables. To minimize interpreter overhead, the `NetworkBuilder` SHOULD position `PredicateNodes` after literal `AlphaNodes` but before `BetaNodes`.
 - **Beta Layer**: MUST maintain memories of `PartialMatch` objects. The `JoinOptimizer` SHOULD use basic selectivity heuristics (e.g., specific properties are more selective than `rdf:type`) to order joins.
 - **Terminal Layer**: Upon a full match, the engine MUST produce an engine-managed logical production and MAY additionally enqueue non-mutating callbacks.
+- **Specialized relation indexes**: The architecture MAY later incorporate specialized relation indexes for selected reachability-oriented relations when that is more efficient than routing the same work exclusively through generic rule matching. Current intent is limited to schema-lattice relations such as `rdfs:subClassOf` and `rdfs:subPropertyOf`; concrete algorithms and integration boundaries remain future design work.
 
 ### Truth Maintenance System (TMS)
 
@@ -199,3 +212,5 @@ This hybrid approach balances the formal logic requirements of **OWL 2 RL** with
 
 These rules are aligned with [DR-005 RETE Consequent Partitioning and Retraction Compatibility](decision-records/DR-005%20RETE%20Consequent%20Partitioning%20and%20Retraction%20Compatibility.md).
 Proof reconstruction and `DirectProof` layering are further aligned with [DR-007 Proof Model and Derivation Semantics Refinement](decision-records/DR-007%20Proof%20Model%20and%20Derivation%20Semantics%20Refinement.md), which supersedes [DR-006 Derivation Logging and DirectProof Reconstruction](decision-records/DR-006%20Derivation%20Logging%20and%20DirectProof%20Reconstruction.md).
+Proof rendering and namespace-aware presentation are further aligned with [DR-008 Proof Rendering Separation and Namespace-Aware Presentation](decision-records/DR-008%20Proof%20Rendering%20Separation%20and%20Namespace-Aware%20Presentation.md).
+Future specialized transitive handling intent is aligned with [DR-009 Transitive Relation Index Intent](decision-records/DR-009%20Transitive%20Relation%20Index%20Intent.md).

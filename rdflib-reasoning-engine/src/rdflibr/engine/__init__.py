@@ -3,7 +3,11 @@ from .api import (
     RETEEngine,
     RETEEngineFactory,
 )
-from .derivation import DerivationLogger, ExplanationReconstructor
+from .derivation import (
+    DerivationLogger,
+    DerivationProofReconstructor,
+    ExplanationReconstructor,
+)
 from .proof import (
     AuthorityReference,
     ContradictionClaim,
@@ -45,6 +49,7 @@ __all__ = [
     "ContradictionClaim",
     "ContextData",
     "DerivationLogger",
+    "DerivationProofReconstructor",
     "DerivationRecord",
     "DirectProof",
     "ExplanationReconstructor",

@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from rdflib import BNode, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
 from rdflib.term import Variable
+from rdflibr.engine.derivation import DerivationProofReconstructor
 from rdflibr.engine.proof import (
     AuthorityReference,
     ContradictionClaim,
@@ -218,3 +219,59 @@ def test_rule_application_requires_rule_id_or_description() -> None:
             conclusions=[claim],
             premises=[ProofLeaf(claim=claim)],
         )
+
+
+def test_derivation_proof_reconstructor_builds_nested_direct_proof_tree() -> None:
+    context = BNode()
+    alice = URIRef("urn:test:alice")
+    human = URIRef("urn:test:Human")
+    mammal = URIRef("urn:test:Mammal")
+    animal = URIRef("urn:test:Animal")
+    goal = TripleFact(context=context, triple=(alice, RDF.type, animal))
+    intermediate = TripleFact(context=context, triple=(alice, RDF.type, mammal))
+    premise_a = TripleFact(context=context, triple=(alice, RDF.type, human))
+    premise_b = TripleFact(context=context, triple=(human, RDFS.subClassOf, mammal))
+    premise_c = TripleFact(context=context, triple=(mammal, RDFS.subClassOf, animal))
+
+    records = [
+        DerivationRecord(
+            context=context,
+            conclusions=[intermediate],
+            premises=[premise_a, premise_b],
+            rule_id=RuleId(ruleset="rdfs", rule_id="rdfs9"),
+            depth=1,
+        ),
+        DerivationRecord(
+            context=context,
+            conclusions=[goal],
+            premises=[intermediate, premise_c],
+            rule_id=RuleId(ruleset="rdfs", rule_id="rdfs9"),
+            depth=2,
+        ),
+    ]
+
+    proof = DerivationProofReconstructor().reconstruct(goal, records)
+
+    assert proof.context == context
+    assert proof.goal == goal
+    assert proof.verdict == "proved"
+    assert isinstance(proof.proof, RuleApplication)
+    assert proof.proof.derivation == records[1]
+    assert isinstance(proof.proof.premises[0], RuleApplication)
+    assert proof.proof.premises[0].derivation == records[0]
+    assert isinstance(proof.proof.premises[1], ProofLeaf)
+    assert proof.proof.premises[1].claim == premise_c
+
+
+def test_derivation_proof_reconstructor_uses_leaf_for_unexplained_goal() -> None:
+    context = BNode()
+    goal = TripleFact(
+        context=context,
+        triple=(URIRef("urn:test:s"), RDF.type, URIRef("urn:test:Human")),
+    )
+
+    proof = DerivationProofReconstructor().reconstruct(goal, [])
+
+    assert proof.verdict == "incomplete"
+    assert isinstance(proof.proof, ProofLeaf)
+    assert proof.proof.claim == goal
