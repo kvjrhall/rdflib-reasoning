@@ -20,19 +20,19 @@ This matrix tracks the intermediate RDFS rule target using the cached RDF 1.1 Se
 
 | Feature | Spec reference | Status |
 | --- | --- | --- |
-| Datatype typing propagation | `rdfs1` | Not started |
-| Domain inference | `rdfs2` | Not started |
-| Range inference | `rdfs3` | Not started |
-| Resource typing axioms | `rdfs4a`, `rdfs4b` | Not started |
-| Subproperty transitivity | `rdfs5` | Not started |
-| Every property is a subproperty of itself | `rdfs6` | Not started |
-| Subproperty inheritance | `rdfs7` | Not started |
-| Class typing for `rdfs:Class` | `rdfs8` | Not started |
-| Subclass typing from membership in `rdfs:Class` | `rdfs9` | Not started |
-| Every class is a subclass of itself | `rdfs10` | Not started |
-| Subclass transitivity | `rdfs11` | Not started |
-| Container membership property typing | `rdfs12` | Not started |
-| Datatype subclass typing | `rdfs13` | Not started |
+| Property typing | `rdfs1` | Implemented |
+| Domain inference | `rdfs2` | Implemented |
+| Range inference | `rdfs3` | Implemented |
+| Resource typing axioms | `rdfs4a`, `rdfs4b` | Implemented |
+| Subproperty transitivity | `rdfs5` | Implemented |
+| Every property is a subproperty of itself | `rdfs6` | Implemented |
+| Subproperty inheritance | `rdfs7` | Implemented |
+| Class typing for `rdfs:Class` | `rdfs8` | Implemented |
+| Subclass typing propagation | `rdfs9` | Implemented |
+| Every class is a subclass of itself | `rdfs10` | Implemented |
+| Subclass transitivity | `rdfs11` | Implemented |
+| Container membership property inheritance | `rdfs12` | Implemented |
+| Datatype subclass typing | `rdfs13` | Implemented |
 
 ### OWL 2 RL rules
 
@@ -65,6 +65,7 @@ This matrix tracks functional engine features independent of standards coverage.
 | Triple pattern matching | In progress | Public Rule IR, compiler normalization, and `NetworkMatcher` now execute RDFLib-variable triple patterns end-to-end |
 | Rule firing and agenda management | In progress | `Agenda` now orders activations by salience and breadth-first depth; richer conflict resolution policy remains future work |
 | Inference materialization | In progress | Compiled logical productions now execute to fixed point in `RETEEngine`, and `RETEStore` materializes inferred triples into RDFLib contexts |
+| RDF triple well-formedness enforcement | Implemented | The engine rejects or warns-and-skips triples with literal subjects or non-IRI predicates, preventing malformed triples from entering working memory or derived outputs |
 | Builtin predicate / function support | In progress | Predicate conditions compile and execute through the RETE matcher using injected read-only predicate hooks |
 | Rule action callbacks | In progress | Callback consequents now execute through the agenda with read-only invocation context; richer signature validation and retraction-time policy remain future work |
 | Derivation / trace logging | In progress | Engine-native `DerivationRecord` values are now emitted for new logical conclusions produced by fired rules |

@@ -1,8 +1,10 @@
+import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, Literal, cast
 
-from rdflib.term import Node, Variable
+from rdflib.term import BNode, Node, URIRef, Variable
+from rdflib.term import Literal as RDFLiteral
 from rdflibr.axiom.common import ContextIdentifier, Triple
 
 from .derivation import DerivationLogger
@@ -17,6 +19,8 @@ from .rete import (
     WorkingMemory,
 )
 from .rules import CallbackHook, ContextData, Rule, RuleContext
+
+_RDF_TRIPLES_SPEC_URL = "https://www.w3.org/TR/rdf11-concepts/#section-triples"
 
 
 @dataclass
@@ -41,6 +45,57 @@ class FatalRuleError(RuntimeError):
     """Fatal error raised by public rule, predicate, or callback execution."""
 
 
+class RuleTripleWarning(UserWarning):
+    """Warning for triples rejected by RDF 1.1 triple well-formedness checks.
+
+    These warnings are emitted when the engine is configured to warn and skip
+    malformed triples instead of raising. The governing normative source is the
+    RDF 1.1 Concepts triples section:
+    https://www.w3.org/TR/rdf11-concepts/#section-triples
+    """
+
+
+class LiteralAsSubjectError(FatalRuleError):
+    """Raised when a stated or inferred triple has a literal subject.
+
+    Literal subjects are disallowed by the RDF 1.1 data model, so the engine
+    refuses to admit or materialize such triples in error mode.
+    """
+
+
+class LiteralAsSubjectWarning(RuleTripleWarning):
+    """Warning emitted when a literal-subject triple is skipped in warning mode."""
+
+
+class BlankNodePredicateError(FatalRuleError):
+    """Raised when a stated or inferred triple has a blank node predicate.
+
+    Predicates must be IRIs in RDF 1.1, so the engine refuses to admit or
+    materialize such triples in error mode.
+    """
+
+
+class BlankNodePredicateWarning(RuleTripleWarning):
+    """Warning emitted when a blank-node-predicate triple is skipped in warning mode."""
+
+
+class LiteralPredicateError(FatalRuleError):
+    """Raised when a stated or inferred triple has a non-IRI predicate.
+
+    Literal predicates are explicitly invalid, and this exception is also used
+    for the broader non-IRI predicate path when the engine is configured to
+    fail fast.
+    """
+
+
+class LiteralPredicateWarning(RuleTripleWarning):
+    """Warning emitted when a non-IRI-predicate triple is skipped in warning mode."""
+
+
+LiteralSubjectPolicy = Literal["error", "warning"]
+PredicateTermPolicy = Literal["error", "warning"]
+
+
 class RETEEngine:
     """Public engine facade for fixed-point triple entailment within one context.
 
@@ -48,6 +103,12 @@ class RETEEngine:
     triple-oriented rule execution, optional derivation logging, and warm-start
     over an existing context. User-facing proof reconstruction is layered on top
     of derivation records rather than being the engine's execution format.
+
+    The engine also enforces RDF 1.1 triple well-formedness for both stated and
+    inferred triples. Literal subjects and non-IRI predicates never enter
+    working memory or derived outputs. Callers can choose fail-fast or
+    warning-and-skip behavior via ``literal_subject_policy`` and
+    ``predicate_term_policy`` in the engine context data.
     """
 
     context_data: ContextData
@@ -60,6 +121,8 @@ class RETEEngine:
     callback_recorder: Any
     tms: TMSController
     working_memory: WorkingMemory
+    literal_subject_policy: LiteralSubjectPolicy
+    predicate_term_policy: PredicateTermPolicy
 
     def __init__(self, context_data: ContextData, rules: Iterable[Rule]) -> None:
         self.context_data = context_data
@@ -74,6 +137,15 @@ class RETEEngine:
         self.known_triples = set()
         self.derivation_logger = self.context_data.get("derivation_logger")
         self.callback_recorder = self.context_data.get("callback_recorder")
+        # Configure RDF term-type enforcement; default to strict error mode.
+        self.literal_subject_policy = cast(
+            LiteralSubjectPolicy,
+            self.context_data.get("literal_subject_policy", "error"),
+        )
+        self.predicate_term_policy = cast(
+            PredicateTermPolicy,
+            self.context_data.get("predicate_term_policy", "error"),
+        )
         self.tms = TMSController()
         self.working_memory = self.tms.working_memory
 
@@ -117,8 +189,90 @@ class RETEEngine:
                 resolved.append(argument)
         return tuple(resolved)
 
+    def _triple_is_permitted(self, triple: Triple) -> bool:
+        """Enforce RDF 1.1 term-type constraints on asserted triples.
+
+        The RDF 1.1 Concepts and Abstract Syntax specification requires that
+        subjects are IRIs or blank nodes and predicates are IRIs:
+        https://www.w3.org/TR/rdf11-concepts/#section-triples
+
+        This helper enforces those constraints according to the configured
+        literal_subject_policy and predicate_term_policy. It returns True if
+        the triple is permitted for use in the RETE working memory and as an
+        inferred triple, and False if the triple should be ignored (warning
+        mode). In error mode, it raises one of the dedicated FatalRuleError
+        subclasses.
+        """
+
+        subject, predicate, _ = triple
+
+        # Literal subjects are never allowed in RDF triples.
+        if isinstance(subject, RDFLiteral):
+            message = (
+                "Attempted to assert a triple whose subject is a literal, which "
+                "is disallowed by the RDF 1.1 data model; see "
+                f"{_RDF_TRIPLES_SPEC_URL}"
+            )
+            if self.literal_subject_policy == "error":
+                raise LiteralAsSubjectError(message)
+            warnings.warn(message, LiteralAsSubjectWarning, stacklevel=3)
+            return False
+
+        # Predicates MUST be IRIs; they MUST NOT be blank nodes or literals.
+        if not isinstance(predicate, URIRef):
+            if isinstance(predicate, BNode):
+                message = (
+                    "Attempted to assert a triple whose predicate is a blank node, "
+                    "which is disallowed by the RDF 1.1 data model; see "
+                    f"{_RDF_TRIPLES_SPEC_URL}"
+                )
+                if self.predicate_term_policy == "error":
+                    raise BlankNodePredicateError(message)
+                warnings.warn(message, BlankNodePredicateWarning, stacklevel=3)
+                return False
+
+            if isinstance(predicate, RDFLiteral):
+                message = (
+                    "Attempted to assert a triple whose predicate is a literal, "
+                    "which is disallowed by the RDF 1.1 data model; see "
+                    f"{_RDF_TRIPLES_SPEC_URL}"
+                )
+                if self.predicate_term_policy == "error":
+                    raise LiteralPredicateError(message)
+                warnings.warn(message, LiteralPredicateWarning, stacklevel=3)
+                return False
+
+            # Any other non-URIRef predicate is also disallowed by the RDF model.
+            message = (
+                "Attempted to assert a triple whose predicate is not an IRI, "
+                "which is disallowed by the RDF 1.1 data model; see "
+                f"{_RDF_TRIPLES_SPEC_URL}"
+            )
+            if self.predicate_term_policy == "error":
+                raise LiteralPredicateError(message)
+            warnings.warn(message, LiteralPredicateWarning, stacklevel=3)
+            return False
+
+        return True
+
     def add_triples(self, triples: Iterable[Triple]) -> set[Triple]:
-        pending = {cast(Triple, triple) for triple in triples}
+        """Add stated triples, saturate inference, and return newly derived triples.
+
+        Incoming triples are first checked against the engine's RDF 1.1 triple
+        well-formedness policies. Triples rejected under those policies are
+        either raised as errors or warned-and-skipped before they can enter
+        working memory or derivation outputs.
+        """
+        # Filter incoming triples according to RDF term-type policies.
+        raw_pending = {cast(Triple, triple) for triple in triples}
+        pending: set[Triple] = set()
+        for triple in raw_pending:
+            if self._triple_is_permitted(triple):
+                pending.add(triple)
+
+        if not pending:
+            return set()
+
         self.tms.register_stated(pending)
         self.known_triples.update(pending)
         newly_derived: set[Triple] = set()
@@ -145,6 +299,8 @@ class RETEEngine:
                         production.pattern.object,
                     )
                     triple = self._instantiate_triple(pattern, action.bindings)
+                    if not self._triple_is_permitted(triple):
+                        continue
                     self.tms.record_derivation(
                         triple,
                         rule_id=action.rule_id,
@@ -224,7 +380,12 @@ class RETEEngine:
 
 
 class RETEEngineFactory:
-    """Factory for per-context engine instances and contextual hook registries."""
+    """Factory for per-context engine instances and contextual hook registries.
+
+    The factory passes context-template values through to each engine instance,
+    including optional RDF triple well-formedness policies such as
+    ``literal_subject_policy`` and ``predicate_term_policy``.
+    """
 
     context_template: dict[str, Any]
     rules_template: tuple[Rule, ...]
