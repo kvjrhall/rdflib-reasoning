@@ -31,6 +31,9 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Verify lockfile is current
+        run: uv lock --check
+
       - name: Install workspace
         run: make install-all
 
