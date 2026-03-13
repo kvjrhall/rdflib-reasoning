@@ -1,0 +1,64 @@
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+template: |
+  ## What Changed
+
+  $CHANGES
+
+  ## Package Artifacts
+
+  This release publishes distributions for:
+  - `rdflib-reasoning`
+  - `rdflib-reasoning-axioms`
+  - `rdflib-reasoning-engine`
+  - `rdflib-reasoning-middleware`
+change-template: "- #$NUMBER $TITLE (@$AUTHOR)"
+no-changes-template: "- No user-facing changes recorded."
+categories:
+  - title: "Features"
+    labels:
+      - "feature"
+      - "enhancement"
+      - "feat"
+  - title: "Fixes"
+    labels:
+      - "fix"
+      - "bug"
+      - "bugfix"
+  - title: "Documentation"
+    labels:
+      - "docs"
+  - title: "Tests"
+    labels:
+      - "test"
+      - "tests"
+  - title: "Maintenance"
+    labels:
+      - "build"
+      - "chore"
+      - "ci"
+      - "dependencies"
+      - "refactor"
+change-title-escapes: '\<*_&'
+version-resolver:
+  major:
+    labels:
+      - "bump-major"
+  minor:
+    labels:
+      - "bump-minor"
+  patch:
+    labels:
+      - "bump-patch"
+  default: patch
+autolabeler:
+  - label: "docs"
+    files:
+      - "*.md"
+      - "docs/**/*"
+  - label: "ci"
+    files:
+      - ".github/**/*"
+  - label: "tests"
+    files:
+      - "**/tests/**/*"

@@ -1,5 +1,9 @@
 # rdflib-reasoning
 
+[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+
+[![Coverage](https://raw.githubusercontent.com/kvjrhall/rdflib-reasoning/python-coverage-comment-action-data/badge.svg)](https://github.com/kvjrhall/rdflib-reasoning/tree/python-coverage-comment-action-data)
+
 `rdflib-reasoning` is a monorepo for Python packages and notebooks used to study how tool-grounded Research Agents interact with RDF graphs and formal reasoning systems.
 
 The repository is organized around one practical research question:
