@@ -60,7 +60,7 @@ Each of the following sections extends the [General Documentation Policy](#1-gen
 
 - [ ] Each `AGENTS.md` clearly states the scope of the instructions it introduces and does not silently conflict with higher-level `AGENTS.md` files
 - [ ] Instructions are written for the Development Agent, unless a distinction between Development Agent and Research Agent is explicitly required
-- [ ] References to agents consistently use the repository's controlled vocabulary: `Research Agent` and `Development Agent`
+- [ ] References to agents consistently use the repository's controlled vocabulary from the root `AGENTS.md`, with `Development Agent` remaining the default audience unless another role is explicitly assigned
 - [ ] The document clearly distinguishes normative instructions from explanatory/background material so that repository policy is easy to follow
 - [ ] File- or directory-specific quality gates are concrete, testable, and scoped to the subtree governed by that `AGENTS.md`
 - [ ] Cross references to templates, indexes, decision records, architecture documents, or sibling guidance are accurate and resolvable
