@@ -22,6 +22,7 @@ dev = [
   "build",
   "mypy",
   "myst-parser",
+  "pip-audit",
   "pre-commit",
   "pytest",
   "pytest-cov",

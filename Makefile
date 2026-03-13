@@ -1,4 +1,4 @@
-.PHONY: check clean docs docs-linkcheck docs-serve help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
+.PHONY: audit check clean docs docs-linkcheck docs-serve help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
 
 PYTHON ?= python
 
@@ -8,6 +8,9 @@ help:  # show this help (targets and descriptions)
 
 check:  # execute all pre-commit hooks
 	uv run pre-commit run --all-files
+
+audit: install-dev  # audit the resolved Python environment for known vulnerabilities
+	uv run pip-audit
 
 clean:  # remove generated docs, test, coverage, and build artifacts
 	rm -rf .pytest_cache
