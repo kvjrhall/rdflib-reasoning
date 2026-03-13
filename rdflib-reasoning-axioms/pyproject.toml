@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rdflib-reasoning-axioms"
 dynamic = ["version"]
-license = "MIT"
+license = { file = "../LICENSE" }
 description = "Axiomatization of RDF graphs for RDFLib"
 readme = "README.md"
 requires-python = ">=3.14"

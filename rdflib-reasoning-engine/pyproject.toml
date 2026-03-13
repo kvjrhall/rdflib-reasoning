@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rdflib-reasoning-engine"
 dynamic = ["version"]
-license = "MIT"
+license = { file = "../LICENSE" }
 description = "RETE-based RDFS and OWL 2 RL entailment for RDFLib"
 readme = "README.md"
 requires-python = ">=3.14"

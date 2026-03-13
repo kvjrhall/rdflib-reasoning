@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rdflib-reasoning-middleware"
 dynamic = ["version"]
-license = "MIT"
+license = { file = "../LICENSE" }
 description = "LangChain Custom Middleware for Semantic Web Reasoning"
 readme = "README.md"
 requires-python = ">=3.14"
