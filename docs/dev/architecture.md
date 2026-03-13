@@ -168,6 +168,7 @@ The design diverges from classic RETE by treating RDF triples as first-class obj
 - **Logical consequents** MUST be represented as declarative triple production handled by the engine itself.
 - **Predicates / builtins** MAY use Python functions, but they MUST be read-only tests used during matching or internal evaluation.
 - **Callbacks / hooks** MAY use Python functions for observability or integration, but they MUST NOT add triples, retract triples, or otherwise mutate graph state.
+- **RDF data-model enforcement** MUST remain part of engine correctness, not just caller-side validation. The engine MUST refuse to admit or materialize triples that violate the RDF 1.1 triple constraints, especially literal subjects and non-IRI predicates.
 
 ### Rule Matching & Network Topology
 
@@ -199,6 +200,16 @@ Rule execution MUST be decoupled from matching via an `Agenda`.
 - **Callbacks**: Callbacks MUST interact with the engine only through a read-only `RuleContext` or equivalent hook context. They MAY emit logs, metrics, traces, or other external signals, but they MUST NOT modify graph state.
 - **Retraction Compatibility**: Because callbacks are non-logical and non-mutating, `RetractionNotImplemented` MUST be interpreted as meaning that no reversal is required for logical consistency. Retraction support remains a future design goal; the initial implementation MAY remain add-only so long as its data structures and rule model do not preclude JTMS-backed removal later.
 
+### RDF Data-Model Enforcement
+
+The engine MUST enforce RDF 1.1 triple well-formedness for both stated inputs and inferred outputs.
+
+- **Literal subjects**: The engine MUST NOT admit or materialize triples whose subject is a literal.
+- **Predicate term constraints**: The engine MUST NOT admit or materialize triples whose predicate is not an IRI. Blank node predicates and literal predicates are explicitly disallowed.
+- **Working-memory boundary**: Malformed triples MUST be filtered out before they enter working memory, support bookkeeping, or derivation outputs.
+- **Policy surface**: The engine SHOULD expose configurable handling for malformed triples so that callers can choose fail-fast behavior or warning-and-skip behavior for experimental or migration scenarios.
+- **Feature distinction**: This enforcement SHOULD be documented as a distinguishing engine feature because many RDF-oriented rule systems are more permissive about tuple-shaped inputs than this repository intends to be.
+
 ### Type Safety and Validation
 
 The engine SHOULD utilize Python's `inspect` and `typing` modules at **Construction-Time** to validate rule signatures.
@@ -214,3 +225,4 @@ These rules are aligned with [DR-005 RETE Consequent Partitioning and Retraction
 Proof reconstruction and `DirectProof` layering are further aligned with [DR-007 Proof Model and Derivation Semantics Refinement](decision-records/DR-007%20Proof%20Model%20and%20Derivation%20Semantics%20Refinement.md), which supersedes [DR-006 Derivation Logging and DirectProof Reconstruction](decision-records/DR-006%20Derivation%20Logging%20and%20DirectProof%20Reconstruction.md).
 Proof rendering and namespace-aware presentation are further aligned with [DR-008 Proof Rendering Separation and Namespace-Aware Presentation](decision-records/DR-008%20Proof%20Rendering%20Separation%20and%20Namespace-Aware%20Presentation.md).
 Future specialized transitive handling intent is aligned with [DR-009 Transitive Relation Index Intent](decision-records/DR-009%20Transitive%20Relation%20Index%20Intent.md).
+RDF triple well-formedness enforcement is aligned with [DR-010 RDF Triple Well-Formedness Enforcement](decision-records/DR-010%20RDF%20Triple%20Well-Formedness%20Enforcement.md).

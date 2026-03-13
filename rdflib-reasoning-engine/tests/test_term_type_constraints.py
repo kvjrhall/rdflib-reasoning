@@ -37,14 +37,13 @@ def test_literal_subject_warning_mode_emits_warning_and_skips_triple() -> None:
     engine = make_engine(literal_subject_policy="warning")
     bad_triple: Triple = (Literal("x"), URIRef("urn:test:p"), URIRef("urn:test:o"))
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always", category=LiteralAsSubjectWarning)
+    with pytest.warns(LiteralAsSubjectWarning) as caught:
         result = engine.add_triples({bad_triple})
 
     assert result == set()
-    assert any("rdf11-concepts/#section-triples" in str(w.message) for w in caught), (
-        "Expected LiteralAsSubjectWarning with RDF 1.1 Concepts reference"
-    )
+    assert bad_triple not in engine.known_triples
+    assert len(caught) == 1
+    assert "rdf11-concepts/#section-triples" in str(caught[0].message)
 
 
 @pytest.mark.parametrize(
@@ -57,6 +56,7 @@ def test_literal_subject_warning_mode_emits_warning_and_skips_triple() -> None:
 def test_non_iri_predicate_raises_error_by_default(
     predicate: Node, error_type: type[Exception], warning_type: type[Warning]
 ) -> None:
+    _ = warning_type
     engine = make_engine()
     bad_triple: Triple = (URIRef("urn:test:s"), predicate, URIRef("urn:test:o"))  # type: ignore[assignment]
 
@@ -76,17 +76,17 @@ def test_non_iri_predicate_raises_error_by_default(
 def test_non_iri_predicate_warning_mode_emits_warning_and_skips_triple(
     predicate: Node, error_type: type[Exception], warning_type: type[Warning]
 ) -> None:
+    _ = error_type
     engine = make_engine(predicate_term_policy="warning")
     bad_triple: Triple = (URIRef("urn:test:s"), predicate, URIRef("urn:test:o"))  # type: ignore[assignment]
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always", category=warning_type)
+    with pytest.warns(warning_type) as caught:
         result = engine.add_triples({bad_triple})
 
     assert result == set()
-    assert any("rdf11-concepts/#section-triples" in str(w.message) for w in caught), (
-        "Expected predicate term warning with RDF 1.1 Concepts reference"
-    )
+    assert bad_triple not in engine.known_triples
+    assert len(caught) == 1
+    assert "rdf11-concepts/#section-triples" in str(caught[0].message)
 
 
 def test_valid_triple_is_accepted_and_returned() -> None:
@@ -96,9 +96,13 @@ def test_valid_triple_is_accepted_and_returned() -> None:
     )
     good_triple: Triple = (URIRef("urn:test:s"), RDF.type, URIRef("urn:test:o"))
 
-    result = engine.add_triples({good_triple})
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("error")
+        result = engine.add_triples({good_triple})
 
     # A valid triple must be accepted without errors or warnings; add_triples
     # returns only newly derived triples, so with no rules configured the
     # result is the empty set.
     assert result == set()
+    assert good_triple in engine.known_triples
+    assert caught == []

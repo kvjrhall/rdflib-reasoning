@@ -46,31 +46,50 @@ class FatalRuleError(RuntimeError):
 
 
 class RuleTripleWarning(UserWarning):
-    """Warning emitted when a rule would assert a triple that is not permitted by the RDF 1.1 data model."""
+    """Warning for triples rejected by RDF 1.1 triple well-formedness checks.
+
+    These warnings are emitted when the engine is configured to warn and skip
+    malformed triples instead of raising. The governing normative source is the
+    RDF 1.1 Concepts triples section:
+    https://www.w3.org/TR/rdf11-concepts/#section-triples
+    """
 
 
 class LiteralAsSubjectError(FatalRuleError):
-    """Raised when a rule attempts to assert a triple with a literal subject."""
+    """Raised when a stated or inferred triple has a literal subject.
+
+    Literal subjects are disallowed by the RDF 1.1 data model, so the engine
+    refuses to admit or materialize such triples in error mode.
+    """
 
 
 class LiteralAsSubjectWarning(RuleTripleWarning):
-    """Warning emitted when a rule would assert a triple with a literal subject."""
+    """Warning emitted when a literal-subject triple is skipped in warning mode."""
 
 
 class BlankNodePredicateError(FatalRuleError):
-    """Raised when a rule attempts to assert a triple with a blank node predicate."""
+    """Raised when a stated or inferred triple has a blank node predicate.
+
+    Predicates must be IRIs in RDF 1.1, so the engine refuses to admit or
+    materialize such triples in error mode.
+    """
 
 
 class BlankNodePredicateWarning(RuleTripleWarning):
-    """Warning emitted when a rule would assert a triple with a blank node predicate."""
+    """Warning emitted when a blank-node-predicate triple is skipped in warning mode."""
 
 
 class LiteralPredicateError(FatalRuleError):
-    """Raised when a rule attempts to assert a triple with a literal predicate."""
+    """Raised when a stated or inferred triple has a non-IRI predicate.
+
+    Literal predicates are explicitly invalid, and this exception is also used
+    for the broader non-IRI predicate path when the engine is configured to
+    fail fast.
+    """
 
 
 class LiteralPredicateWarning(RuleTripleWarning):
-    """Warning emitted when a rule would assert a triple with a literal predicate."""
+    """Warning emitted when a non-IRI-predicate triple is skipped in warning mode."""
 
 
 LiteralSubjectPolicy = Literal["error", "warning"]
@@ -84,6 +103,12 @@ class RETEEngine:
     triple-oriented rule execution, optional derivation logging, and warm-start
     over an existing context. User-facing proof reconstruction is layered on top
     of derivation records rather than being the engine's execution format.
+
+    The engine also enforces RDF 1.1 triple well-formedness for both stated and
+    inferred triples. Literal subjects and non-IRI predicates never enter
+    working memory or derived outputs. Callers can choose fail-fast or
+    warning-and-skip behavior via ``literal_subject_policy`` and
+    ``predicate_term_policy`` in the engine context data.
     """
 
     context_data: ContextData
@@ -231,6 +256,13 @@ class RETEEngine:
         return True
 
     def add_triples(self, triples: Iterable[Triple]) -> set[Triple]:
+        """Add stated triples, saturate inference, and return newly derived triples.
+
+        Incoming triples are first checked against the engine's RDF 1.1 triple
+        well-formedness policies. Triples rejected under those policies are
+        either raised as errors or warned-and-skipped before they can enter
+        working memory or derivation outputs.
+        """
         # Filter incoming triples according to RDF term-type policies.
         raw_pending = {cast(Triple, triple) for triple in triples}
         pending: set[Triple] = set()
@@ -348,7 +380,12 @@ class RETEEngine:
 
 
 class RETEEngineFactory:
-    """Factory for per-context engine instances and contextual hook registries."""
+    """Factory for per-context engine instances and contextual hook registries.
+
+    The factory passes context-template values through to each engine instance,
+    including optional RDF triple well-formedness policies such as
+    ``literal_subject_policy`` and ``predicate_term_policy``.
+    """
 
     context_template: dict[str, Any]
     rules_template: tuple[Rule, ...]
