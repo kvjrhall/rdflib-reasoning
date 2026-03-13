@@ -114,11 +114,15 @@ _IMPLEMENTED_RDFS_RULE_IDS: Final[set[str]] = {rule.id.rule_id for rule in RDFS_
 
 
 RDFS_TEST_CASES: Final[Sequence[RdfsTestCase]] = (
-    # rdfs1 – subproperty inheritance (spec rdfs1)
+    # rdfs1 – property typing
     RdfsTestCase(
         rule_id="rdfs1",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.x, NS.p, NS.y),
+        },
+        outputs={
+            (NS.p, RDF.type, RDF.Property),
+        },
     ),
     # rdfs2 – domain entailment
     RdfsTestCase(
@@ -176,53 +180,86 @@ RDFS_TEST_CASES: Final[Sequence[RdfsTestCase]] = (
             (NS.x, RDF.type, NS.b),
         },
     ),
-    # rdfs4a – spec anchor present, rule not yet implemented
+    # rdfs4a – subject resource typing
     RdfsTestCase(
         rule_id="rdfs4a",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.x, NS.p, NS.y),
+        },
+        outputs={
+            (NS.x, RDF.type, RDFS.Resource),
+        },
     ),
-    # rdfs4b – spec anchor present, rule not yet implemented
+    # rdfs4b – object resource typing
     RdfsTestCase(
         rule_id="rdfs4b",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.x, NS.p, NS.y),
+        },
+        outputs={
+            (NS.y, RDF.type, RDFS.Resource),
+        },
     ),
-    # rdfs6 – spec anchor present, rule not yet implemented
+    # rdfs6 – property reflexivity
     RdfsTestCase(
         rule_id="rdfs6",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.p, RDF.type, RDF.Property),
+        },
+        outputs={
+            (NS.p, RDFS.subPropertyOf, NS.p),
+        },
     ),
-    # rdfs8 – spec anchor present, rule not yet implemented
+    # rdfs8 – class inclusion in resource
     RdfsTestCase(
         rule_id="rdfs8",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.c, RDF.type, RDFS.Class),
+        },
+        outputs={
+            (NS.c, RDFS.subClassOf, RDFS.Resource),
+        },
     ),
-    # rdfs10 – spec anchor present, rule not yet implemented
+    # rdfs10 – class reflexivity
     RdfsTestCase(
         rule_id="rdfs10",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.c, RDF.type, RDFS.Class),
+        },
+        outputs={
+            (NS.c, RDFS.subClassOf, NS.c),
+        },
     ),
-    # rdfs11 – spec anchor present, rule not yet implemented
+    # rdfs11 – subClassOf transitivity
     RdfsTestCase(
         rule_id="rdfs11",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.a, RDFS.subClassOf, NS.b),
+            (NS.b, RDFS.subClassOf, NS.c),
+        },
+        outputs={
+            (NS.a, RDFS.subClassOf, NS.c),
+        },
     ),
-    # rdfs12 – spec anchor present, rule not yet implemented
+    # rdfs12 – container membership inheritance
     RdfsTestCase(
         rule_id="rdfs12",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.p, RDF.type, RDFS.ContainerMembershipProperty),
+        },
+        outputs={
+            (NS.p, RDFS.subPropertyOf, RDFS.member),
+        },
     ),
-    # rdfs13 – spec anchor present, rule not yet implemented
+    # rdfs13 – datatype literal inclusion
     RdfsTestCase(
         rule_id="rdfs13",
-        inputs=set(),
-        outputs=set(),
+        inputs={
+            (NS.d, RDF.type, RDFS.Datatype),
+        },
+        outputs={
+            (NS.d, RDFS.subClassOf, RDFS.Literal),
+        },
     ),
 )
 
