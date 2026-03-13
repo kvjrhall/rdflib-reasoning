@@ -6,6 +6,7 @@ docs/portfolio/*
 # ------------------------------------------------------------
 
 docs/specs/jena-inspiration/jena-docs/*
+!docs/specs/jena-inspiration/jena-docs/flows.md
 docs/specs/jena-inspiration/jena-source/*
 
 docs/specs/owl2-conformance/*

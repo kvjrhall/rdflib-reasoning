@@ -3,6 +3,7 @@
 Agentic AI should be able to take advantage of basic reasoning in an efficient manner.
 
 [RDFS](https://www.w3.org/TR/rdf11-mt/#entailment-rules-informative) and [OWL 2 RL reasoning](https://www.w3.org/TR/owl2-profiles/#Reasoning_in_OWL_2_RL_and_RDF_Graphs_using_Rules) define the semantics for two entailment regimes.
+These regimes can be computed using forward-chaining rules, though practical approaches may also benefit from [special handling for transitive closures](https://jena.apache.org/documentation/inference/index.html#transitive).
 The `rdflib-reasoning-engine` package provides an efficient general purpose forward chaining rule engine (i.e., RETE) that works with RDFLib.
 
 ## Feature Matrix
@@ -70,6 +71,7 @@ This matrix tracks functional engine features independent of standards coverage.
 | JTMS-compatible support bookkeeping | In progress | `WorkingMemory`, `DependencyGraph`, and `Justification` records now track stated facts and multi-parent support for derived facts; recursive retraction remains future work |
 | Explanation reconstruction | In progress | Proof models and reconstruction protocol exist, but derivation records are not yet rebuilt into concrete `DirectProof` paths |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
+| Specialized transitive relation index | Not started | Intended optimization path for `rdfs:subClassOf` and `rdfs:subPropertyOf` first; broader general transitive-property support remains a later design question |
 
 ## Current integration baseline
 
