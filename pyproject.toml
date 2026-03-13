@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.18"]
+requires = ["hatch-vcs", "hatchling>=1.18"]
 build-backend = "hatchling.build"
 
 [project]
 name = "rdflib-reasoning"
-version = "0.1.0"
+dynamic = ["version"]
 license = "MIT"
 description = "Axiomatization of graphs for RDFLib"
 readme = "README.md"
@@ -35,6 +35,13 @@ members = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/rdflib_reasoning"]
 
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.1.0"
+
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
+
 [tool.ruff]
 line-length = 88
 target-version = "py314"
@@ -60,6 +67,7 @@ addopts = [
 # Coverage is always run with pytest for Development Agent review and CI (e.g. xml for Codecov).
 
 [tool.coverage.run]
+relative_files = true
 source = [
   "src",
   "rdflib-reasoning-axioms/src",
