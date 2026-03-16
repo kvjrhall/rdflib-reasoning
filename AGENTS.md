@@ -21,18 +21,17 @@ This repository MUST support research into agents and their interoperability wit
 - All use [src-layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
 - All use the `rdflibr` [namespace package](https://packaging.python.org/en/latest/guides/packaging-namespace-packages/)
 
-| Project Path | Description |
-| ------------ | ----------- |
-| `docs/` | Reference materials for humans and machines |
-| `docs/dev/` | Design, Architecture, Decisions, and Development Status |
-| `docs/dev/decision-records/` | Rationale driving design & architecture |
-| `docs/specs/` | Cached copies of specifications optimized for Development Agent and tooling |
-| `notebooks/` | Notebooks for research and development into Research Agents using formal logic |
-| `rdflib-reasoning-agents/` | LangChain middleware for Research Agent/graph interaction |
+| Project Path                   | Description                                                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/`                        | Reference materials for humans and machines                                                                                                 |
+| `docs/dev/`                    | Design, Architecture, Decisions, and Development Status                                                                                     |
+| `docs/dev/decision-records/`   | Rationale driving design & architecture                                                                                                     |
+| `docs/specs/`                  | Cached copies of specifications optimized for Development Agent and tooling                                                                 |
+| `notebooks/`                   | Notebooks for research and development into Research Agents using formal                                                                    |
 | `rdflib-reasoning-middleware/` | Exposes GraphBacked/StructuralElement as tool and state payloads for Custom Middleware; see [README](rdflib-reasoning-middleware/README.md) |
-| `rdflib-reasoning-axioms/` | Sub-project for axiomatizing RDF graphs; see its AGENTS.md for GraphBacked/StructuralElement rules and JSON Schema/error conventions |
-| `rdflib-reasoning-engine/` | Sub-project for RETE-based RDFS and OWL 2 RL Entailment |
-| `script-helpers.sh` | A set of bash helper functions to use when writing bash scripts |
+| `rdflib-reasoning-axioms/`     | Sub-project for axiomatizing RDF graphs; see its AGENTS.md for GraphBacked/StructuralElement rules and JSON Schema/error conventions        |
+| `rdflib-reasoning-engine/`     | Sub-project for RETE-based RDFS and OWL 2 RL Entailment                                                                                     |
+| `script-helpers.sh`            | A set of bash helper functions to use when writing bash scripts                                                                             |
 
 ## Development Agent Commands
 

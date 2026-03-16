@@ -30,6 +30,20 @@ Structural elements describe OWL 2 and related graph-scoped constructs in a way 
 - Models avoid embedding heavy graph/session types (such as `rdflib.Graph` or SPARQL result objects) and instead rely on node-level terms and Pydantic-generated JSON Schema as the primary interface.
 - The `rdflib-reasoning-middleware` project uses `GraphBacked` and `StructuralElement` models as tool argument/response schemas and as values embedded in middleware state for Research Agents.
 
+### Schema-facing RDF boundary models
+
+Schema-facing RDF boundary models are the Pydantic models and reusable schema aliases exposed by middleware across the runtime boundary to a Research Agent.
+These models require stricter guidance than ordinary developer-only helper classes because their generated JSON Schema becomes part of the runtime contract.
+
+- Boundary models MUST optimize for the Research Agent communication surface first. Their serialized form SHOULD be easy to inspect and SHOULD use lexical RDF forms such as N3 strings when those are the natural wire representation.
+- Boundary models SHOULD keep RDF-specific validation rules close to the field or reusable type alias so the same constraints and descriptions are reused consistently across tools and state payloads.
+- Boundary models SHOULD attach concise semantic descriptions, normative constraints, and a small number of high-fidelity lexical examples directly to the schema-visible field or reusable alias.
+- Boundary models MAY cite formal specifications when that helps a Research Agent recover from validation errors, but schema descriptions SHOULD remain operational and brief rather than reproducing extended specification prose.
+- Heavy runtime helper objects MAY exist as computed Python-only conveniences, but they MUST NOT be required serialized inputs or outputs across the Research Agent boundary.
+- Module-level documentation for schema-facing boundary models SHOULD point Development Agents to the governing architecture section and decision record so local edits remain aligned with repository policy.
+
+These rules are further elaborated in [DR-011 Schema-Facing RDF Boundary Models](decision-records/DR-011%20Schema-Facing%20RDF%20Boundary%20Models.md).
+
 These rules are aligned with, and further elaborated in, [DR-002 Structural Elements and Middleware Integration](decision-records/DR-002%20Structural%20Elements%20and%20Middleware%20Integration.md).
 
 ## Middleware composition and capability gating

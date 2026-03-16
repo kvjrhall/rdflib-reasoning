@@ -9,10 +9,18 @@ license = { file = "../LICENSE" }
 description = "LangChain Custom Middleware for Semantic Web Reasoning"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["langgraph", "langchain", "pydantic", "rdflib"]
+dependencies = [
+    "deepagents",
+    "langchain",
+    "langgraph",
+    "pydantic>=2.12",
+    "rdflib",
+    "regex",
+    "rfc3987-syntax",
+]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "langchain-openai", "types-regex"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rdflibr"]

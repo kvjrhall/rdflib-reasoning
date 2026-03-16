@@ -1,9 +1,9 @@
 # rdflib-reasoning
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 
+[![PyPI Version](https://img.shields.io/pypi/v/rdflib-reasoning.svg)](https://pypi.org/project/rdflib-reasoning/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rdflib-reasoning)
 
 [![Coverage](https://raw.githubusercontent.com/kvjrhall/rdflib-reasoning/python-coverage-comment-action-data/badge.svg)](https://github.com/kvjrhall/rdflib-reasoning/tree/python-coverage-comment-action-data)

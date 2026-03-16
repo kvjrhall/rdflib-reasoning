@@ -1,6 +1,7 @@
 .PHONY: audit check clean docs docs-linkcheck docs-serve help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
 
 PYTHON ?= python
+TESTS ?=
 
 help:  # show this help (targets and descriptions)
 	@echo "Targets:"
@@ -53,8 +54,8 @@ install-all:  # install base + all optional extras used in this repository
 notebook: install-research  # launch Jupyter Lab from the synced environment
 	uv run jupyter lab
 
-test:  # run pytest unit tests
-	uv run pytest
+test: install-dev  # run pytest unit tests. E.g., `make test [TESTS=<test_file.py>]`
+	uv run pytest $(TESTS)
 
 validate: check  # run mypy type check & all pre-commit hooks
 	uv run mypy
