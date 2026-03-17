@@ -26,6 +26,10 @@ This release establishes the minimum coherent platform for graph-backed reasonin
 
 1. Dataset-backed middleware foundation
    - Deliver the foundational dataset lifecycle needed by higher middleware layers.
+   - Keep copied runtime state lightweight by treating live RDFLib datasets and coordination objects as middleware-owned infrastructure rather than `AgentState` payload.
+   - Provide per-dataset multi-reader / single-writer coordination for dataset-backed tool, retrieval, and inference access without expanding the scope to general transaction support.
+   - Limit `0.1.0` dataset middleware scope to the default-graph baseline: list triples, add triples, remove triples, serialize current state, and reset the dataset.
+   - Implement Research Agent-facing dataset tools as thin adapters over internal middleware methods so later middleware layers and tests can compose over one source of truth.
    - Architecture: [Dataset middleware](architecture.md#dataset-middleware)
 1. Middleware capability gating
    - Ensure dataset, retrieval, and inference capabilities are enabled or withheld through middleware composition rather than hidden prompt changes or ad hoc runtime paths.
@@ -57,6 +61,7 @@ This release establishes the minimum coherent platform for graph-backed reasonin
 ### 3.2. Exit criteria
 
 - A Research Agent can operate over dataset-backed state with inference capability exposed only through explicit middleware composition.
+- The `0.1.0` dataset middleware surface is limited to the default-graph baseline and does not yet require named-graph management or generic quad-level CRUD.
 - The engine supports the documented add-only fixed-point flow and derivation logging baseline.
 - The engine provides the complete informative RDFS entailment baseline (`rdfs1`-`rdfs13`) within that add-only flow.
 - Proofs can be represented, assessed, and rendered through stable typed interfaces.
@@ -73,6 +78,9 @@ This release expands the baseline into a more capable experimental platform by a
 1. Knowledge retrieval middleware
    - Add remote RDF retrieval and structured site metadata ingestion as explicit middleware capabilities over dataset-backed state.
    - Architecture: [Knowledge retrieval middleware](architecture.md#knowledge-retrieval-middleware)
+1. Named-graph dataset middleware expansion
+   - Add named graph management and graph-scoped triple operations after the default-graph baseline is stable.
+   - Architecture: [Dataset middleware capability phases](architecture.md#dataset-middleware-capability-phases)
 1. Provenance-bearing retrieval outputs
    - Ensure imported facts or retrieval artifacts retain provenance sufficient for explanation and evaluation.
    - Architecture: [Knowledge retrieval middleware](architecture.md#knowledge-retrieval-middleware)
@@ -104,6 +112,9 @@ This release completes the staged engine plan for support-aware removal and begi
 1. JTMS support verification APIs
    - Expose support-checking behavior needed to decide whether conclusions remain justified after a support path is invalidated.
    - Architecture: [Truth Maintenance System (TMS)](architecture.md#truth-maintenance-system-tms)
+1. Explicit dataset and quad operations
+   - Add generic quad-level CRUD and other explicitly dataset-scoped operations only after earlier graph-oriented middleware phases have proven necessary and stable.
+   - Architecture: [Dataset middleware capability phases](architecture.md#dataset-middleware-capability-phases)
 1. Recursive retraction
    - Implement Mark-Verify-Sweep removal over the dependency graph and wire full removal through the supported integration path.
    - Architecture: [Truth Maintenance System (TMS)](architecture.md#truth-maintenance-system-tms)
