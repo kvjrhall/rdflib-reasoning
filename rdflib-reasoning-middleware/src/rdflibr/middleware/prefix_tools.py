@@ -21,7 +21,7 @@ def get_qname(iri: str) -> str:
     """Returns the QName for a given IRI.
 
     In RDF, a QName (Qualified Name) is a syntactic shorthand used primarily in the RDF/XML serialization to represent a full Internationalized Resource Identifier (IRI) in a more human-readable form.
-    For example, the IRI http://www.w3.org/1999/02/22-rdf-syntax-ns#type can be abbreviated as rdf:type.
+    For example, the IRI ``http://www.w3.org/1999/02/22-rdf-syntax-ns#type`` can be abbreviated as ``rdf:type``.
     This tool returns the QName for a given prefix."""
     return _namespaces.qname(iri)
 

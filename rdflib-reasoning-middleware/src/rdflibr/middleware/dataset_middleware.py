@@ -108,6 +108,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         request: ModelRequest[ContextT],
         handler: Callable[[ModelRequest[ContextT]], ModelResponse[ResponseT]],
     ) -> ModelResponse[ResponseT]:
+        """Append dataset guidance to the system prompt before model execution."""
         request = request.override(
             system_message=append_to_system_message(
                 request.system_message,
@@ -124,6 +125,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
             [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
         ],
     ) -> Any:
+        """Append dataset guidance to the system prompt before async model execution."""
         request = request.override(
             system_message=append_to_system_message(
                 request.system_message,
