@@ -1,32 +1,30 @@
 from .dataset_middleware import DatasetMiddleware, DatasetMiddlewareConfig
-from .dataset_state import DatasetState
-from .dataset_tools import (
-    CreateGraphRequest,
-    DatasetToolLayer,
-    GraphListResponse,
+from .dataset_model import (
     MutationResponse,
-    QuadBatchRequest,
-    QuadListResponse,
-    RDFQuadModel,
-    RDFTripleModel,
+    N3ContextIdentifier,
+    N3IRIRef,
+    N3Node,
+    N3Quad,
+    N3Resource,
+    N3Triple,
     SerializationResponse,
     SerializeRequest,
     TripleBatchRequest,
     TripleListResponse,
 )
+from .dataset_state import DatasetState
 
 __all__ = [
-    "CreateGraphRequest",
-    "DatasetToolLayer",
     "DatasetMiddleware",
     "DatasetMiddlewareConfig",
     "DatasetState",
-    "GraphListResponse",
     "MutationResponse",
-    "QuadBatchRequest",
-    "QuadListResponse",
-    "RDFQuadModel",
-    "RDFTripleModel",
+    "N3ContextIdentifier",
+    "N3IRIRef",
+    "N3Node",
+    "N3Quad",
+    "N3Resource",
+    "N3Triple",
     "SerializationResponse",
     "SerializeRequest",
     "TripleBatchRequest",

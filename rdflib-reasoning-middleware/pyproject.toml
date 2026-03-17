@@ -15,6 +15,7 @@ dependencies = [
     "langgraph",
     "pydantic>=2.12",
     "rdflib",
+    "readerwriterlock",
     "regex",
     "rfc3987-syntax",
 ]

@@ -39,13 +39,20 @@ Status values:
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Graph CRUD | Not started | Create, load, save, replace, and delete a single RDF 1.1 graph |
-| Graph serialization | Not started | Render graph state as Turtle, N-Triples, or N3 for inspection |
-| Graph triple access | Not started | List, query, add, and remove triples within a graph |
-| Dataset CRUD | Not started | Create, load, save, and delete RDF 1.1 datasets |
-| Named graph management | Not started | List graphs, create named graphs, and remove named graphs |
-| Dataset quad access | Not started | List, query, add, and remove quads across graphs |
+| Default-graph triple access | Implemented | `0.1.0` baseline: list, add, and remove triples in the default graph |
+| Default-graph serialization | Implemented | `0.1.0` baseline: serialize current state as RDF text for inspection |
+| Dataset reset | Implemented | `0.1.0` baseline escape hatch for clearing the middleware-owned dataset session |
+| Named graph management | Not started | Later phase: list graphs, create named graphs, and remove named graphs |
+| Graph-scoped triple access | Not started | Later phase: extend triple tools with an optional graph/context argument while keeping the default graph as the default target |
+| Dataset quad access | Not started | Later phase: explicit quad-level CRUD across graphs |
+| Fully general dataset lifecycle | Not started | Later phase: broader create/load/save/delete and other dataset-wide concerns beyond the initial in-memory baseline |
 | RDF 1.2 triple statement support | Out of scope | Forward-looking placeholder for RDF 1.2 quoted or triple-term support |
+
+### Dataset middleware implementation pattern
+
+- Core dataset behavior SHOULD be implemented in internal middleware methods using RDFLib-native values.
+- Research Agent-facing tools SHOULD remain thin adapters over those internal methods.
+- Tool descriptions and schema models together form the runtime boundary contract; they SHOULD stay distinct from the middleware's internal implementation API.
 
 ### Knowledge retrieval middleware
 

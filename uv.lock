@@ -2265,6 +2265,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "pydantic" },
     { name = "rdflib" },
+    { name = "readerwriterlock" },
     { name = "regex" },
     { name = "rfc3987-syntax" },
 ]
@@ -2285,11 +2286,24 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "rdflib" },
+    { name = "readerwriterlock" },
     { name = "regex" },
     { name = "rfc3987-syntax" },
     { name = "types-regex", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "readerwriterlock"
+version = "1.0.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a4/b9/6b7c390440ec23bf5fdf33e76d6c3b697a788b983c11cb2739d6541835d6/readerwriterlock-1.0.9.tar.gz", hash = "sha256:b7c4cc003435d7a8ff15b312b0a62a88d9800ba6164af88991f87f8b748f9bea", size = 16595, upload-time = "2021-09-06T03:41:21.75Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c2/5a/2f2e7fc026d5e64b5408aa3fbe0296a6407b8481196cae4daacacb3a3ae0/readerwriterlock-1.0.9-py3-none-any.whl", hash = "sha256:8c4b704e60d15991462081a27ef46762fea49b478aa4426644f2146754759ca7", size = 9999, upload-time = "2021-09-06T03:41:19.435Z" },
+]
 
 [[package]]
 name = "readme-renderer"

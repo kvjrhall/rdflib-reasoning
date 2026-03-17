@@ -7,7 +7,8 @@ Design rules for these models are governed by:
 """
 
 import textwrap
-from typing import Annotated, Final, cast
+from typing import Annotated, Final, Self, cast
+from typing import Literal as LiteralType
 
 import regex as re
 from pydantic import (
@@ -15,6 +16,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    NonNegativeInt,
     PlainSerializer,
 )
 from pydantic.json_schema import SkipJsonSchema
@@ -22,6 +24,7 @@ from rdflib import IdentifiedNode, Node, URIRef
 from rdflib.graph import Graph, ReadOnlyGraphAggregate
 from rdflib.term import BNode
 from rdflib.util import from_n3
+from rdflibr.axiom.common import Triple
 from rfc3987_syntax import is_valid_syntax_iri  # type: ignore
 
 # =============================================================================
@@ -93,7 +96,7 @@ def _graph_context_to_string(graph: Graph) -> str:
 
 
 # =============================================================================
-# Dataset Model
+# Dataset Content Models
 # =============================================================================
 
 RDF_GRAPH_TERM: Final[str] = (
@@ -101,18 +104,18 @@ RDF_GRAPH_TERM: Final[str] = (
     + "(https://www.w3.org/TR/rdf11-concepts/#section-dataset)"
 )
 
-# RDF_DATASET: Final[str] = (
-#     "Dataset as defined by RDF 1.1 Concepts and Abstract Syntax § 4. RDF Datasets "
-#     + "(https://www.w3.org/TR/rdf11-concepts/#section-dataset) and taking the semantics of "
-#     + "RDF 1.1: On Semantics of RDF Datasets § 3.4 Each named graph defines its own context "
-#     + "(https://www.w3.org/TR/rdf11-datasets/#each-named-graph-defines-its-own-context)"
-# )
-#
-# RDF_NAMESPACE: Final[str] = (
-#     "RDF Vocabulary (Namespace) as defined in "
-#     + "RDF 1.1 Concepts and Abstract Syntax § 3.3 Literals "
-#     + "(https://www.w3.org/TR/rdf11-concepts/#vocabularies)"
-# )
+RDF_DATASET: Final[str] = (
+    "Dataset as defined by RDF 1.1 Concepts and Abstract Syntax § 4. RDF Datasets "
+    + "(https://www.w3.org/TR/rdf11-concepts/#section-dataset) and taking the semantics of "
+    + "RDF 1.1: On Semantics of RDF Datasets § 3.4 Each named graph defines its own context "
+    + "(https://www.w3.org/TR/rdf11-datasets/#each-named-graph-defines-its-own-context)"
+)
+
+RDF_NAMESPACE: Final[str] = (
+    "RDF Vocabulary (Namespace) as defined in "
+    + "RDF 1.1 Concepts and Abstract Syntax § 3.3 Literals "
+    + "(https://www.w3.org/TR/rdf11-concepts/#vocabularies)"
+)
 
 
 TURTLE_BLANK_NODE: Final[str] = (
@@ -252,14 +255,7 @@ type N3GraphContext = Annotated[Graph, SkipJsonSchema()]
 #       This will require examples, techniques, and vocabularies.
 
 
-class N3Triple(BaseModel):
-    """
-    RDF triple represented in N3 lexical form.
-
-    Use this model when a statement is scoped only by its subject, predicate, and object.
-    See RDF 1.1 Concepts and Abstract Syntax § 3.1 RDF Triples.
-    """
-
+class _HasSpo(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
     subject: N3Resource = Field(
         ...,
@@ -282,7 +278,32 @@ class N3Triple(BaseModel):
     )
 
 
-class N3Quad(N3Triple):
+class N3Triple(_HasSpo):
+    """
+    RDF triple represented in N3 lexical form.
+
+    Use this model when a statement is scoped only by its subject, predicate, and object.
+    See RDF 1.1 Concepts and Abstract Syntax § 3.1 RDF Triples.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    @property
+    def as_rdflib(self) -> Triple:
+        return (self.subject, self.predicate, self.object)
+
+    @classmethod
+    def from_rdflib(cls, triple: tuple[Node, Node, Node]) -> Self:
+        return cls.model_validate(
+            {
+                "subject": triple[0],
+                "predicate": triple[1],
+                "object": triple[2],
+            }
+        )
+
+
+class N3Quad(_HasSpo):
     """
     RDF quad represented in N3 lexical form.
 
@@ -298,3 +319,80 @@ class N3Quad(N3Triple):
     @property
     def graph(self) -> N3GraphContext:
         return _parse_graph_context(self.graph_id)
+
+    @property
+    def as_rdflib(self) -> tuple[IdentifiedNode, URIRef, Node, Graph]:
+        return (self.subject, self.predicate, self.object, self.graph)
+
+    @classmethod
+    def from_rdflib(
+        cls, quad: tuple[Node, Node, Node, IdentifiedNode | Graph | None]
+    ) -> Self:
+        graph_identifier = quad[3].identifier if isinstance(quad[3], Graph) else quad[3]
+        return cls.model_validate(
+            {
+                "subject": quad[0],
+                "predicate": quad[1],
+                "object": quad[2],
+                "graph_id": graph_identifier,
+            }
+        )
+
+
+# =============================================================================
+# Dataset Interaction Models
+# =============================================================================
+
+
+class TripleBatchRequest(BaseModel):
+    """Request payload for exact-match triple updates."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    triples: tuple[N3Triple, ...] = Field(
+        min_length=1,
+        description="One or more exact RDF triples to add or remove.",
+    )
+
+
+class SerializeRequest(BaseModel):
+    """Request payload for serializing dataset state."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    format: LiteralType["trig", "turtle", "nt", "n3"] = Field(
+        default="trig",
+        description="Serialization format for the current default-graph knowledge base.",
+    )
+
+
+class TripleListResponse(BaseModel):
+    """Response payload listing triples from the default graph."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    triples: tuple[N3Triple, ...] = Field(
+        description="Triples currently present in the default graph."
+    )
+
+
+class MutationResponse(BaseModel):
+    """Response payload for state-mutating dataset tools."""
+
+    model_config = ConfigDict(frozen=True)
+
+    updated: NonNegativeInt = Field(
+        description="Number of RDF statements or graphs affected by the operation."
+    )
+    message: str = Field(description="Short human-readable summary of the mutation.")
+
+
+class SerializationResponse(BaseModel):
+    """Response payload for dataset or graph serialization."""
+
+    model_config = ConfigDict(frozen=True)
+
+    format: LiteralType["trig", "turtle", "nt", "n3"] = Field(
+        description="Serialization format used for the returned content."
+    )
+    content: str = Field(description="Serialized RDF content.")
