@@ -30,6 +30,20 @@ Structural elements describe OWL 2 and related graph-scoped constructs in a way 
 - Models avoid embedding heavy graph/session types (such as `rdflib.Graph` or SPARQL result objects) and instead rely on node-level terms and Pydantic-generated JSON Schema as the primary interface.
 - The `rdflib-reasoning-middleware` project uses `GraphBacked` and `StructuralElement` models as tool argument/response schemas and as values embedded in middleware state for Research Agents.
 
+### Schema-facing RDF boundary models
+
+Schema-facing RDF boundary models are the Pydantic models and reusable schema aliases exposed by middleware across the runtime boundary to a Research Agent.
+These models require stricter guidance than ordinary developer-only helper classes because their generated JSON Schema becomes part of the runtime contract.
+
+- Boundary models MUST optimize for the Research Agent communication surface first. Their serialized form SHOULD be easy to inspect and SHOULD use lexical RDF forms such as N3 strings when those are the natural wire representation.
+- Boundary models SHOULD keep RDF-specific validation rules close to the field or reusable type alias so the same constraints and descriptions are reused consistently across tools and state payloads.
+- Boundary models SHOULD attach concise semantic descriptions, normative constraints, and a small number of high-fidelity lexical examples directly to the schema-visible field or reusable alias.
+- Boundary models MAY cite formal specifications when that helps a Research Agent recover from validation errors, but schema descriptions SHOULD remain operational and brief rather than reproducing extended specification prose.
+- Heavy runtime helper objects MAY exist as computed Python-only conveniences, but they MUST NOT be required serialized inputs or outputs across the Research Agent boundary.
+- Module-level documentation for schema-facing boundary models SHOULD point Development Agents to the governing architecture section and decision record so local edits remain aligned with repository policy.
+
+These rules are further elaborated in [DR-011 Schema-Facing RDF Boundary Models](decision-records/DR-011%20Schema-Facing%20RDF%20Boundary%20Models.md).
+
 These rules are aligned with, and further elaborated in, [DR-002 Structural Elements and Middleware Integration](decision-records/DR-002%20Structural%20Elements%20and%20Middleware%20Integration.md).
 
 ## Middleware composition and capability gating
@@ -40,7 +54,7 @@ This is an architectural constraint for both correctness and experimental contro
 - Experimental conditions MUST be realizable by middleware composition alone. Baseline, retrieval-enabled, and inference-enabled conditions SHOULD differ by inclusion or exclusion of middleware capabilities, not by hidden prompt changes or ad hoc harness behavior.
 - Inference capabilities MUST be enabled or disabled by inclusion or exclusion of inference middleware. A Research Agent without inference middleware MUST NOT be able to invoke inference or explanation behavior accidentally through some alternate path.
 - Knowledge retrieval capabilities MUST be enabled or disabled by inclusion or exclusion of retrieval middleware. A Research Agent without retrieval middleware MUST NOT be able to access remote entity-resolution or remote import functionality accidentally through some alternate path.
-- Knowledge retrieval middleware and inference middleware depend on dataset middleware because they operate on dataset-backed runtime state. If `DatasetState` is replaced by a successor abstraction, that dependency MUST remain explicit at the architectural level.
+- Knowledge retrieval middleware and inference middleware depend on dataset middleware because they operate on dataset-backed runtime state. If the concrete state shape or dataset-session abstraction changes, that dependency MUST remain explicit at the architectural level.
 - Middleware that exposes capabilities to a Research Agent SHOULD do so through explicit tool/state surfaces with clear schemas rather than through hidden side effects.
 
 ### Dataset middleware
@@ -48,8 +62,66 @@ This is an architectural constraint for both correctness and experimental contro
 Dataset middleware is the foundational runtime layer for graph-backed experimentation.
 
 - Dataset middleware is responsible for creating, loading, updating, serializing, and deleting RDF 1.1 graphs and datasets used by the Research Agent.
+- Dataset middleware MUST treat the live RDFLib dataset as middleware-owned runtime infrastructure rather than as copied `AgentState` payload.
+- Middleware state exposed to LangChain MUST remain `TypedDict`-compatible and cheap to copy. Live RDFLib datasets, stores, locks, and similar heavy runtime objects MUST NOT be stored directly in copied runtime state.
+- Dataset middleware SHOULD resolve the active working dataset through a middleware-owned per-dataset session or equivalent internal container.
+- Each dataset session MUST own the live `rdflib.Dataset` together with the coordination primitive that protects it.
+- Dataset middleware MUST provide multi-reader / single-writer coordination per dataset session so unrelated datasets do not block one another unnecessarily.
+- Read-only dataset operations SHOULD execute under read coordination, and mutating dataset operations MUST execute under write coordination.
 - Other middleware layers that retrieve knowledge or run inference MUST compose over dataset middleware rather than bypassing it.
+- Retrieval and inference middleware that operate on the same dataset MUST use the same dataset-session coordination boundary as dataset tools.
+- Dataset middleware MUST NOT claim general transaction semantics for the baseline. Rollback, snapshot isolation, branch-local dataset copies, and conflict-merge semantics are explicitly out of scope unless later architecture extends the contract.
 - RDF 1.2 triple-statement or quoted-triple support MAY be considered in the future, but it is not part of the current architectural baseline.
+
+These rules are aligned with [DR-012 Middleware-Owned Dataset Sessions and Coordination](decision-records/DR-012%20Middleware-Owned%20Dataset%20Sessions%20and%20Coordination.md).
+
+#### Dataset middleware capability phases
+
+Dataset middleware capability MUST be introduced in phased slices rather than as a fully general dataset surface from the start.
+
+1. Phase 1: Default-graph baseline
+   - The initial public tool surface SHOULD focus on the default graph only.
+   - The default Phase 1 tool set SHOULD be limited to listing triples, adding triples, removing triples, serializing current state, and resetting the dataset.
+   - `0.1.0` dataset middleware scope MUST be limited to this baseline unless architecture and roadmap are deliberately revised.
+
+2. Phase 2: Named-graph management and graph-scoped triple access
+   - A later phase MAY add named graph creation, listing, and removal.
+   - That same phase MAY extend triple-oriented tools with an optional graph or context argument while preserving the default graph as the default target.
+
+3. Phase 3: Explicit dataset and quad operations
+   - Generic quad-level CRUD and other explicitly dataset-wide manipulation SHOULD remain a later phase.
+   - These operations SHOULD be added only when the agent or higher middleware layers have a demonstrated need for cross-graph manipulation that graph-scoped triple tools cannot express cleanly.
+
+This phased structure is intended to preserve a narrow `0.1.0` baseline while keeping later dataset semantics available as explicit future scope.
+
+#### Dataset middleware prompt and tool-description strategy
+
+Dataset middleware SHOULD follow the same broad prompt-layering pattern used by middleware systems such as Deep Agents' built-in middleware, where middleware contributes capability-specific instructions and tool descriptions define the concrete callable surface.
+
+- The middleware-level system prompt SHOULD introduce the capability in task-oriented language first, for example as a "knowledge base", while also identifying the implementation substrate as RDF when operational precision is needed.
+- The middleware-level system prompt SHOULD explain when the agent ought to use dataset tools, how those tools fit together, and what high-level modeling constraints or safety expectations apply.
+- The middleware-level system prompt SHOULD remain concise and SHOULD NOT duplicate detailed parameter-level guidance already present in tool descriptions or schema fields.
+- Tool descriptions SHOULD remain operational and concrete: what the tool does, what scope it acts on, when to use it, and whether it is destructive.
+- Schema-visible request and response models SHOULD carry field-level validation, lexical examples, and format guidance rather than pushing all such detail into prompt prose.
+- Custom agent prompts or experiment prompts SHOULD complement middleware-added instructions rather than re-describing the middleware tool surface.
+
+This strategy is informed by Deep Agents documentation describing middleware-appended prompts and tool-specific descriptions as complementary layers rather than one monolithic instruction block:
+
+- [Deep Agents customization docs](https://docs.langchain.com/oss/python/deepagents/customization)
+- [Deep Agents repository overview](https://github.com/langchain-ai/deepagents)
+- [FilesystemMiddleware reference](https://reference.langchain.com/python/deepagents/middleware/filesystem/FilesystemMiddleware)
+
+#### Dataset middleware internal methods and tool adapters
+
+Dataset middleware MUST maintain a clear separation between internal implementation methods and Research Agent-facing tool adapters.
+
+- Internal middleware methods SHOULD implement the core RDFLib-native behavior and SHOULD be the source of truth for dataset operations.
+- Tool implementations SHOULD remain thin adapters whenever possible.
+- Thin adapters SHOULD validate or transform request payloads, delegate to internal middleware methods, and transform results into response payloads.
+- Retrieval middleware, inference middleware, and tests SHOULD prefer composing with internal middleware methods rather than simulating agent tool calls when no schema-boundary behavior is under test.
+- Tool adapters MUST NOT duplicate core implementation logic except for minimal glue required by the orchestration framework.
+
+These rules are aligned with [DR-013 Dataset Middleware Internal Method and Tool Adapter Pattern](decision-records/DR-013%20Dataset%20Middleware%20Internal%20Method%20and%20Tool%20Adapter%20Pattern.md).
 
 ### Knowledge retrieval middleware
 

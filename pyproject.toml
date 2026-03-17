@@ -26,12 +26,18 @@ dev = [
   "pre-commit",
   "pytest",
   "pytest-cov",
+  "rdflib-reasoning-axioms[dev]",
+  "rdflib-reasoning-engine[dev]",
+  "rdflib-reasoning-middleware[dev]",
   "ruff",
   "sphinx",
   "sphinx-autoapi",
   "twine",
 ]
-research = ["ipykernel", "jupyterlab"]
+research = [
+    "ipykernel",
+    "jupyter",
+]
 
 [tool.uv.sources]
 rdflib-reasoning-axioms = { workspace = true }
@@ -58,6 +64,8 @@ version_scheme = "no-guess-dev"
 [tool.ruff]
 line-length = 88
 target-version = "py314"
+
+[tool.ruff.lint]
 extend-select = ["B", "I"]
 
 [tool.pytest.ini_options]
@@ -76,7 +84,10 @@ addopts = [
   "--cov-report=term-missing",
   "--cov-report=xml",
   "--cov-report=html",
+  # We need the causes of exceptions, too
+  # "--tb=native",
 ]
+
 # Coverage is always run with pytest for Development Agent review and CI (e.g. xml for Codecov).
 
 [tool.coverage.run]

@@ -5,6 +5,70 @@ This package exposes this repository's functionality to DeepAgents (runtime/Rese
 - `GraphBacked` and `StructuralElement` instances (from `rdflib-reasoning-axioms`) MUST be usable as tool argument/response models and as values carried inside middleware state. They are stateless, immutable domain snapshots.
 - `GraphBacked` and `StructuralElement` MUST NOT subclass LangGraph `AgentState`. Middleware MAY map them into `AgentState` fields (e.g. as payloads or lists of axioms).
 
+## Demo notebook
+
+The package includes a checked-in demonstration notebook:
+
+- [demo-dataset-middleware.ipynb](../notebooks/demo-dataset-middleware.ipynb): end-to-end walkthrough of `DatasetMiddleware` plus live notebook tracing of agent activity
+
+## DatasetMiddleware tutorial
+
+`DatasetMiddleware` is the baseline middleware layer for giving a Research Agent an RDF-backed working memory.
+
+Current baseline capabilities:
+
+- list triples in the default graph
+- add triples to the default graph
+- remove triples from the default graph
+- serialize the default graph as RDF text
+- reset the in-memory dataset session
+
+Minimal usage:
+
+```python
+from deepagents import create_deep_agent
+from rdflibr.middleware import DatasetMiddleware
+
+agent = create_deep_agent(
+    model=llm,
+    middleware=[DatasetMiddleware()],
+)
+
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": "Represent this text as RDF."}]}
+)
+```
+
+The middleware contributes both tool implementations and capability-specific system guidance. The Research Agent sees a tool surface such as `add_triples` and `serialize_dataset`, while the live RDFLib dataset remains middleware-owned runtime infrastructure.
+
+## Tracing tutorial
+
+The tracing support is split into a core callback-based recorder and an optional notebook renderer.
+
+- Core tracing lives in `rdflibr.middleware.tracing` and does not require `IPython`
+- Notebook rendering lives in `rdflibr.middleware.tracing_notebook` and is optional via the `notebook` extra
+
+Notebook example:
+
+```python
+from deepagents import create_deep_agent
+from rdflibr.middleware import DatasetMiddleware
+from rdflibr.middleware.tracing_notebook import LiveNotebookTrace
+
+with LiveNotebookTrace(heading="Dataset Trace") as trace:
+    agent = trace.attach(
+        create_deep_agent(
+            model=llm,
+            middleware=[DatasetMiddleware()],
+        )
+    )
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": "Represent this text as RDF."}]}
+    )
+```
+
+The notebook renderer is intended for tutorial and demo scenarios. It presents model decisions, tool calls, tool results, and final responses as a live-updating notebook view without making `IPython` a required runtime dependency for the package.
+
 ## Proof Evaluation Harness
 
 This package is also the intended home for a reusable proof evaluation harness used by Development Agents to assess `DirectProof` outputs produced in experiments.
@@ -39,13 +103,28 @@ Status values:
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Graph CRUD | Not started | Create, load, save, replace, and delete a single RDF 1.1 graph |
-| Graph serialization | Not started | Render graph state as Turtle, N-Triples, or N3 for inspection |
-| Graph triple access | Not started | List, query, add, and remove triples within a graph |
-| Dataset CRUD | Not started | Create, load, save, and delete RDF 1.1 datasets |
-| Named graph management | Not started | List graphs, create named graphs, and remove named graphs |
-| Dataset quad access | Not started | List, query, add, and remove quads across graphs |
+| Default-graph triple access | Implemented | `0.1.0` baseline: list, add, and remove triples in the default graph |
+| Default-graph serialization | Implemented | `0.1.0` baseline: serialize current state as RDF text for inspection |
+| Dataset reset | Implemented | `0.1.0` baseline escape hatch for clearing the middleware-owned dataset session |
+| Named graph management | Not started | Later phase: list graphs, create named graphs, and remove named graphs |
+| Graph-scoped triple access | Not started | Later phase: extend triple tools with an optional graph/context argument while keeping the default graph as the default target |
+| Dataset quad access | Not started | Later phase: explicit quad-level CRUD across graphs |
+| Fully general dataset lifecycle | Not started | Later phase: broader create/load/save/delete and other dataset-wide concerns beyond the initial in-memory baseline |
 | RDF 1.2 triple statement support | Out of scope | Forward-looking placeholder for RDF 1.2 quoted or triple-term support |
+
+### Tracing and presentation
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Trace recording callbacks | Implemented | Normalized capture of model and tool lifecycle events for LangChain-based runs |
+| Notebook-rendered tracing of agent activity | Implemented | Optional `IPython`-backed live rendering of model decisions, tool calls, tool results, and final responses |
+| Non-notebook rich trace renderers | Not started | Future console, HTML, or serialized trace views over the same core trace sink |
+
+### Dataset middleware implementation pattern
+
+- Core dataset behavior SHOULD be implemented in internal middleware methods using RDFLib-native values.
+- Research Agent-facing tools SHOULD remain thin adapters over those internal methods.
+- Tool descriptions and schema models together form the runtime boundary contract; they SHOULD stay distinct from the middleware's internal implementation API.
 
 ### Knowledge retrieval middleware
 

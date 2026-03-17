@@ -1,33 +1,36 @@
-# The `rdflib-reasoning-axioms` Sub-Package
+# Axioms Guidance
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+The `rdflib-reasoning-axioms` package defines graph-scoped domain models that SHOULD remain friendly to future runtime boundaries even when the immediate caller is a Development Agent or an internal package.
 
-- The REQUIRED purpose of this package is round-trip `graph -> axiomatization -> graph` transformations. Transformation inputs MUST be treated as immutable and produce new instances for outputs.
-- You MUST use the `owl2-mapping-to-rdf` specification as the authoritative reference for the RDF consumed/produced by this package.
-- You MUST use transitive references to specifications made by `owl2-mapping-to-rdf`. I.e., `rdf11-semantics`.
-- You MAY support backwards compatibility with OWL 1 DL.
-- You SHOULD remember that other packages (i.e., `rdflib-reasoning-engine`) MAY interoperate with this package and be affected by this package's design.
+That rationale is accurate: keeping axioms boundary-friendly preserves many later design options for proof models, Research Agent tools, retrieval surfaces, and other structured interactions without forcing a large redesign of the domain layer.
 
-## Structural elements and GraphBacked
+## Authoritative references
 
-- `GraphBacked` is the universal base for graph-scoped Pydantic models in this package. `StructuralElement` is the universal base for all OWL 2 structural elements; every concrete OWL 2 structural element MUST subclass `StructuralElement`.
-- Each concrete `StructuralElement` subclass MUST correspond to a well-identified OWL 2 structural element (or a clearly documented extension). `as_triples` and `as_quads` MUST conform to `owl2-mapping-to-rdf` and transitive specs (e.g. `rdf11-semantics`). Non-OWL constructs (e.g. RDF-star triple-statements per RDF 1.2) MAY be modeled as `GraphBacked` without subclassing `StructuralElement`; document the governing spec (e.g. RDF 1.2 / RDF-star) for such models.
-- GraphBacked and StructuralElement models MAY use rdflib node-level types (`URIRef`, `BNode`, `Literal`, `IdentifiedNode`, etc.). They MUST NOT contain `rdflib.Graph`, `ConjunctiveGraph`, SPARQL result objects, or other container/session/handle types.
-- Each instance has a single, required `context` (graph identifier). Any field whose type is another `GraphBacked` or `StructuralElement` MUST share the same `context`; enforce this via validators where such nesting exists. Cross-context relationships are expressed only at the triple/quad level, not by embedding instances with a different context.
+- Treat [`docs/dev/architecture.md`](../docs/dev/architecture.md) as the authoritative architecture, especially:
+  - `Structural elements and middleware`
+  - `Schema-facing RDF boundary models`
+- Treat [`docs/dev/decision-records/DR-002 Structural Elements and Middleware Integration.md`](../docs/dev/decision-records/DR-002%20Structural%20Elements%20and%20Middleware%20Integration.md) as the authoritative rationale for `GraphBacked` and `StructuralElement`.
+- Treat [`docs/dev/decision-records/DR-011 Schema-Facing RDF Boundary Models.md`](../docs/dev/decision-records/DR-011%20Schema-Facing%20RDF%20Boundary%20Models.md) as the authoritative rule set for schema-facing RDF boundary models.
 
-## JSON Schema: terse and optimized for guidance
+## Core package purpose
 
-Schema and field descriptions are consumed by Research Agents (runtime); they MUST assume only the "joint documentation" (the generated Pydantic JSON Schema for the enclosing class and its fields). They MUST NOT assume module or repository documentation, decision records, or internal artifacts (e.g. `optimized.html`) are available.
+- The primary purpose of this package is round-trip `graph -> axiomatization -> graph` transformation through stable graph-scoped domain models.
+- Transformation inputs MUST be treated as immutable and MUST produce new instances or outputs rather than mutating caller-owned graph structures in place.
+- The OWL 2 Mapping to RDF Graphs specification MUST be treated as the authoritative mapping reference, together with the transitive specifications it relies upon.
 
-- **Terse.** Descriptions SHOULD optimize context usage by complementing the joint documentation. They SHOULD NOT explain other fields except to capture relationship to those fields; complex interaction MUST be documented at the enclosing class level. They MUST NOT reference decision records or repository-local spec content; they MAY reference official specification identifiers (e.g. RFC numbers, W3C spec URIs and section identifiers).
-- **Examples.** Examples in schema SHOULD be used sparingly and only when they materially reduce misuse.
-- **Constrained types.** Constrained types (enums, constrained strings, etc.) SHOULD be used wherever possible to reduce cognitive load and assist Research Agents and developers. Unconstrained types MUST NOT be used without explicit approval from a user.
+## Boundary-friendly model rules
 
-## Validation errors
+- `GraphBacked` is the universal base for graph-scoped Pydantic models in this package.
+- `StructuralElement` is the universal base for OWL 2 structural elements; each concrete OWL 2 structural element MUST subclass `StructuralElement`.
+- Schema-facing models MAY use RDFLib node-level terms such as `URIRef`, `BNode`, `Literal`, and `IdentifiedNode`.
+- Schema-facing models MUST NOT embed heavy container or session objects such as `rdflib.Graph`, `ConjunctiveGraph`, SPARQL result objects, or similar handles.
+- Each instance MUST have a single required `context` graph identifier.
+- Any embedded `GraphBacked` or `StructuralElement` field MUST share the same `context`; cross-context relationships MUST be expressed only at the triple or quad level.
 
-All domain-level checks SHOULD be performed as a consequence of Pydantic validation. Error messages are guidance for correction by a Research Agent or human.
+## Schema and validation guidance
 
-- Errors MUST explicitly specify illegal values. They SHOULD explicitly define valid ranges in human- and Research Agent–friendly terms (e.g. "a nonzero positive integer", "an RFC 3987 IRI", "one of {'a','b'}"). Valid ranges MAY be omitted when they would increase cognitive load (e.g. a long regex for IRIs).
-- Errors SHOULD recommend a concrete fix (e.g. "validate the derivation of the value and try again", "use function_y instead").
-- If an error represents violation of a specification constraint, the error MUST indicate the specification and section using official identifiers.
-- Where feasible, errors SHOULD follow a consistent pattern: short summary, illegal value(s), valid range hint, and spec reference if applicable. Exact error shape may be refined in a future decision.
+- Schema-visible descriptions SHOULD be concise, operational, and useful to a Research Agent that only sees generated JSON Schema.
+- Descriptions MAY cite official specification identifiers, but they SHOULD NOT depend on repository-local documents being visible at runtime.
+- Examples SHOULD be high-fidelity and sparse: include them when they materially reduce misuse.
+- Constrained types SHOULD be preferred wherever feasible so schema itself communicates useful limits.
+- Domain constraints SHOULD be enforced through Pydantic validation with error messages that identify the illegal value, the valid range or form when helpful, and the relevant specification when a normative constraint is violated.
