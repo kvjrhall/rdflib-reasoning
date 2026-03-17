@@ -2,30 +2,35 @@
 
 [Full report](https://htmlpreview.github.io/?https://github.com/kvjrhall/rdflib-reasoning/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
-| Name                                                                |    Stmts |     Miss |   Cover |   Missing |
-|-------------------------------------------------------------------- | -------: | -------: | ------: | --------: |
-| rdflib-reasoning-axioms/src/rdflibr/axiom/\_\_init\_\_.py           |        0 |        0 |    100% |           |
-| rdflib-reasoning-axioms/src/rdflibr/axiom/common.py                 |        6 |        0 |    100% |           |
-| rdflib-reasoning-axioms/src/rdflibr/axiom/structural\_element.py    |       77 |       27 |     65% |39, 42, 46, 68, 74, 79, 96, 101-115, 119-140, 149, 154 |
-| rdflib-reasoning-engine/src/rdflibr/engine/\_\_init\_\_.py          |        6 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflibr/engine/api.py                   |      158 |        8 |     95% |166, 184, 246-254, 303 |
-| rdflib-reasoning-engine/src/rdflibr/engine/batch\_dispatcher.py     |       73 |        2 |     97% |  125, 157 |
-| rdflib-reasoning-engine/src/rdflibr/engine/derivation.py            |       34 |        2 |     94% |   66, 103 |
-| rdflib-reasoning-engine/src/rdflibr/engine/proof.py                 |       91 |        1 |     99% |        12 |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete/\_\_init\_\_.py     |        8 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete/agenda.py           |       40 |        2 |     95% |    64, 67 |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete/callbacks.py        |       16 |        6 |     62% |     41-48 |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete/compiler.py         |       79 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete/consequents.py      |       37 |        3 |     92% |     76-78 |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete/facts.py            |       15 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete/network.py          |      221 |        5 |     98% |302-303, 372, 381, 393 |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete/tms.py              |      102 |        7 |     93% |34, 37, 90, 94, 169, 174, 183 |
-| rdflib-reasoning-engine/src/rdflibr/engine/rete\_store.py           |       86 |       15 |     83% |85, 92-93, 98, 102, 130, 142, 149, 160, 177, 181, 185, 189, 193, 197 |
-| rdflib-reasoning-engine/src/rdflibr/engine/rules.py                 |       48 |        4 |     92% |11-12, 24, 32 |
-| rdflib-reasoning-engine/src/rdflibr/engine/rulesets/\_\_init\_\_.py |        2 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflibr/engine/rulesets/rdfs.py         |       15 |        0 |    100% |           |
-| src/rdflib\_reasoning/\_\_init\_\_.py                               |        0 |        0 |    100% |           |
-| **TOTAL**                                                           | **1114** |   **82** | **93%** |           |
+| Name                                                                      |    Stmts |     Miss |   Cover |   Missing |
+|-------------------------------------------------------------------------- | -------: | -------: | ------: | --------: |
+| rdflib-reasoning-axioms/src/rdflibr/axiom/\_\_init\_\_.py                 |        0 |        0 |    100% |           |
+| rdflib-reasoning-axioms/src/rdflibr/axiom/common.py                       |        6 |        0 |    100% |           |
+| rdflib-reasoning-axioms/src/rdflibr/axiom/structural\_element.py          |       77 |       27 |     65% |39, 42, 46, 68, 74, 79, 96, 101-115, 119-140, 149, 154 |
+| rdflib-reasoning-engine/src/rdflibr/engine/\_\_init\_\_.py                |        6 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflibr/engine/api.py                         |      158 |        8 |     95% |166, 184, 246-254, 303 |
+| rdflib-reasoning-engine/src/rdflibr/engine/batch\_dispatcher.py           |       73 |        2 |     97% |  125, 157 |
+| rdflib-reasoning-engine/src/rdflibr/engine/derivation.py                  |       34 |        2 |     94% |   66, 103 |
+| rdflib-reasoning-engine/src/rdflibr/engine/proof.py                       |       91 |        1 |     99% |        12 |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete/\_\_init\_\_.py           |        8 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete/agenda.py                 |       40 |        2 |     95% |    64, 67 |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete/callbacks.py              |       16 |        6 |     62% |     41-48 |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete/compiler.py               |       79 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete/consequents.py            |       37 |        3 |     92% |     76-78 |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete/facts.py                  |       15 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete/network.py                |      221 |        5 |     98% |302-303, 372, 381, 393 |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete/tms.py                    |      102 |        7 |     93% |34, 37, 90, 94, 169, 174, 183 |
+| rdflib-reasoning-engine/src/rdflibr/engine/rete\_store.py                 |       86 |       15 |     83% |85, 92-93, 98, 102, 130, 142, 149, 160, 177, 181, 185, 189, 193, 197 |
+| rdflib-reasoning-engine/src/rdflibr/engine/rules.py                       |       48 |        4 |     92% |11-12, 24, 32 |
+| rdflib-reasoning-engine/src/rdflibr/engine/rulesets/\_\_init\_\_.py       |        2 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflibr/engine/rulesets/rdfs.py               |       15 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflibr/middleware/\_\_init\_\_.py        |        5 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflibr/middleware/dataset\_middleware.py |       97 |       19 |     80% |88, 92-93, 102-103, 112-118, 129-135, 139-141, 204-207, 215-216, 224-225, 242 |
+| rdflib-reasoning-middleware/src/rdflibr/middleware/dataset\_model.py      |      112 |       17 |     85% |46, 63, 73, 75-76, 80-85, 95, 293, 297, 321, 325, 331-332 |
+| rdflib-reasoning-middleware/src/rdflibr/middleware/dataset\_state.py      |        2 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflibr/middleware/tracing.py             |       63 |        3 |     95% | 46, 89-90 |
+| src/rdflib\_reasoning/\_\_init\_\_.py                                     |        0 |        0 |    100% |           |
+| **TOTAL**                                                                 | **1393** |  **121** | **91%** |           |
 
 
 ## Setup coverage badge
