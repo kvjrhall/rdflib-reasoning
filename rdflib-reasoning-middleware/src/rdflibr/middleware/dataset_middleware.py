@@ -13,13 +13,14 @@ from langchain.agents.middleware.types import (
 )
 from langchain.tools import BaseTool, tool
 from pydantic import BaseModel, NonNegativeInt
-from rdflib import Dataset
+from rdflib import BNode, Dataset
 from rdflibr.axiom.common import Triple
 from readerwriterlock import rwlock
 
 from .dataset_model import (
     MutationResponse,
     N3Triple,
+    NewResourceNodeResponse,
     SerializationResponse,
     SerializeRequest,
     TripleBatchRequest,
@@ -43,6 +44,13 @@ DATASET_SYSTEM_PROMPT: Final[str] = """## Knowledge Base
 - Use the knowledge base if you are expected to output RDF
 - Prefer adding or correcting exact triples over resetting the entire knowledge base.
 - Model facts in an atemporal, stable way when possible rather than storing transient phrasing as timeless truth.
+- When asserting facts into the knowledge base, you SHOULD keep them grounded in the provided content unless the user explicitly asks for inference, extrapolation, or hypothesis generation.
+- You SHOULD NOT assert uncertain facts as settled triples.
+- When transforming unstructured content into RDF, you SHOULD prefer controlled vocabularies when they fit the source material and task.
+- If you mint IRIs and the user does not specify a base IRI, you SHOULD use <urn:rdflibr:> as the default base for minted IRIs.
+- When presenting RDF to the user or serializing the knowledge base for inspection, you SHOULD prefer Turtle unless the user requests a different RDF serialization.
+- SHOULD NOT mint IRIs if convention dictates that they be blank nodes (e.g., OWL 2 Class Restrictions).
+- You SHOULD prefer a minted IRI over a blank node when there is an authorative IRI base for that resource.
 
 ### Knowledge Base Tools
 
@@ -51,6 +59,7 @@ DATASET_SYSTEM_PROMPT: Final[str] = """## Knowledge Base
 - `remove_triples`: remove exact triples from the knowledge base
 - `serialize_dataset`: render the current knowledge base as RDF text
 - `reset_dataset`: clear the entire knowledge base
+- `new_blank_node`: create an anonymous resource without an IRI
 """
 
 
@@ -200,29 +209,27 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
             "list_triples",
             description="List all exact triples currently stored in the knowledge base.",
         )
-        def list_triples_tool() -> dict[str, object]:
+        def list_triples_tool() -> TripleListResponse:
             triples = tuple(
                 N3Triple.from_rdflib(triple) for triple in self.list_triples()
             )
-            return TripleListResponse(triples=triples).model_dump(mode="json")
+            return TripleListResponse(triples=triples)
 
         @tool(
             "add_triples",
             args_schema=TripleBatchRequest,
             description="Add exact triples to the default RDF graph knowledge base.",
         )
-        def add_triples_tool(triples: tuple[N3Triple, ...]) -> dict[str, object]:
-            response = self.add_triples(triple.as_rdflib for triple in triples)
-            return response.model_dump(mode="json")
+        def add_triples_tool(triples: tuple[N3Triple, ...]) -> MutationResponse:
+            return self.add_triples(triple.as_rdflib for triple in triples)
 
         @tool(
             "remove_triples",
             args_schema=TripleBatchRequest,
             description="Remove exact triples from the default RDF graph knowledge base.",
         )
-        def remove_triples_tool(triples: tuple[N3Triple, ...]) -> dict[str, object]:
-            response = self.remove_triples(triple.as_rdflib for triple in triples)
-            return response.model_dump(mode="json")
+        def remove_triples_tool(triples: tuple[N3Triple, ...]) -> MutationResponse:
+            return self.remove_triples(triple.as_rdflib for triple in triples)
 
         @tool(
             "serialize_dataset",
@@ -231,15 +238,22 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         )
         def serialize_dataset_tool(
             format: Literal["trig", "turtle", "nt", "n3"] = "trig",
-        ) -> dict[str, object]:
+        ) -> SerializationResponse:
             return SerializationResponse(
                 format=format,
                 content=self.serialize(format=format),
-            ).model_dump(mode="json")
+            )
 
         @tool("reset_dataset", description=RESET_DATASET_TOOL_DESCRIPTION)
-        def reset_dataset_tool() -> dict[str, object]:
-            return self.reset_dataset().model_dump(mode="json")
+        def reset_dataset_tool() -> MutationResponse:
+            return self.reset_dataset()
+
+        @tool(
+            "new_blank_node",
+            description="Create an anonymous resource without an IRI.",
+        )
+        def new_blank_node_tool() -> NewResourceNodeResponse:
+            return NewResourceNodeResponse(resource=BNode().n3())
 
         return (
             list_triples_tool,
@@ -247,4 +261,5 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
             remove_triples_tool,
             serialize_dataset_tool,
             reset_dataset_tool,
+            new_blank_node_tool,
         )

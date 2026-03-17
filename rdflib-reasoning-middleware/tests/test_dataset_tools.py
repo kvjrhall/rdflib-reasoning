@@ -1,11 +1,12 @@
 from deepagents import create_deep_agent
 from langchain.agents import create_agent
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
-from pydantic import TypeAdapter
 from rdflib import Literal, URIRef
 from rdflibr.middleware import (
     DatasetMiddleware,
     N3Triple,
+    NewResourceNodeResponse,
+    SerializationResponse,
     SerializeRequest,
     TripleBatchRequest,
 )
@@ -53,14 +54,19 @@ def test_tool_input_schemas_match_request_models() -> None:
         "remove_triples",
         "serialize_dataset",
         "reset_dataset",
+        "new_blank_node",
     }
     assert tools["add_triples"].get_input_schema() is TripleBatchRequest
     assert tools["serialize_dataset"].get_input_schema() is SerializeRequest
 
-    serialized = TypeAdapter(dict).validate_python(
-        tools["serialize_dataset"].invoke({"format": "turtle"})
-    )
-    assert serialized["format"] == "turtle"
+    serialized = tools["serialize_dataset"].invoke({"format": "turtle"})
+    assert isinstance(serialized, SerializationResponse)
+    assert serialized.format == "turtle"
+    assert serialized.model_dump(mode="json")["format"] == "turtle"
+
+    blank_node = tools["new_blank_node"].invoke({})
+    assert isinstance(blank_node, NewResourceNodeResponse)
+    assert blank_node.resource.startswith("_:")
 
 
 def test_dataset_middleware_crud_surface_supports_default_graph_triples() -> None:
@@ -115,6 +121,7 @@ def test_dataset_middleware_registers_langchain_tools() -> None:
         "remove_triples",
         "serialize_dataset",
         "reset_dataset",
+        "new_blank_node",
     }
 
 
