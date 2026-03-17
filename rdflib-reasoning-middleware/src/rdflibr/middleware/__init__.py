@@ -13,6 +13,7 @@ from .dataset_model import (
     TripleListResponse,
 )
 from .dataset_state import DatasetState
+from .tracing import TraceEvent, TraceRecorder, TraceSink
 
 __all__ = [
     "DatasetMiddleware",
@@ -27,6 +28,9 @@ __all__ = [
     "N3Triple",
     "SerializationResponse",
     "SerializeRequest",
+    "TraceEvent",
+    "TraceRecorder",
+    "TraceSink",
     "TripleBatchRequest",
     "TripleListResponse",
 ]

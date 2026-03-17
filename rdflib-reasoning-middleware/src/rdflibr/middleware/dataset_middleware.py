@@ -1,7 +1,7 @@
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass
 from dataclasses import field as DataclassField
-from typing import Final, Literal, override
+from typing import Any, Final, Literal, override
 
 from deepagents.middleware._utils import append_to_system_message
 from langchain.agents.middleware import AgentMiddleware
@@ -115,6 +115,22 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
             )
         )
         return handler(request)
+
+    @override
+    async def awrap_model_call(
+        self,
+        request: ModelRequest[ContextT],
+        handler: Callable[
+            [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
+        ],
+    ) -> Any:
+        request = request.override(
+            system_message=append_to_system_message(
+                request.system_message,
+                DATASET_SYSTEM_PROMPT,
+            )
+        )
+        return await handler(request)
 
     def _replace_dataset(self) -> None:
         """Replace the middleware-owned dataset session."""
