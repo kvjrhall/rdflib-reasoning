@@ -14,6 +14,7 @@ from .dataset_model import (
     TripleListResponse,
 )
 from .dataset_state import DatasetState
+from .rdf_vocabulary_middleware import RDFVocabularyMiddleware
 from .tracing import TraceEvent, TraceRecorder, TraceSink
 
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
     "N3Resource",
     "N3Triple",
     "NewResourceNodeResponse",
+    "RDFVocabularyMiddleware",
     "SerializationResponse",
     "SerializeRequest",
     "TraceEvent",
