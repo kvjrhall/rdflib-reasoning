@@ -34,10 +34,7 @@ dev = [
   "sphinx-autoapi",
   "twine",
 ]
-research = [
-    "ipykernel",
-    "jupyter",
-]
+research = ["ipykernel", "jupyter", "rdflib-reasoning-middleware[notebook]"]
 
 [tool.uv.sources]
 rdflib-reasoning-axioms = { workspace = true }
