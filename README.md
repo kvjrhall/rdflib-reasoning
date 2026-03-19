@@ -25,12 +25,12 @@
 | rdflib-reasoning-engine/src/rdflibr/engine/rulesets/\_\_init\_\_.py       |        2 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflibr/engine/rulesets/rdfs.py               |       15 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflibr/middleware/\_\_init\_\_.py        |        5 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflibr/middleware/dataset\_middleware.py |       97 |       19 |     80% |88, 92-93, 102-103, 112-118, 129-135, 139-141, 204-207, 215-216, 224-225, 242 |
-| rdflib-reasoning-middleware/src/rdflibr/middleware/dataset\_model.py      |      112 |       17 |     85% |46, 63, 73, 75-76, 80-85, 95, 293, 297, 321, 325, 331-332 |
+| rdflib-reasoning-middleware/src/rdflibr/middleware/dataset\_middleware.py |      152 |       53 |     65% |132-151, 179, 183-184, 193-194, 203-210, 221-228, 237-263, 267-268, 272-282, 289-291, 354-358, 366-367, 375-376, 394-395 |
+| rdflib-reasoning-middleware/src/rdflibr/middleware/dataset\_model.py      |      115 |       17 |     85% |46, 63, 73, 75-76, 80-85, 95, 278, 282, 306, 310, 316-317 |
 | rdflib-reasoning-middleware/src/rdflibr/middleware/dataset\_state.py      |        2 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflibr/middleware/tracing.py             |       63 |        3 |     95% | 46, 89-90 |
 | src/rdflib\_reasoning/\_\_init\_\_.py                                     |        0 |        0 |    100% |           |
-| **TOTAL**                                                                 | **1393** |  **121** | **91%** |           |
+| **TOTAL**                                                                 | **1451** |  **155** | **89%** |           |
 
 
 ## Setup coverage badge
