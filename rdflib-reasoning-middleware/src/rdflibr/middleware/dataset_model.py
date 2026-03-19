@@ -164,12 +164,6 @@ type N3Resource = Annotated[
         It SHOULD be an IRI when a globally stable identifier is available.
         """),
         examples=TURTLE_IRI_EXAMPLES + TURTLE_BLANK_NODE_EXAMPLES,
-        json_schema_extra={
-            "oneOf": [
-                {"format": "iri"},
-                {"pattern": _TURTLE_ECMA_BLANK_NODE_PATTERN},
-            ]
-        },
     ),
 ]
 
@@ -185,9 +179,6 @@ type N3IRIRef = Annotated[
         Use this for predicates and for resources that cannot be blank nodes.
         """),
         examples=TURTLE_IRI_EXAMPLES,
-        # https://json-schema.org/draft/2020-12/json-schema-core#name-example-meta-schema-with-vo
-        # https://json-schema.org/draft/2020-12/json-schema-validation#name-resource-identifiers
-        json_schema_extra={"format": "iri"},
     ),
 ]
 
@@ -222,12 +213,6 @@ type N3ContextIdentifier = Annotated[
         It SHOULD be an IRI when a globally stable graph identifier is available.
         """),
         examples=TURTLE_IRI_EXAMPLES + TURTLE_BLANK_NODE_EXAMPLES,
-        json_schema_extra={
-            "oneOf": [
-                {"format": "iri"},
-                {"pattern": _TURTLE_ECMA_BLANK_NODE_PATTERN},
-            ]
-        },
     ),
 ]
 
@@ -344,15 +329,37 @@ class N3Quad(_HasSpo):
 # =============================================================================
 
 
-class TripleBatchRequest(BaseModel):
-    """Request payload for exact-match triple updates."""
+class MutationResponse(BaseModel):
+    """Response payload for state-mutating dataset tools."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
-    triples: tuple[N3Triple, ...] = Field(
-        min_length=1,
-        description="One or more exact RDF triples to add or remove.",
+    updated: NonNegativeInt = Field(
+        description="Number of RDF statements or graphs affected by the operation."
     )
+    message: str = Field(description="Short human-readable summary of the mutation.")
+
+
+class NewResourceNodeResponse(BaseModel):
+    """Response payload when a blank node or IRI is defined.
+
+    This resource is not in the knowlede base until it is asserted in a statement.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    resource: str = Field(description="The newly defined resource in N3 lexical form.")
+
+
+class SerializationResponse(BaseModel):
+    """Response payload for dataset or graph serialization."""
+
+    model_config = ConfigDict(frozen=True)
+
+    format: LiteralType["trig", "turtle", "nt", "n3"] = Field(
+        description="Serialization format used for the returned content."
+    )
+    content: str = Field(description="Serialized RDF content.")
 
 
 class SerializeRequest(BaseModel):
@@ -366,6 +373,17 @@ class SerializeRequest(BaseModel):
     )
 
 
+class TripleBatchRequest(BaseModel):
+    """Request payload for exact-match triple updates."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    triples: tuple[N3Triple, ...] = Field(
+        min_length=1,
+        description="One or more exact RDF triples to add or remove.",
+    )
+
+
 class TripleListResponse(BaseModel):
     """Response payload listing triples from the default graph."""
 
@@ -374,25 +392,3 @@ class TripleListResponse(BaseModel):
     triples: tuple[N3Triple, ...] = Field(
         description="Triples currently present in the default graph."
     )
-
-
-class MutationResponse(BaseModel):
-    """Response payload for state-mutating dataset tools."""
-
-    model_config = ConfigDict(frozen=True)
-
-    updated: NonNegativeInt = Field(
-        description="Number of RDF statements or graphs affected by the operation."
-    )
-    message: str = Field(description="Short human-readable summary of the mutation.")
-
-
-class SerializationResponse(BaseModel):
-    """Response payload for dataset or graph serialization."""
-
-    model_config = ConfigDict(frozen=True)
-
-    format: LiteralType["trig", "turtle", "nt", "n3"] = Field(
-        description="Serialization format used for the returned content."
-    )
-    content: str = Field(description="Serialized RDF content.")
