@@ -96,6 +96,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         request: ModelRequest[ContextT],
         handler: Callable[[ModelRequest[ContextT]], ModelResponse[ResponseT]],
     ) -> ModelResponse[ResponseT]:
+        """Append RDF vocabulary guidance to the system prompt before model execution."""
         logger.debug("Wrapping model call for RDF Vocabulary Middleware")
         request = request.override(
             system_message=append_to_system_message(
@@ -113,6 +114,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
             [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
         ],
     ) -> ModelResponse[ResponseT]:
+        """Append RDF vocabulary guidance to the system prompt before async model execution."""
         logger.debug("Async wrapping model call for RDF Vocabulary Middleware (async)")
         request = request.override(
             system_message=append_to_system_message(
