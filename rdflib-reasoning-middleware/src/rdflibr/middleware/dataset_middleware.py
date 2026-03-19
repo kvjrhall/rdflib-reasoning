@@ -233,6 +233,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Any],
     ) -> ToolMessage | Any:
+        """Reject invalid dataset tool usage before calling the wrapped tool."""
         tool_name = (
             request.tool.name if request.tool is not None else request.tool_call["name"]
         )
