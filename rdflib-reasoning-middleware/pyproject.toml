@@ -13,6 +13,7 @@ dependencies = [
     "deepagents",
     "langchain",
     "langgraph",
+    "more-itertools",
     "pydantic>=2.12",
     "rdflib",
     "readerwriterlock",

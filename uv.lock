@@ -2257,6 +2257,7 @@ dev = [
 research = [
     { name = "ipykernel" },
     { name = "jupyter" },
+    { name = "rdflib-reasoning-middleware", extra = ["notebook"] },
 ]
 
 [package.metadata]
@@ -2278,6 +2279,7 @@ requires-dist = [
     { name = "rdflib-reasoning-engine", extras = ["dev"], marker = "extra == 'dev'", editable = "rdflib-reasoning-engine" },
     { name = "rdflib-reasoning-middleware", editable = "rdflib-reasoning-middleware" },
     { name = "rdflib-reasoning-middleware", extras = ["dev"], marker = "extra == 'dev'", editable = "rdflib-reasoning-middleware" },
+    { name = "rdflib-reasoning-middleware", extras = ["notebook"], marker = "extra == 'research'", editable = "rdflib-reasoning-middleware" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "sphinx", marker = "extra == 'dev'" },
     { name = "sphinx-autoapi", marker = "extra == 'dev'" },
@@ -2340,6 +2342,7 @@ dependencies = [
     { name = "deepagents" },
     { name = "langchain" },
     { name = "langgraph" },
+    { name = "more-itertools" },
     { name = "pydantic" },
     { name = "rdflib" },
     { name = "readerwriterlock" },
@@ -2364,6 +2367,7 @@ requires-dist = [
     { name = "langchain" },
     { name = "langchain-openai", marker = "extra == 'dev'" },
     { name = "langgraph" },
+    { name = "more-itertools" },
     { name = "pydantic", specifier = ">=2.12" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "rdflib" },

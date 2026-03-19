@@ -1,6 +1,6 @@
 import datetime
 import json
-from collections.abc import Generator, Sequence
+from collections.abc import Generator
 from typing import Any
 from xml.dom.minidom import Document
 
@@ -195,19 +195,20 @@ def test_graph_context_schema_is_valid() -> None:
         f"Schema 'type' field should be present and set to 'string': {pretty_schema}"
     )
 
-    assert (one_of := schema.get("oneOf")) is not None and isinstance(
-        one_of, Sequence
-    ), f"'oneOf' should be present and a JSON array: {pretty_schema}"
-
-    assert len(one_of) == 2, (
-        f"Exactly two items alternatives should exist for N3Subject': {pretty_schema}"
-    )
-    assert any(item.get("format") == "iri" for item in one_of), (
-        f"Exactly one item in 'oneOf' should have 'format' set to 'iri': {pretty_schema}"
-    )
-    assert any(isinstance(item.get("pattern"), str) for item in one_of), (
-        f"Exactly one item in 'oneOf' should have 'pattern' for blank nodes: {pretty_schema}"
-    )
+    # NOTE: Not supported by vLLM backend, yet.
+    # assert (one_of := schema.get("oneOf")) is not None and isinstance(
+    #     one_of, Sequence
+    # ), f"'oneOf' should be present and a JSON array: {pretty_schema}"
+    #
+    # assert len(one_of) == 2, (
+    #     f"Exactly two items alternatives should exist for N3Subject': {pretty_schema}"
+    # )
+    # assert any(item.get("format") == "iri" for item in one_of), (
+    #     f"Exactly one item in 'oneOf' should have 'format' set to 'iri': {pretty_schema}"
+    # )
+    # assert any(isinstance(item.get("pattern"), str) for item in one_of), (
+    #     f"Exactly one item in 'oneOf' should have 'pattern' for blank nodes: {pretty_schema}"
+    # )
 
 
 def test_object_schema_is_valid() -> None:
@@ -224,7 +225,8 @@ def test_predicate_schema_is_valid() -> None:
     schema = predicate_adapter.json_schema()
     assert schema is not None
     assert schema.get("type") == "string"
-    assert schema.get("format") == "iri"
+    # NOTE: Not supported by vLLM backend, yet.
+    # assert schema.get("format") == "iri"
 
 
 def test_subject_schema_is_valid() -> None:
@@ -236,19 +238,19 @@ def test_subject_schema_is_valid() -> None:
         f"Schema 'type' field should be present and set to 'string': {pretty_schema}"
     )
 
-    assert (one_of := schema.get("oneOf")) is not None and isinstance(
-        one_of, Sequence
-    ), f"'oneOf' should be present and a JSON array: {pretty_schema}"
-
-    assert len(one_of) == 2, (
-        f"Exactly two items alternatives should exist for N3Subject': {pretty_schema}"
-    )
-    assert any(item.get("format") == "iri" for item in one_of), (
-        f"Exactly one item in 'oneOf' should have 'format' set to 'iri': {pretty_schema}"
-    )
-    assert any(isinstance(item.get("pattern"), str) for item in one_of), (
-        f"Exactly one item in 'oneOf' should have 'pattern' for blank nodes: {pretty_schema}"
-    )
+    # NOTE: Not supported by vLLM backend, yet.
+    # assert (one_of := schema.get("oneOf")) is not None and isinstance(
+    #     one_of, Sequence
+    # ), f"'oneOf' should be present and a JSON array: {pretty_schema}"
+    # assert len(one_of) == 2, (
+    #     f"Exactly two items alternatives should exist for N3Subject': {pretty_schema}"
+    # )
+    # assert any(item.get("format") == "iri" for item in one_of), (
+    #     f"Exactly one item in 'oneOf' should have 'format' set to 'iri': {pretty_schema}"
+    # )
+    # assert any(isinstance(item.get("pattern"), str) for item in one_of), (
+    #     f"Exactly one item in 'oneOf' should have 'pattern' for blank nodes: {pretty_schema}"
+    # )
 
 
 # RDF Nodes - TypeAdapters/Serialization
