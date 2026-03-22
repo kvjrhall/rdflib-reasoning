@@ -72,7 +72,22 @@ jobs:
           name: release-distributions
           path: artifacts
 
-      - name: Publish package distributions to PyPI
+      - name: Publish rdflib-reasoning to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: artifacts/dist
+          packages-dir: artifacts/dist/root
+
+      - name: Publish rdflib-reasoning-axioms to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/dist/axioms
+
+      - name: Publish rdflib-reasoning-engine to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/dist/engine
+
+      - name: Publish rdflib-reasoning-middleware to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/dist/middleware

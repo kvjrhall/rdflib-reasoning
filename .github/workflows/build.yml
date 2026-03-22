@@ -124,11 +124,29 @@ jobs:
           name: python-distributions
           path: artifacts
 
-      - name: Publish package distributions to TestPyPI
+      - name: Publish rdflib-reasoning to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-          packages-dir: artifacts/dist
+          packages-dir: artifacts/dist/root
+
+      - name: Publish rdflib-reasoning-axioms to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: artifacts/dist/axioms
+
+      - name: Publish rdflib-reasoning-engine to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: artifacts/dist/engine
+
+      - name: Publish rdflib-reasoning-middleware to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: artifacts/dist/middleware
 
   docs-linkcheck:
     continue-on-error: true
