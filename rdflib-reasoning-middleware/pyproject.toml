@@ -34,6 +34,7 @@ fallback-version = "0.1.0"
 
 [tool.hatch.version.raw-options]
 version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"
 
 [tool.mypy]
 namespace_packages = true
