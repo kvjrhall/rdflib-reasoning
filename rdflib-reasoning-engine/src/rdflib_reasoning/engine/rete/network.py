@@ -4,7 +4,7 @@ from collections.abc import Iterable
 
 from pydantic import BaseModel, ConfigDict, Field
 from rdflib.term import Node, Variable
-from rdflibr.axiom.common import Triple
+from rdflib_reasoning.axiom.common import Triple
 
 from ..rules import PredicateHook, RuleContext
 from .compiler import (

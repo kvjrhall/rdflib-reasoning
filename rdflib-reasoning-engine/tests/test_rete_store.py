@@ -7,11 +7,16 @@ from rdflib.namespace import RDF, RDFS
 from rdflib.plugins.stores.memory import Memory
 from rdflib.store import VALID_STORE, Store
 from rdflib.term import BNode, URIRef, Variable
-from rdflibr.engine.api import RETEEngine, RETEEngineFactory
-from rdflibr.engine.batch_dispatcher import TripleAddedBatchEvent
-from rdflibr.engine.proof import RuleId
-from rdflibr.engine.rete_store import RETEStore
-from rdflibr.engine.rules import Rule, TripleCondition, TripleConsequent, TriplePattern
+from rdflib_reasoning.engine.api import RETEEngine, RETEEngineFactory
+from rdflib_reasoning.engine.batch_dispatcher import TripleAddedBatchEvent
+from rdflib_reasoning.engine.proof import RuleId
+from rdflib_reasoning.engine.rete_store import RETEStore
+from rdflib_reasoning.engine.rules import (
+    Rule,
+    TripleCondition,
+    TripleConsequent,
+    TriplePattern,
+)
 
 _NS = Namespace("https://example.org/")
 _X = Variable("x")

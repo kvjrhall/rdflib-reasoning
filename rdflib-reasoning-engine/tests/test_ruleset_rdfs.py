@@ -8,14 +8,14 @@ import pytest
 from rdflib import OWL, RDF, RDFS, Dataset, Graph, Namespace
 from rdflib.graph import ModificationException
 from rdflib.plugins.stores.memory import Memory
-from rdflibr.axiom.common import Triple
-from rdflibr.engine import (
+from rdflib_reasoning.axiom.common import Triple
+from rdflib_reasoning.engine import (
     RDFS_RULES,
     DerivationLogger,
     DerivationRecord,
     RETEEngineFactory,
 )
-from rdflibr.engine.rete_store import RETEStore
+from rdflib_reasoning.engine.rete_store import RETEStore
 
 from .conftest import RDFS_AXIOMS, TestData
 

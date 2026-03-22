@@ -19,7 +19,7 @@ This repository MUST support research into agents and their interoperability wit
 
 - Development MUST use the `rdflib-reasoning` conda environment.
 - All use [src-layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
-- All use the `rdflibr` [namespace package](https://packaging.python.org/en/latest/guides/packaging-namespace-packages/)
+- All use the `rdflib_reasoning` [namespace package](https://packaging.python.org/en/latest/guides/packaging-namespace-packages/)
 
 | Project Path                   | Description                                                                                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |

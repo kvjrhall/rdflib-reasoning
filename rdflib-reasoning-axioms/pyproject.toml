@@ -15,7 +15,7 @@ dependencies = ["pydantic", "rdflib"]
 dev = ["pytest", "mypy", "ruff"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/rdflibr"]
+packages = ["src/rdflib_reasoning"]
 
 [tool.hatch.version]
 source = "vcs"

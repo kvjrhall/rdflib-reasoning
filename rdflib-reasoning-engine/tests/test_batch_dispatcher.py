@@ -17,7 +17,7 @@ from rdflib import Dataset, Graph, Namespace
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.memory import Memory
 from rdflib.store import Store, TripleAddedEvent, TripleRemovedEvent
-from rdflibr.engine.batch_dispatcher import (
+from rdflib_reasoning.engine.batch_dispatcher import (
     BatchDispatcher,
     TripleAddedBatchEvent,
     TripleRemovedBatchEvent,

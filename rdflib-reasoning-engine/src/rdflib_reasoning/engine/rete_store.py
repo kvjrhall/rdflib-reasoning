@@ -14,7 +14,7 @@ from rdflib.plugins.sparql.update import Update
 from rdflib.query import Result
 from rdflib.store import VALID_STORE, Store
 from rdflib.term import Identifier
-from rdflibr.axiom.common import ContextIdentifier, Triple
+from rdflib_reasoning.axiom.common import ContextIdentifier, Triple
 
 from .api import RETEEngine, RETEEngineFactory
 from .batch_dispatcher import BatchDispatcher, TripleAddedBatchEvent

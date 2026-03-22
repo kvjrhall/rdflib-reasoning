@@ -3,8 +3,8 @@ import warnings
 import pytest
 from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.term import Node
-from rdflibr.axiom.common import Triple
-from rdflibr.engine import (
+from rdflib_reasoning.axiom.common import Triple
+from rdflib_reasoning.engine import (
     BlankNodePredicateError,
     BlankNodePredicateWarning,
     LiteralAsSubjectError,

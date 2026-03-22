@@ -5,7 +5,7 @@ from typing import Any, Literal, cast
 
 from rdflib.term import BNode, Node, URIRef, Variable
 from rdflib.term import Literal as RDFLiteral
-from rdflibr.axiom.common import ContextIdentifier, Triple
+from rdflib_reasoning.axiom.common import ContextIdentifier, Triple
 
 from .derivation import DerivationLogger
 from .proof import DerivationRecord, TripleFact, VariableBinding

@@ -79,7 +79,7 @@ def _rewrite_autoapi_namespace_refs(app, docname, source) -> None:
     if not docname.startswith("autoapi/"):
         return
 
-    source[0] = source[0].replace("rdflibr.", "")
+    source[0] = source[0].replace("rdflib_reasoning.", "")
 
 
 def setup(app) -> None:

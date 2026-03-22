@@ -26,7 +26,7 @@ dev = ["pytest", "langchain-openai", "types-regex"]
 notebook = ["ipython"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/rdflibr"]
+packages = ["src/rdflib_reasoning"]
 
 [tool.hatch.version]
 source = "vcs"
@@ -43,6 +43,10 @@ files = ["src"]
 
 [[tool.mypy.overrides]]
 module = ["langchain.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["IPython.*"]
 ignore_missing_imports = true
 
 [tool.pyright]

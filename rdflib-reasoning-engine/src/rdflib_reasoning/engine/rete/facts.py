@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from rdflib.term import Node
-from rdflibr.axiom.common import Triple
+from rdflib_reasoning.axiom.common import Triple
 
 
 def fact_id_for_triple(triple: Triple) -> str:

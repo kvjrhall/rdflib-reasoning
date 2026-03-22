@@ -42,7 +42,7 @@ jobs:
           python -m venv smoke-venv
           smoke-venv/bin/python -m pip install --upgrade pip
           smoke-venv/bin/python -m pip install cyclonedx-bom dist/root/*.whl dist/axioms/*.whl dist/engine/*.whl dist/middleware/*.whl
-          smoke-venv/bin/python -c "import rdflib_reasoning; import rdflibr.axiom.common; import rdflibr.engine; import rdflibr.middleware"
+          smoke-venv/bin/python -c "import rdflib_reasoning; import rdflib_reasoning.axiom.common; import rdflib_reasoning.engine; import rdflib_reasoning.middleware"
 
       - name: Generate SBOM
         run: smoke-venv/bin/python -m cyclonedx_py environment --output-file dist/sbom.json --of JSON

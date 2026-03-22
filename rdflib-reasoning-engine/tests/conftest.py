@@ -4,7 +4,7 @@ from typing import Any, Final
 import pytest
 from rdflib import RDF, RDFS, Graph
 from rdflib.graph import ReadOnlyGraphAggregate
-from rdflibr.axiom.common import Triple
+from rdflib_reasoning.axiom.common import Triple
 
 type TestData[T] = Generator[T, Any, Any]
 

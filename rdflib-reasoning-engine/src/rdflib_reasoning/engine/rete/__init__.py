@@ -1,8 +1,8 @@
 """RETE internal scaffolding.
 
 This package isolates forward-looking RETE internals from the public engine
-facade in `rdflibr.engine.api` and from proof/derivation structures in
-`rdflibr.engine.proof`. The internals are RETE-OO-inspired, but the intended
+facade in `rdflib_reasoning.engine.api` and from proof/derivation structures in
+`rdflib_reasoning.engine.proof`. The internals are RETE-OO-inspired, but the intended
 logical core remains triple-oriented and engine-managed.
 """
 

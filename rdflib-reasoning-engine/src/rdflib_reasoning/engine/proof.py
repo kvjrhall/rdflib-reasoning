@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from rdflib.term import Node, URIRef
-from rdflibr.axiom.common import ContextIdentifier, Triple
-from rdflibr.axiom.structural_element import GraphBacked, StructuralElement
+from rdflib_reasoning.axiom.common import ContextIdentifier, Triple
+from rdflib_reasoning.axiom.structural_element import GraphBacked, StructuralElement
 
 if TYPE_CHECKING:
     from .rules import Rule

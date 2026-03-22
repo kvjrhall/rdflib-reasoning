@@ -3,10 +3,10 @@ from collections.abc import Iterable
 import pytest
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import BNode, URIRef, Variable
-from rdflibr.engine.api import FatalRuleError, RETEEngine, RETEEngineFactory
-from rdflibr.engine.derivation import DerivationLogger
-from rdflibr.engine.proof import DerivationRecord, RuleId
-from rdflibr.engine.rules import (
+from rdflib_reasoning.engine.api import FatalRuleError, RETEEngine, RETEEngineFactory
+from rdflib_reasoning.engine.derivation import DerivationLogger
+from rdflib_reasoning.engine.proof import DerivationRecord, RuleId
+from rdflib_reasoning.engine.rules import (
     CallbackConsequent,
     CallbackHook,
     ContextData,
