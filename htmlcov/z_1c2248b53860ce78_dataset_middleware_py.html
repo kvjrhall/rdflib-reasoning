@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for rdflib-reasoning-middleware/src/rdflibr/middleware/dataset_middleware.py: 65%</title>
+    <title>Coverage for rdflib-reasoning-middleware/src/rdflib_reasoning/middleware/dataset_middleware.py: 65%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_9ff733b0.css" type="text/css">
     <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
@@ -11,7 +11,7 @@
 <header>
     <div class="content">
         <h1>
-            <span class="text">Coverage for </span><b>rdflib-reasoning-middleware&#8201;/&#8201;src&#8201;/&#8201;rdflibr&#8201;/&#8201;middleware&#8201;/&#8201;dataset_middleware.py</b>:
+            <span class="text">Coverage for </span><b>rdflib-reasoning-middleware&#8201;/&#8201;src&#8201;/&#8201;rdflib_reasoning&#8201;/&#8201;middleware&#8201;/&#8201;dataset_middleware.py</b>:
             <span class="pc_cov">65%</span>
         </h1>
         <aside id="help_panel_wrapper">
@@ -60,12 +60,12 @@
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
-            <a id="prevFileLink" class="nav" href="z_9b667c11cdcfa53c___init___py.html">&#xab; prev</a> &nbsp; &nbsp;
+            <a id="prevFileLink" class="nav" href="z_1c2248b53860ce78___init___py.html">&#xab; prev</a> &nbsp; &nbsp;
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
-            <a id="nextFileLink" class="nav" href="z_9b667c11cdcfa53c_dataset_model_py.html">&#xbb; next</a>
+            <a id="nextFileLink" class="nav" href="z_1c2248b53860ce78_dataset_model_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.1">coverage.py v7.13.1</a>,
-            created at 2026-03-19 22:02 +0000
+            created at 2026-03-22 15:08 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -100,7 +100,7 @@
     <p class="run"><span class="n"><a id="t18" href="#t18">18</a></span><span class="t"><span class="key">from</span> <span class="nam">langchain_core</span><span class="op">.</span><span class="nam">messages</span> <span class="key">import</span> <span class="nam">ToolMessage</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t"><span class="key">from</span> <span class="nam">pydantic</span> <span class="key">import</span> <span class="nam">BaseModel</span><span class="op">,</span> <span class="nam">NonNegativeInt</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t20" href="#t20">20</a></span><span class="t"><span class="key">from</span> <span class="nam">rdflib</span> <span class="key">import</span> <span class="nam">BNode</span><span class="op">,</span> <span class="nam">Dataset</span><span class="op">,</span> <span class="nam">Graph</span><span class="op">,</span> <span class="nam">IdentifiedNode</span><span class="op">,</span> <span class="nam">Node</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t21" href="#t21">21</a></span><span class="t"><span class="key">from</span> <span class="nam">rdflibr</span><span class="op">.</span><span class="nam">axiom</span><span class="op">.</span><span class="nam">common</span> <span class="key">import</span> <span class="nam">Triple</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t21" href="#t21">21</a></span><span class="t"><span class="key">from</span> <span class="nam">rdflib_reasoning</span><span class="op">.</span><span class="nam">axiom</span><span class="op">.</span><span class="nam">common</span> <span class="key">import</span> <span class="nam">Triple</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t22" href="#t22">22</a></span><span class="t"><span class="key">from</span> <span class="nam">readerwriterlock</span> <span class="key">import</span> <span class="nam">rwlock</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t23" href="#t23">23</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t24" href="#t24">24</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">dataset_model</span> <span class="key">import</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
@@ -129,7 +129,7 @@
     <p class="run run2"><span class="n"><a id="t47" href="#t47">47</a></span><span class="t"><span class="str">- When asserting facts into the knowledge base, you SHOULD keep them grounded in the provided content unless the user explicitly asks for inference, extrapolation, or hypothesis generation.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t48" href="#t48">48</a></span><span class="t"><span class="str">- You SHOULD NOT assert uncertain facts as settled triples.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t49" href="#t49">49</a></span><span class="t"><span class="str">- When transforming unstructured content into RDF, you SHOULD prefer controlled vocabularies when they fit the source material and task.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t50" href="#t50">50</a></span><span class="t"><span class="str">- If you mint IRIs and the user does not specify a base IRI, you SHOULD use &lt;urn:rdflibr:> as the default base for minted IRIs.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t50" href="#t50">50</a></span><span class="t"><span class="str">- If you mint IRIs and the user does not specify a base IRI, you SHOULD use &lt;urn:rdflib_reasoning:> as the default base for minted IRIs.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t51" href="#t51">51</a></span><span class="t"><span class="str">- When presenting RDF to the user or serializing the knowledge base for inspection, you SHOULD prefer Turtle unless the user requests a different RDF serialization.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t52" href="#t52">52</a></span><span class="t"><span class="str">- SHOULD NOT mint IRIs if convention dictates that they be blank nodes (e.g., OWL 2 Class Restrictions).</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t53" href="#t53">53</a></span><span class="t"><span class="str">- You SHOULD prefer a minted IRI over a blank node when there is an authorative IRI base for that resource.</span>&nbsp;</span><span class="r"></span></p>
@@ -499,12 +499,12 @@
 <footer>
     <div class="content">
         <p>
-            <a class="nav" href="z_9b667c11cdcfa53c___init___py.html">&#xab; prev</a> &nbsp; &nbsp;
+            <a class="nav" href="z_1c2248b53860ce78___init___py.html">&#xab; prev</a> &nbsp; &nbsp;
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
-            <a class="nav" href="z_9b667c11cdcfa53c_dataset_model_py.html">&#xbb; next</a>
+            <a class="nav" href="z_1c2248b53860ce78_dataset_model_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.1">coverage.py v7.13.1</a>,
-            created at 2026-03-19 22:02 +0000
+            created at 2026-03-22 15:08 +0000
         </p>
     </div>
 </footer>
