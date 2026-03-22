@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "langchain-openai", "types-regex"]
-notebook = ["ipython"]
+notebook = ["ipython", "mistune", "networkx", "numpy", "scipy"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rdflibr"]

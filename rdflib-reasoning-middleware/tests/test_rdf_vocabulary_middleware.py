@@ -21,3 +21,16 @@ def test_list_terms_filters_properties() -> None:
 
     assert len(terms) == 10
     assert all(term.termType == "property" for term in terms)
+
+
+def test_vocabulary_tool_schema_and_descriptions_are_agent_facing() -> None:
+    middleware = RDFVocabularyMiddleware()
+    tools = {tool.name: tool for tool in middleware.tools}
+    list_terms_schema = tools["list_terms"].get_input_schema().model_json_schema()
+    describe_term_schema = tools["describe_term"].get_input_schema().model_json_schema()
+
+    assert "MUST NOT wrap" in tools["list_terms"].description
+    assert "Example arguments" in tools["describe_term"].description
+    assert len(list_terms_schema["properties"]["vocabulary"]["examples"]) >= 2
+    assert len(list_terms_schema["properties"]["term_type"]["examples"]) >= 2
+    assert len(describe_term_schema["properties"]["term"]["examples"]) >= 2

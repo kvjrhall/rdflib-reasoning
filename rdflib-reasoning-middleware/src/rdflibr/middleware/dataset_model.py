@@ -37,13 +37,36 @@ _TURTLE_ECMA_BLANK_NODE_PATTERN: Final[str] = (
 _turtle_blank_node_regex: Final[re.Pattern[str]] = re.compile(
     _TURTLE_ECMA_BLANK_NODE_PATTERN
 )
+_PLAINTEXT_LITERAL_HINT_PATTERN: Final[re.Pattern[str]] = re.compile(r"\s|[.!?,;:]")
 
 
 def _parse_node(value: str | Node) -> Node:
+    original_value = value
     try:
-        node = value if isinstance(value, Node) else from_n3(value)
+        if isinstance(value, Node):
+            node = value
+        else:
+            candidate = value.strip()
+            try:
+                parsed = from_n3(candidate)
+            except Exception:
+                # Accept bare RFC 3987 IRIs as an input convenience, but normalize
+                # them through N3 parsing so serialization remains canonical.
+                if (
+                    candidate
+                    and not candidate.startswith(("<", "_:", '"', "'", "(", "["))
+                    and is_valid_syntax_iri(candidate)
+                ):
+                    parsed = from_n3(f"<{candidate}>")
+                else:
+                    raise
+            if not isinstance(parsed, Node):
+                raise ValueError(
+                    f"Unable to parse RDF term from text: {original_value}"
+                )
+            node = parsed
         if not isinstance(node, Node):
-            raise ValueError(f"Unable to parse RDF term from text: ${value}")
+            raise ValueError(f"Unable to parse RDF term from text: {original_value}")
         node_text = _node_to_string(node).removeprefix("<").removesuffix(">")
 
         if isinstance(node, URIRef):
@@ -53,7 +76,26 @@ def _parse_node(value: str | Node) -> Node:
             raise ValueError(f"Invalid blank node: {node_text}")
         return node
     except Exception as e:
-        raise ValueError(f"Could not parse RDF term from {value}.") from e
+        if isinstance(original_value, str):
+            candidate = original_value.strip()
+            if candidate and not candidate.startswith(("<", "_:", '"', "'", "(", "[")):
+                if (
+                    not is_valid_syntax_iri(candidate)
+                    and _PLAINTEXT_LITERAL_HINT_PATTERN.search(candidate) is not None
+                ):
+                    raise ValueError(
+                        "Could not parse RDF term from "
+                        f"{original_value}. If this is plain text, encode it as an RDF "
+                        f'literal like "\\"{candidate}\\"". If this is an IRI, provide '
+                        "it either in canonical N3 form like <urn:example:Thing> or "
+                        "as a bare RFC 3987 IRI."
+                    ) from e
+                raise ValueError(
+                    "Could not parse RDF term from "
+                    f"{original_value}. If this is an IRI, provide it either in "
+                    f"canonical N3 form like <{candidate}> or as a bare RFC 3987 IRI."
+                ) from e
+        raise ValueError(f"Could not parse RDF term from {original_value}.") from e
 
 
 def _parse_identified_node(value: str | Node) -> IdentifiedNode:
@@ -159,11 +201,13 @@ type N3Resource = Annotated[
     PlainSerializer(_node_to_string, return_type=str),
     Field(
         description=textwrap.dedent(f"""
-        RDF resource in N3 lexical form.
-        It MUST be a {TURTLE_IRI} or a {TURTLE_BLANK_NODE}.
+        RDF resource accepted in canonical N3 lexical form and serialized in N3.
+        It MUST resolve to a {TURTLE_IRI} or a {TURTLE_BLANK_NODE}.
+        Full IRIs MAY be provided either as canonical N3 like <urn:example:s> or
+        as a bare RFC 3987 IRI like urn:example:s.
         It SHOULD be an IRI when a globally stable identifier is available.
         """),
-        examples=TURTLE_IRI_EXAMPLES + TURTLE_BLANK_NODE_EXAMPLES,
+        examples=TURTLE_IRI_EXAMPLES + ["urn:example:s"] + TURTLE_BLANK_NODE_EXAMPLES,
     ),
 ]
 
@@ -174,11 +218,13 @@ type N3IRIRef = Annotated[
     # WithJsonSchema({"type": "string"}, mode="serialization"),
     Field(
         description=textwrap.dedent(f"""
-        RDF IRI reference in N3 lexical form.
-        It MUST be a {TURTLE_IRI}.
+        RDF IRI reference accepted in canonical N3 lexical form and serialized in N3.
+        It MUST resolve to a {TURTLE_IRI}.
+        Full IRIs MAY be provided either as canonical N3 like <urn:example:p> or
+        as a bare RFC 3987 IRI like urn:example:p.
         Use this for predicates and for resources that cannot be blank nodes.
         """),
-        examples=TURTLE_IRI_EXAMPLES,
+        examples=TURTLE_IRI_EXAMPLES + ["urn:example:p"],
     ),
 ]
 
@@ -189,13 +235,16 @@ type N3Node = Annotated[
     # WithJsonSchema({"type": "string"}, mode="serialization"),
     Field(
         description=textwrap.dedent(f"""
-        RDF node in N3 lexical form.
-        It MUST be one of the following:
+        RDF node accepted in canonical N3 lexical form and serialized in N3.
+        It MUST resolve to one of the following:
         - {TURTLE_IRI}
         - {TURTLE_BLANK_NODE}
         - {TURTLE_LITERAL}
+        Full IRIs MAY be provided either as canonical N3 like <urn:example:o> or
+        as a bare RFC 3987 IRI like urn:example:o.
         """),
         examples=TURTLE_IRI_EXAMPLES
+        + ["urn:example:o"]
         + TURTLE_BLANK_NODE_EXAMPLES
         + TURTLE_LITERAL_EXAMPLES,
     ),
@@ -207,12 +256,14 @@ type N3ContextIdentifier = Annotated[
     PlainSerializer(_node_to_string, return_type=str),
     Field(
         description=textwrap.dedent(f"""
-        RDF graph name in N3 lexical form.
+        RDF graph name accepted in canonical N3 lexical form and serialized in N3.
         It corresponds to a {RDF_GRAPH_TERM}.
-        It MUST be a {TURTLE_IRI} or a {TURTLE_BLANK_NODE}.
+        It MUST resolve to a {TURTLE_IRI} or a {TURTLE_BLANK_NODE}.
+        Full IRIs MAY be provided either as canonical N3 like <urn:example:g> or
+        as a bare RFC 3987 IRI like urn:example:g.
         It SHOULD be an IRI when a globally stable graph identifier is available.
         """),
-        examples=TURTLE_IRI_EXAMPLES + TURTLE_BLANK_NODE_EXAMPLES,
+        examples=TURTLE_IRI_EXAMPLES + ["urn:example:g"] + TURTLE_BLANK_NODE_EXAMPLES,
     ),
 ]
 
@@ -250,7 +301,10 @@ class _HasSpo(BaseModel):
     predicate: N3IRIRef = Field(
         ...,
         description="The predicate relating the subject to the object.",
-        examples=["<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"],
+        examples=[
+            "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+            "http://www.w3.org/2000/01/rdf-schema#label",
+        ],
     )
     object: N3Node = Field(
         ...,
@@ -265,7 +319,7 @@ class _HasSpo(BaseModel):
 
 class N3Triple(_HasSpo):
     """
-    RDF triple represented in N3 lexical form.
+    RDF triple accepted in canonical N3 lexical form and serialized in N3.
 
     Use this model when a statement is scoped only by its subject, predicate, and object.
     See RDF 1.1 Concepts and Abstract Syntax § 3.1 RDF Triples.
@@ -290,7 +344,7 @@ class N3Triple(_HasSpo):
 
 class N3Quad(_HasSpo):
     """
-    RDF quad represented in N3 lexical form.
+    RDF quad accepted in canonical N3 lexical form and serialized in N3.
 
     Use this model when the triple is asserted within a specific named graph given by `graph_id`.
     See RDF 1.1 Concepts and Abstract Syntax § 4 RDF Datasets.
@@ -298,7 +352,9 @@ class N3Quad(_HasSpo):
 
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
     graph_id: Final[N3ContextIdentifier] = Field(
-        ..., description="The name of the RDF Graph wherein this statement is asserted."
+        ...,
+        description="The name of the RDF Graph wherein this statement is asserted.",
+        examples=["<urn:example:graph>", "urn:example:context", "_:g1"],
     )
 
     @property
@@ -335,9 +391,17 @@ class MutationResponse(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     updated: NonNegativeInt = Field(
-        description="Number of RDF statements or graphs affected by the operation."
+        description="Number of RDF statements or graphs affected by the operation.",
+        examples=[0, 1, 3],
     )
-    message: str = Field(description="Short human-readable summary of the mutation.")
+    message: str = Field(
+        description="Short human-readable summary of the mutation.",
+        examples=[
+            "Triples added to the default graph.",
+            "Triples removed from the default graph.",
+            "Dataset reset.",
+        ],
+    )
 
 
 class NewResourceNodeResponse(BaseModel):
@@ -348,7 +412,10 @@ class NewResourceNodeResponse(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    resource: str = Field(description="The newly defined resource in N3 lexical form.")
+    resource: str = Field(
+        description="The newly defined resource serialized in canonical N3 lexical form.",
+        examples=["_:b0", "_:personEntity", "_:restriction1"],
+    )
 
 
 class SerializationResponse(BaseModel):
@@ -357,9 +424,16 @@ class SerializationResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     format: LiteralType["trig", "turtle", "nt", "n3"] = Field(
-        description="Serialization format used for the returned content."
+        description="Serialization format used for the returned content.",
+        examples=["turtle", "trig", "nt"],
     )
-    content: str = Field(description="Serialized RDF content.")
+    content: str = Field(
+        description="Serialized RDF content.",
+        examples=[
+            '<urn:example:s> <urn:example:p> "value" .',
+            "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
+        ],
+    )
 
 
 class SerializeRequest(BaseModel):
@@ -370,6 +444,7 @@ class SerializeRequest(BaseModel):
     format: LiteralType["trig", "turtle", "nt", "n3"] = Field(
         default="trig",
         description="Serialization format for the current default-graph knowledge base.",
+        examples=["trig", "turtle", "nt"],
     )
 
 
@@ -381,6 +456,27 @@ class TripleBatchRequest(BaseModel):
     triples: tuple[N3Triple, ...] = Field(
         min_length=1,
         description="One or more exact RDF triples to add or remove.",
+        examples=[
+            [
+                {
+                    "subject": "<urn:example:Person>",
+                    "predicate": "<http://www.w3.org/2000/01/rdf-schema#label>",
+                    "object": '"Person"',
+                }
+            ],
+            [
+                {
+                    "subject": "urn:example:Person",
+                    "predicate": "http://www.w3.org/2000/01/rdf-schema#subClassOf",
+                    "object": "urn:example:Agent",
+                },
+                {
+                    "subject": "urn:example:Person",
+                    "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+                    "object": "http://www.w3.org/2000/01/rdf-schema#Class",
+                },
+            ],
+        ],
     )
 
 
@@ -390,5 +486,26 @@ class TripleListResponse(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     triples: tuple[N3Triple, ...] = Field(
-        description="Triples currently present in the default graph."
+        description="Triples currently present in the default graph.",
+        examples=[
+            [
+                {
+                    "subject": "<urn:example:Person>",
+                    "predicate": "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+                    "object": "<http://www.w3.org/2000/01/rdf-schema#Class>",
+                }
+            ],
+            [
+                {
+                    "subject": "<urn:example:Person>",
+                    "predicate": "<http://www.w3.org/2000/01/rdf-schema#label>",
+                    "object": '"Person"',
+                },
+                {
+                    "subject": "<urn:example:Person>",
+                    "predicate": "<http://www.w3.org/2000/01/rdf-schema#comment>",
+                    "object": '"A human-readable class label."',
+                },
+            ],
+        ],
     )

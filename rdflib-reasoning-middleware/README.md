@@ -41,6 +41,8 @@ result = agent.invoke(
 
 The middleware contributes both tool implementations and capability-specific system guidance. The Research Agent sees a tool surface such as `add_triples` and `serialize_dataset`, while the live RDFLib dataset remains middleware-owned runtime infrastructure.
 
+Dataset tool inputs accept RDF terms in canonical N3 form. For IRIs, the middleware also accepts bare RFC 3987 IRI strings such as `urn:example:Person` as an input convenience and serializes them back in canonical N3 form such as `<urn:example:Person>`.
+
 ## Tracing tutorial
 
 The tracing support is split into a core callback-based recorder and an optional notebook renderer.

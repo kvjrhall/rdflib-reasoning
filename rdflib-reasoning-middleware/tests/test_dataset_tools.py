@@ -28,6 +28,25 @@ def test_tool_models_validate_n3_shapes() -> None:
     )
 
 
+def test_tool_models_accept_bare_iris_and_serialize_canonically() -> None:
+    triple = N3Triple(
+        subject=f"{EX}s",
+        predicate=f"{EX}p",
+        object=f"{EX}o",
+    )
+
+    assert (triple.subject, triple.predicate, triple.object) == (
+        URIRef(f"{EX}s"),
+        URIRef(f"{EX}p"),
+        URIRef(f"{EX}o"),
+    )
+    assert triple.model_dump(mode="json") == {
+        "subject": f"<{EX}s>",
+        "predicate": f"<{EX}p>",
+        "object": f"<{EX}o>",
+    }
+
+
 def test_request_models_are_tuple_backed_and_validate_expected_shapes() -> None:
     triple_request = TripleBatchRequest(
         triples=(
@@ -67,6 +86,24 @@ def test_tool_input_schemas_match_request_models() -> None:
     blank_node = tools["new_blank_node"].invoke({})
     assert isinstance(blank_node, NewResourceNodeResponse)
     assert blank_node.resource.startswith("_:")
+
+
+def test_dataset_tool_descriptions_and_examples_are_agent_facing() -> None:
+    middleware = DatasetMiddleware()
+    tools = {tool.name: tool for tool in middleware.tools}
+    triple_batch_schema = TripleBatchRequest.model_json_schema()
+    serialize_schema = SerializeRequest.model_json_schema()
+
+    assert "top-level argument" in tools["add_triples"].description
+    assert "top-level argument" in tools["remove_triples"].description
+    assert "IRI inputs MAY be given either" in tools["add_triples"].description
+    assert (
+        "Literal text MUST be encoded as RDF literals"
+        in tools["add_triples"].description
+    )
+    assert "one subject per call" in tools["add_triples"].description
+    assert len(triple_batch_schema["properties"]["triples"]["examples"]) >= 2
+    assert len(serialize_schema["properties"]["format"]["examples"]) >= 2
 
 
 def test_dataset_middleware_crud_surface_supports_default_graph_triples() -> None:

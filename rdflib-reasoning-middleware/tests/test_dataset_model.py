@@ -289,6 +289,13 @@ def test_subject_adapter_serializes_and_deserializes_json(
     )
 
 
+def test_subject_adapter_accepts_bare_iri_input_and_serializes_canonically() -> None:
+    subject = subject_adapter.validate_python("urn:example:subject")
+
+    assert subject == URIRef("urn:example:subject")
+    assert subject_adapter.dump_python(subject) == "<urn:example:subject>"
+
+
 def test_predicate_adapter_serializes_and_deserializes_python(
     valid_predicate: URIRef,
 ) -> None:
@@ -303,6 +310,13 @@ def test_predicate_adapter_serializes_and_deserializes_json(
     assert predicate_adapter.validate_json(json) == valid_predicate, (
         f"Unexpected JSON dumped: {json}"
     )
+
+
+def test_predicate_adapter_accepts_bare_iri_input_and_serializes_canonically() -> None:
+    predicate = predicate_adapter.validate_python("urn:example:predicate")
+
+    assert predicate == URIRef("urn:example:predicate")
+    assert predicate_adapter.dump_python(predicate) == "<urn:example:predicate>"
 
 
 def test_object_adapter_serializes_and_deserializes_python(
@@ -321,6 +335,13 @@ def test_object_adapter_serializes_and_deserializes_json(
     )
 
 
+def test_object_adapter_accepts_bare_iri_input_and_serializes_canonically() -> None:
+    obj = object_adapter.validate_python("urn:example:object")
+
+    assert obj == URIRef("urn:example:object")
+    assert object_adapter.dump_python(obj) == "<urn:example:object>"
+
+
 # RDF Nodes - Serialization Failures
 # -----------------------------------------------------------------------------
 
@@ -328,6 +349,22 @@ def test_object_adapter_serializes_and_deserializes_json(
 def test_rejects_illegal_subject_python(bad_subject: IdentifiedNode) -> None:
     with pytest.raises(ValueError):
         subject_adapter.validate_python(bad_subject)
+
+
+def test_invalid_bare_string_error_mentions_iri_recovery_hint() -> None:
+    with pytest.raises(ValueError, match="canonical N3 form") as exc_info:
+        object_adapter.validate_python(r"not\an\iri")
+
+    assert "bare RFC 3987 IRI" in str(exc_info.value)
+    assert "plain text" not in str(exc_info.value)
+
+
+def test_plain_text_string_error_mentions_literal_recovery_hint() -> None:
+    with pytest.raises(ValueError, match="plain text") as exc_info:
+        object_adapter.validate_python("A person is an individual.")
+
+    assert 'literal like "\\"A person is an individual.\\""' in str(exc_info.value)
+    assert "bare RFC 3987 IRI" in str(exc_info.value)
 
 
 # =============================================================================
@@ -384,6 +421,23 @@ def test_triple_serializes_and_deserializes_json(
     )
     json = triple.model_dump_json()
     assert N3Triple.model_validate_json(json) == triple
+
+
+def test_triple_accepts_bare_iris_and_serializes_to_canonical_n3() -> None:
+    triple = N3Triple(
+        subject="urn:example:subject",
+        predicate="urn:example:predicate",
+        object="urn:example:object",
+    )
+
+    assert triple.subject == URIRef("urn:example:subject")
+    assert triple.predicate == URIRef("urn:example:predicate")
+    assert triple.object == URIRef("urn:example:object")
+    assert json.loads(triple.model_dump_json()) == {
+        "subject": "<urn:example:subject>",
+        "predicate": "<urn:example:predicate>",
+        "object": "<urn:example:object>",
+    }
 
 
 # N3Triple Model - Serialization Failures
@@ -472,3 +526,160 @@ def test_quad_serializes_and_deserializes_json(
 # -----------------------------------------------------------------------------
 
 # TODO create some explicit tests for serialization failures
+
+
+regression = {
+    "triples": [
+        {
+            "subject": "urn:ex:Hominidae",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "http://www.w3.org/2002/07/owls#Class",
+        },
+        {
+            "subject": "urn:ex:Hominidae",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "Hominidae",
+        },
+        {
+            "subject": "urn:ex:Hominidae",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"Hominidae is a subtribe that includes humans and their extinct ancestors."',
+        },
+        {
+            "subject": "urn:ex:Hominina",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "http://www.w3.org/2002/07/owls#Class",
+        },
+        {
+            "subject": "urn:ex:Hominina",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "Hominina",
+        },
+        {
+            "subject": "urn:ex:Hominina",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"Hominina is a subtribe that includes humans and their closest relatives."',
+        },
+        {
+            "subject": "urn:ex:Haplorhini",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "http://www.w3.org/2002/07/owls#Class",
+        },
+        {
+            "subject": "urn:ex:Haplorhini",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "Haplorhini",
+        },
+        {
+            "subject": "urn:ex:Haplorhini",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"Haplorhini is a suborder of primates that includes humans and their relatives."',
+        },
+        {
+            "subject": "urn:ex:person",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "http://www.w3.org/2002/07/owls#Class",
+        },
+        {
+            "subject": "urn:ex:person",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "person",
+        },
+        {
+            "subject": "urn:ex:person",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"A biological classification for humans."',
+        },
+        {
+            "subject": "urn:ex:homo_sapiens",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "http://www.w3.org/2002/07/owls#Class",
+        },
+        {
+            "subject": "urn:ex:homo_sapiens",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "homo sapiens",
+        },
+        {
+            "subject": "urn:ex:homo_sapiens",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"Modern humans, classified under the species homo sapiens."',
+        },
+        {
+            "subject": "urn:ex:primates",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "http://www.w3.org/2002/07/owls#Class",
+        },
+        {
+            "subject": "urn:ex:primates",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "primates",
+        },
+        {
+            "subject": "urn:ex:primates",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"Primates are a diverse group of mammals that includes humans and their relatives."',
+        },
+        {
+            "subject": "urn:ex:mammals",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "http://www.w3.org/2002/07/owls#Class",
+        },
+        {
+            "subject": "urn:ex:mammals",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "mammals",
+        },
+        {
+            "subject": "urn:ex:mammals",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"Mammals are a class of vertebrates that includes humans and other animals with hair or fur."',
+        },
+        {
+            "subject": "urn:ex:animals",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "http://www.w3.org/2002/07/owls#Class",
+        },
+        {
+            "subject": "urn:ex:animals",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "animals",
+        },
+        {
+            "subject": "urn:ex:animals",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"Animals are multicellular organisms that are capable of voluntary movement."',
+        },
+        {
+            "subject": "urn:ex:John",
+            "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "object": "urn:ex:person",
+        },
+        {
+            "subject": "urn:ex:John",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+            "object": "John",
+        },
+        {
+            "subject": "urn:ex:John",
+            "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+            "object": '"An instance of a person."',
+        },
+    ]
+}
+
+
+@pytest.fixture(params=regression["triples"])
+def regression_triple(request) -> TestData[dict[str, str]]:
+    yield request.param
+
+
+def test_regression_triple_deserialize(regression_triple: dict[str, str]) -> None:
+    # SHOULD NOT THROW
+    N3Triple.model_validate(regression_triple)
+
+
+def test_regression_triples_deserialize() -> None:
+    adapter = TypeAdapter(list[N3Triple])
+    # SHOULD NOT THROW
+    adapter.validate_python(regression["triples"])

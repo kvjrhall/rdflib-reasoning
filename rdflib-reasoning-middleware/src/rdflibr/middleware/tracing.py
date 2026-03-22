@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.messages import ToolMessage
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,6 +213,47 @@ class TraceRecorder(BaseCallbackHandler):
                 "tool_call_id": tool_call_id,
             },
         )
+
+    def on_chain_end(
+        self,
+        outputs: dict[str, Any],
+        *,
+        run_id: UUID,
+        parent_run_id: UUID | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        del kwargs
+        for tool_message in _error_tool_messages(outputs):
+            self._append(
+                kind="tool_message",
+                run_id=run_id,
+                name=getattr(tool_message, "name", None),
+                parent_run_id=parent_run_id,
+                payload={
+                    "content": getattr(tool_message, "content", ""),
+                    "tool_call_id": getattr(tool_message, "tool_call_id", None),
+                    "status": getattr(tool_message, "status", None),
+                },
+            )
+
+
+def _error_tool_messages(outputs: Any) -> tuple[ToolMessage, ...]:
+    messages = []
+    pending = [outputs]
+
+    while pending:
+        current = pending.pop()
+        if isinstance(current, ToolMessage):
+            if getattr(current, "status", None) == "error":
+                messages.append(current)
+            continue
+        if isinstance(current, Mapping):
+            pending.extend(current.values())
+            continue
+        if isinstance(current, Sequence) and not isinstance(current, str):
+            pending.extend(current)
+
+    return tuple(messages)
 
 
 __all__ = [

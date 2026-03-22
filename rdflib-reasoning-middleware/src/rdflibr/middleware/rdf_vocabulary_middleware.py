@@ -23,16 +23,18 @@ logger = logging.getLogger(__name__)
 
 _VOCABULARY_SYSTEM_PROMPT: Final[str] = """## RDF Vocabularies (Controlled)
 
-- When asserting RDF, you MUST prefer an existing term when one already fits the intended meaning.
-- Existing terms include:
+- Think carefully about the facts that you want to assert:
+  - Are there terms from standard RDF Vocabularies that apply?
+     - Have you checked with `describe_term` or `describe_term_spec`?
+  - Have you introduced definitions for terms into your knowledge base?
+- Existing terms are broadly defined as:
   - terms already present in the current dataset
-  - terms available from indexed vocabularies exposed by your tools
-  - well-established controlled vocabularies outside the index when the task clearly requires them
-- You MUST prefer IRIs from controlled vocabularies when they fit the task and the domain.
-- Before minting a new RDF term, you MUST consider whether an existing term already fits.
+  - terms available from `list_terms`
+  - well-established controlled vocahatbularies outside the index when the task clearly requires them
 - You SHOULD inspect indexed vocabularies with `list_vocabularies`, `list_terms`, `describe_term`, or `describe_term_spec` when that inspection is useful for deciding whether an indexed term fits.
-- You MUST NOT assume the meaning of an unfamiliar indexed term from its local name alone; if you are considering using it, you SHOULD inspect it first with `describe_term` or `describe_term_spec`.
-- You MAY introduce a new term only when no existing term adequately fits the intended meaning.
+- You MUST NOT assume the meaning of an indexed term from its name alone
+  - You SHOULD inspect indexed terms with `describe_term` for a coarse determination of its relevance
+  - You SHOULD compare your intended use of indexed terms with `describe_term_spec` BEFORE their first use (e.g., domains/ranges, etc.)
 
 ### RDF Vocabulary Tools
 
@@ -40,6 +42,49 @@ _VOCABULARY_SYSTEM_PROMPT: Final[str] = """## RDF Vocabularies (Controlled)
 - `list_terms`: List indexed terms in a vocabulary
 - `describe_term`: Describe one indexed vocabulary term
 - `describe_term_spec`: Describe a term in native RDF from its indexed source graph
+"""
+
+LIST_VOCABULARIES_TOOL_DESCRIPTION: Final[
+    str
+] = """List the RDF vocabularies indexed by this middleware.
+
+Use this tool when you need to discover which controlled vocabularies are available
+before selecting terms.
+
+Call this tool with no arguments.
+"""
+
+LIST_TERMS_TOOL_DESCRIPTION: Final[str] = """List indexed RDF terms from one vocabulary.
+
+Pass `vocabulary`, `term_type`, and `limit` as top-level arguments.
+You MUST NOT wrap those arguments inside a `properties` object.
+
+Example arguments:
+- `{"vocabulary": "<http://www.w3.org/2000/01/rdf-schema#>", "term_type": "class", "limit": 25}`
+- `{"vocabulary": "http://www.w3.org/ns/prov#", "term_type": "property", "limit": 10}`
+"""
+
+DESCRIBE_TERM_TOOL_DESCRIPTION: Final[
+    str
+] = """Describe one indexed RDF vocabulary term using normalized schema-facing fields.
+
+Pass `term` as a top-level argument naming the indexed vocabulary term to inspect.
+
+Example arguments:
+- `{"term": "<http://www.w3.org/2000/01/rdf-schema#Class>"}`
+- `{"term": "http://www.w3.org/ns/prov#Agent"}`
+"""
+
+DESCRIBE_TERM_SPEC_TOOL_DESCRIPTION: Final[
+    str
+] = """Render one indexed RDF vocabulary term in native RDF.
+
+Pass `term` as a top-level argument naming the indexed vocabulary term whose source
+description you want serialized.
+
+Example arguments:
+- `{"term": "<http://www.w3.org/2000/01/rdf-schema#Class>"}`
+- `{"term": "http://www.w3.org/ns/prov#wasDerivedFrom"}`
 """
 
 _VOCABULARY_LABELS: Final[dict[str, str]] = {
@@ -57,29 +102,81 @@ _TERM_TYPE_TO_COLLECTION: Final[dict[str, str]] = {
 
 class VocabularySummary(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
-    namespace: N3IRIRef
-    label: str
-    term_count: NonNegativeInt
+    namespace: N3IRIRef = Field(
+        description="Namespace IRI of the indexed vocabulary.",
+        examples=[
+            "<http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
+            "http://www.w3.org/2000/01/rdf-schema#",
+        ],
+    )
+    label: str = Field(
+        description="Short human-readable label for the indexed vocabulary.",
+        examples=["RDF", "RDFS", "PROV-O"],
+    )
+    term_count: NonNegativeInt = Field(
+        description="Number of indexed terms available from this vocabulary.",
+        examples=[10, 60, 500],
+    )
 
 
 class VocabularyListResponse(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
-    vocabularies: tuple[VocabularySummary, ...]
+    vocabularies: tuple[VocabularySummary, ...] = Field(
+        description="Indexed vocabularies currently available through this middleware.",
+        examples=[
+            [
+                {
+                    "namespace": "<http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
+                    "label": "RDF",
+                    "term_count": 7,
+                },
+                {
+                    "namespace": "<http://www.w3.org/2000/01/rdf-schema#>",
+                    "label": "RDFS",
+                    "term_count": 13,
+                },
+            ],
+            [
+                {
+                    "namespace": "<http://www.w3.org/ns/prov#>",
+                    "label": "PROV-O",
+                    "term_count": 80,
+                }
+            ],
+        ],
+    )
 
 
 class ListTermsRequest(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
-    vocabulary: N3IRIRef = Field(description="IRI of the indexed vocabulary.")
+    vocabulary: N3IRIRef = Field(
+        description="IRI of the indexed vocabulary to inspect.",
+        examples=[
+            "<http://www.w3.org/2000/01/rdf-schema#>",
+            "http://www.w3.org/ns/prov#",
+        ],
+    )
     term_type: Literal["class", "datatype", "individual", "property"] | None = Field(
         default=None,
-        description="Optional term type filter.",
+        description="Optional term type filter applied within the selected vocabulary.",
+        examples=["class", "property", None],
     )
-    limit: NonNegativeInt = Field(default=50, description="Maximum number of terms.")
+    limit: NonNegativeInt = Field(
+        default=50,
+        description="Maximum number of terms to return.",
+        examples=[10, 25, 50],
+    )
 
 
 class TermDescriptionRequest(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
-    term: N3IRIRef = Field(description="IRI of the indexed vocabulary term.")
+    term: N3IRIRef = Field(
+        description="IRI of the indexed vocabulary term to inspect.",
+        examples=[
+            "<http://www.w3.org/2000/01/rdf-schema#Class>",
+            "http://www.w3.org/ns/prov#Agent",
+        ],
+    )
 
 
 class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
@@ -198,7 +295,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
     def _build_tools(self) -> tuple[BaseTool, ...]:
         @tool(
             "list_vocabularies",
-            description="List all indexed RDF vocabularies available through this middleware.",
+            description=LIST_VOCABULARIES_TOOL_DESCRIPTION,
         )
         def list_vocabularies_tool() -> VocabularyListResponse:
             logger.debug("Listing RDF vocabularies")
@@ -207,7 +304,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         @tool(
             "list_terms",
             args_schema=ListTermsRequest,
-            description="List indexed terms in one RDF vocabulary.",
+            description=LIST_TERMS_TOOL_DESCRIPTION,
         )
         def list_terms_tool(
             vocabulary: N3IRIRef,
@@ -223,7 +320,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         @tool(
             "describe_term",
             args_schema=TermDescriptionRequest,
-            description="Describe one indexed RDF vocabulary term using normalized schema-facing fields.",
+            description=DESCRIBE_TERM_TOOL_DESCRIPTION,
         )
         def describe_term_tool(term: N3IRIRef) -> VocabularyTerm:
             logger.debug(f"Describing RDF term: {term}")
@@ -232,7 +329,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         @tool(
             "describe_term_spec",
             args_schema=TermDescriptionRequest,
-            description="Render one indexed RDF vocabulary term in its native RDF.",
+            description=DESCRIBE_TERM_SPEC_TOOL_DESCRIPTION,
         )
         def describe_term_spec_tool(term: N3IRIRef) -> SerializationResponse:
             logger.debug(f"Describing RDF term spec: {term}")
