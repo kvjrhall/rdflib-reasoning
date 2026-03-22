@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated, Literal, TypeAlias, TypedDict
 
 from pydantic import Field
 from rdflib.term import Node, Variable
-from rdflibr.axiom.common import ContextIdentifier
+from rdflib_reasoning.axiom.common import ContextIdentifier
 
 from .proof import ProofModel, RuleDescription, RuleId
 

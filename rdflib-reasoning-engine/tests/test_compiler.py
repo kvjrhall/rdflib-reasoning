@@ -1,7 +1,7 @@
 import pytest
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import URIRef, Variable
-from rdflibr.engine import (
+from rdflib_reasoning.engine import (
     CallbackConsequent,
     PredicateCondition,
     Rule,
@@ -11,7 +11,7 @@ from rdflibr.engine import (
     TripleConsequent,
     TriplePattern,
 )
-from rdflibr.engine.rete import (
+from rdflib_reasoning.engine.rete import (
     ActionInstance,
     Agenda,
     Fact,

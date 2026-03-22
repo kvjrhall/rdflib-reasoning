@@ -24,7 +24,7 @@ from rdflib import IdentifiedNode, Node, URIRef
 from rdflib.graph import Graph, ReadOnlyGraphAggregate
 from rdflib.term import BNode
 from rdflib.util import from_n3
-from rdflibr.axiom.common import Triple
+from rdflib_reasoning.axiom.common import Triple
 from rfc3987_syntax import is_valid_syntax_iri  # type: ignore
 
 # =============================================================================

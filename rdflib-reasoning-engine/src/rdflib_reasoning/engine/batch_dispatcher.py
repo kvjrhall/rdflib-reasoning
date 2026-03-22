@@ -5,7 +5,7 @@ from rdflib import Graph
 from rdflib.events import Dispatcher, Event
 from rdflib.graph import _ContextType
 from rdflib.store import Store, TripleAddedEvent, TripleRemovedEvent
-from rdflibr.axiom.common import ContextIdentifier, Triple
+from rdflib_reasoning.axiom.common import ContextIdentifier, Triple
 
 logger = logging.getLogger(__name__)
 

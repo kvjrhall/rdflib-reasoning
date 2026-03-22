@@ -77,7 +77,7 @@ def test_rdfs_entailment(
         assert record.outputs == test_case.outputs
 ```
 
-```32:135:/Users/roberthall/Projects/rdflib-reasoning/rdflib-reasoning-engine/src/rdflibr/engine/rulesets/rdfs.py
+```32:135:/Users/roberthall/Projects/rdflib-reasoning/rdflib-reasoning-engine/src/rdflib_reasoning/engine/rulesets/rdfs.py
 RDFS_RULES: tuple[Rule, ...] = (
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs2"),
@@ -394,7 +394,7 @@ I’ve added engine-level RDF term-type enforcement with configurable error vs w
 ### High-level summary
 
 - **Engine RDF term constraints**: The RETE engine now enforces RDF 1.1 term-type rules internally. In `api.py` I introduced:
-  - New exception and warning types exposed via `rdflibr.engine`: `LiteralAsSubjectError`, `LiteralAsSubjectWarning`, `BlankNodePredicateError`, `BlankNodePredicateWarning`, `LiteralPredicateError`, `LiteralPredicateWarning`.
+  - New exception and warning types exposed via `rdflib_reasoning.engine`: `LiteralAsSubjectError`, `LiteralAsSubjectWarning`, `BlankNodePredicateError`, `BlankNodePredicateWarning`, `LiteralPredicateError`, `LiteralPredicateWarning`.
   - Configurable policies `literal_subject_policy` and `predicate_term_policy` (each `"error"` or `"warning"`, default `"error"`), read from `RETEEngineFactory(..., literal_subject_policy=..., predicate_term_policy=...)`.
   - A helper `_triple_is_permitted` that enforces [RDF 1.1 Concepts – Triples](https://www.w3.org/TR/rdf11-concepts/#section-triples) for both stated and derived triples:
     - **Literal subjects**: in error mode, raise `LiteralAsSubjectError` with a message that cites the spec URL; in warning mode, emit `LiteralAsSubjectWarning` and drop the triple (it never enters working memory or the derived set).
@@ -473,7 +473,7 @@ If you’d like, I can next align a subset of these integration tests directly w
 **User**
 
 1. @rdflib-reasoning-engine/tests/test_ruleset_rdfs.py:171-175 apears to suggest that the tests in `RDFS_TEST_CASES` are placeholders, which they are not.
-2. `RDFS_TEST_CASES` MUST contain tests for ALL _RDFS_RULE_SPECS @rdflib-reasoning-engine/tests/test_ruleset_rdfs.py:95-112 , and not only those that we have implemented @rdflib-reasoning-engine/src/rdflibr/engine/rulesets/rdfs.py:32-135 .
+2. `RDFS_TEST_CASES` MUST contain tests for ALL _RDFS_RULE_SPECS @rdflib-reasoning-engine/tests/test_ruleset_rdfs.py:95-112 , and not only those that we have implemented @rdflib-reasoning-engine/src/rdflib_reasoning/engine/rulesets/rdfs.py:32-135 .
 3. `test_rdfs_entailment_micro` MUST `xfail` when the rule covered by `test_case` has not yet been implemented.
 
 ---

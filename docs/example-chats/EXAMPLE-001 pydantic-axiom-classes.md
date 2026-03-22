@@ -8,7 +8,7 @@ _Exported on 3/9/2026 at 15:13:01 EDT from Cursor (2.6.14)_
 
 This chat is a design discussion that will serve as input to a new decision record (@docs/dev/decision-records/AGENTS.md). You MUST NOT reply with the content of a new decision record as we are not yet writing it.
 
-Critique the following design proposal: All structural elements defined within `rdflib-reasoning-axioms` should be part of a pydantic class hierarchy so that their schema is exposed to `rdflib-reasoning-middleware`. Structural elements MUST NOT contain `rdflib.Graph` objects or any other complex third-party data structures. They MUST extend `rdflibr.axiom.structural_element.GraphBacked` to declare the graph that they are associated with. Related structural elements MUST have the same `GraphBacked.context`. Structural elements MUST ensure that their generated JSON Schema is terse and optimized  for guidance of an AI/Agent. Structural elements MUST validate their fields and yield error messages that are guidance supporting correction of the error by an AI/Agent or Human. The primary motivator is that Structural elements are REQUIRED to support @rdflib-reasoning-middleware implementations and best practices laid out in <https://docs.langchain.com/oss/python/langchain/middleware/custom> .
+Critique the following design proposal: All structural elements defined within `rdflib-reasoning-axioms` should be part of a pydantic class hierarchy so that their schema is exposed to `rdflib-reasoning-middleware`. Structural elements MUST NOT contain `rdflib.Graph` objects or any other complex third-party data structures. They MUST extend `rdflib_reasoning.axiom.structural_element.GraphBacked` to declare the graph that they are associated with. Related structural elements MUST have the same `GraphBacked.context`. Structural elements MUST ensure that their generated JSON Schema is terse and optimized  for guidance of an AI/Agent. Structural elements MUST validate their fields and yield error messages that are guidance supporting correction of the error by an AI/Agent or Human. The primary motivator is that Structural elements are REQUIRED to support @rdflib-reasoning-middleware implementations and best practices laid out in <https://docs.langchain.com/oss/python/langchain/middleware/custom> .
 
 1. Are there clear principles that are being established?
 2. Is this proposal consistent with the rest of the documentation in the repository (development docs and `README.md`'s)?
@@ -32,7 +32,7 @@ I’ll first inspect the existing structural element definitions, relevant docs,
   - Structural elements **MUST NOT embed `rdflib.Graph` or other complex runtime structures**; they expose only identifiers and small rdflib node types (`IdentifiedNode`, `URIRef`, etc.).
   - They **MUST extend `GraphBacked`** and carry only a graph/context identifier (`ContextIdentifier`) rather than a graph instance. That is already consistent with:
 
-    ```12:20:rdflib-reasoning-axioms/src/rdflibr/axiom/structural_element.py
+    ```12:20:rdflib-reasoning-axioms/src/rdflib_reasoning/axiom/structural_element.py
     class GraphBacked(BaseModel, ABC):
         """An entity that MUST be associated with a specific graph (context)."""
 
@@ -48,7 +48,7 @@ I’ll first inspect the existing structural element definitions, relevant docs,
 - **Explicit, spec-aligned structural modeling**
   - `StructuralElement` and `Seq[T: StructuralElement]` encode OWL 2 structural specification elements and RDF `rdf:List` structure without hiding behavior in a graph:
 
-    ```20:44:rdflib-reasoning-axioms/src/rdflibr/axiom/structural_element.py
+    ```20:44:rdflib-reasoning-axioms/src/rdflib_reasoning/axiom/structural_element.py
     class StructuralElement(GraphBacked, ABC):
         """An Element of the OWL 2 Structural Specification; Concrete class names SHOULD match the paired structural element's name (e.g., ` NegativeDataPropertyAssertion`)."""
 
@@ -67,7 +67,7 @@ I’ll first inspect the existing structural element definitions, relevant docs,
 - **Validation and error messaging as first-class, agent-oriented API**
   - The `Seq` validator already demonstrates **strong invariants + natural language error messages**:
 
-    ```69:86:rdflib-reasoning-axioms/src/rdflibr/axiom/structural_element.py
+    ```69:86:rdflib-reasoning-axioms/src/rdflib_reasoning/axiom/structural_element.py
     @model_validator(mode="after")
     def check_list_integrity(self) -> Self:
         if len(self.names) != len(self.elements):
@@ -161,7 +161,7 @@ There are a few important areas that would benefit from clarification or tighten
 - You explicitly forbid `rdflib.Graph` and “any other complex third-party data structures.”
 - Current code already uses rdflib node classes (`IdentifiedNode`, `URIRef`, `Node`) in types:
 
-  ```4:16:rdflib-reasoning-axioms/src/rdflibr/axiom/common.py
+  ```4:16:rdflib-reasoning-axioms/src/rdflib_reasoning/axiom/common.py
   from rdflib import IdentifiedNode, Node, URIRef
   ...
   type Triple = Annotated[
@@ -370,7 +370,7 @@ I imagine that it would be proper to define it as follows, but suggestions are w
 
 ### Overall
 
-These clarifications go a long way toward resolving the earlier ambiguities. They mostly strengthen the design and are consistent with your existing docs and with how `rdflibr.axiom.structural_element` is already shaping up. Below I’ll call out where they’re solid and where I’d still refine wording or loosen/tighten some constraints.
+These clarifications go a long way toward resolving the earlier ambiguities. They mostly strengthen the design and are consistent with your existing docs and with how `rdflib_reasoning.axiom.structural_element` is already shaping up. Below I’ll call out where they’re solid and where I’d still refine wording or loosen/tighten some constraints.
 
 ---
 
@@ -517,7 +517,7 @@ Adding a brief reference in the architecture doc per the decision-records AGENTS
 
 Summary of what was implemented:
 
-**1. Structural element core ([rdflib-reasoning-axioms/src/rdflibr/axiom/structural_element.py](rdflib-reasoning-axioms/src/rdflibr/axiom/structural_element.py))**
+**1. Structural element core ([rdflib-reasoning-axioms/src/rdflib_reasoning/axiom/structural_element.py](rdflib-reasoning-axioms/src/rdflib_reasoning/axiom/structural_element.py))**
 
 - **GraphBacked:** Docstring updated to describe it as the base for graph-scoped Pydantic models; single required `context`; no embedding of `rdflib.Graph` or other heavy types; allowed use of rdflib node types; related elements share the same context; cross-context only at triple/quad level. Fixed typo “MUST bedefined” → “MUST be defined”.
 - **StructuralElement:** Docstring updated to state it is the base for OWL 2 structural elements, with concrete subclasses corresponding to well-identified OWL 2 elements and `as_triples`/`as_quads` conforming to the specs. Added concrete **`as_quads`** returning `Sequence[Quad]` by appending `self.context` to each triple from `as_triples`. Import of `Quad` from `common` added.

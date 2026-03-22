@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import Variable
-from rdflibr.engine import (
+from rdflib_reasoning.engine import (
     RDFS_RULES,
     CallbackConsequent,
     PredicateCondition,

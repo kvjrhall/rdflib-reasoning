@@ -123,5 +123,5 @@ files = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["rdflibr.middleware.*"]
+module = ["rdflib_reasoning.middleware.*"]
 disable_error_code = ["import-not-found"]

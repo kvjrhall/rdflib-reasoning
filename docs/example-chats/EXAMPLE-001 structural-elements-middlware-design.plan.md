@@ -32,7 +32,7 @@ isProject: false
 ## Steps
 
 - **1. Tighten core structural element docs and signatures**
-  - Update class and method docstrings in `[rdflib-reasoning-axioms/src/rdflibr/axiom/structural_element.py](rdflib-reasoning-axioms/src/rdflibr/axiom/structural_element.py)` to:
+  - Update class and method docstrings in `[rdflib-reasoning-axioms/src/rdflib_reasoning/axiom/structural_element.py](rdflib-reasoning-axioms/src/rdflib_reasoning/axiom/structural_element.py)` to:
     - Make `GraphBacked` the universal base for graph-scoped Pydantic models.
     - Make `StructuralElement` the universal base for OWL 2 structural elements.
     - Clearly state that `as_triples` MUST NOT recurse into related elements and that generated triples are spec-aligned.

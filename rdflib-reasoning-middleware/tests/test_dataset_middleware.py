@@ -1,5 +1,5 @@
 from rdflib import Literal, URIRef
-from rdflibr.middleware import DatasetMiddleware
+from rdflib_reasoning.middleware import DatasetMiddleware
 
 EX = "urn:test:"
 
