@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use rdflib-reasoning in research or proposals, please cite the software using this metadata."
+title: "rdflib-reasoning"
+type: software
+authors:
+  - family-names: "Hall"
+    given-names: "Robert"
+repository-code: "https://github.com/kvjrhall/rdflib-reasoning"
+url: "https://github.com/kvjrhall/rdflib-reasoning"
+license: "MIT"
+abstract: "A family of Python libraries for studying how tool-grounded Research Agents interact with RDF graphs and formal reasoning systems."
+keywords:
+  - "RDF"
+  - "reasoning"
+  - "knowledge graphs"
+  - "agents"
+  - "formal methods"
