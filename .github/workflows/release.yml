@@ -5,6 +5,11 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to build and publish (for example, v0.1.1)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,9 +23,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.14"
 
@@ -42,7 +48,7 @@ jobs:
           python -m venv smoke-venv
           smoke-venv/bin/python -m pip install --upgrade pip
           smoke-venv/bin/python -m pip install cyclonedx-bom dist/root/*.whl dist/axioms/*.whl dist/engine/*.whl dist/middleware/*.whl
-          smoke-venv/bin/python -c "import rdflib_reasoning; import rdflibr.axiom.common; import rdflibr.engine; import rdflibr.middleware"
+          smoke-venv/bin/python -c "import rdflib_reasoning; import rdflib_reasoning.axiom.common; import rdflib_reasoning.engine; import rdflib_reasoning.middleware"
 
       - name: Generate SBOM
         run: smoke-venv/bin/python -m cyclonedx_py environment --output-file dist/sbom.json --of JSON
@@ -56,12 +62,12 @@ jobs:
             smoke-venv
 
   publish-pypi:
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     needs: build-distributions
     runs-on: ubuntu-latest
     environment:
-      name: testpypi
-      url: https://test.pypi.org/
+      name: pypi
+      url: https://pypi.org/
     permissions:
       id-token: write
 
@@ -72,8 +78,22 @@ jobs:
           name: release-distributions
           path: artifacts
 
-      - name: Publish package distributions to TestPyPI
+      - name: Publish rdflib-reasoning to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: https://test.pypi.org/legacy/
-          packages-dir: artifacts/dist
+          packages-dir: artifacts/dist/root
+
+      - name: Publish rdflib-reasoning-axioms to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/dist/axioms
+
+      - name: Publish rdflib-reasoning-engine to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/dist/engine
+
+      - name: Publish rdflib-reasoning-middleware to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/dist/middleware

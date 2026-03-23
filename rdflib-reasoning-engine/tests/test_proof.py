@@ -3,8 +3,8 @@ from pydantic import ValidationError
 from rdflib import BNode, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
 from rdflib.term import Variable
-from rdflibr.engine.derivation import DerivationProofReconstructor
-from rdflibr.engine.proof import (
+from rdflib_reasoning.engine.derivation import DerivationProofReconstructor
+from rdflib_reasoning.engine.proof import (
     AuthorityReference,
     ContradictionClaim,
     DerivationRecord,
@@ -16,7 +16,12 @@ from rdflibr.engine.proof import (
     TripleFact,
     VariableBinding,
 )
-from rdflibr.engine.rules import Rule, TripleCondition, TripleConsequent, TriplePattern
+from rdflib_reasoning.engine.rules import (
+    Rule,
+    TripleCondition,
+    TripleConsequent,
+    TriplePattern,
+)
 
 
 def test_triple_fact_uses_discriminated_kind() -> None:

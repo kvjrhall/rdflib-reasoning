@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 from langchain_core.messages import ToolMessage
-from rdflibr.middleware import TraceRecorder, TraceSink
+from rdflib_reasoning.middleware import TraceRecorder, TraceSink
 
 
 def test_trace_sink_snapshot_and_clear() -> None:
@@ -113,7 +113,7 @@ def test_trace_recorder_captures_error_tool_messages_from_chain_end() -> None:
 
 def test_live_notebook_trace_attach_and_stop(monkeypatch) -> None:
     pytest.importorskip("IPython")
-    from rdflibr.middleware.tracing_notebook import LiveNotebookTrace
+    from rdflib_reasoning.middleware.tracing_notebook import LiveNotebookTrace
 
     class _Handle:
         def __init__(self) -> None:
@@ -125,11 +125,11 @@ def test_live_notebook_trace_attach_and_stop(monkeypatch) -> None:
     handle = _Handle()
 
     monkeypatch.setattr(
-        "rdflibr.middleware.tracing_notebook.display",
+        "rdflib_reasoning.middleware.tracing_notebook.display",
         lambda value, display_id: handle,
     )
     monkeypatch.setattr(
-        "rdflibr.middleware.tracing_notebook.Markdown",
+        "rdflib_reasoning.middleware.tracing_notebook.Markdown",
         lambda text: text,
     )
 
@@ -163,8 +163,8 @@ def test_live_notebook_trace_attach_and_stop(monkeypatch) -> None:
 
 def test_notebook_trace_renderer_shows_requested_and_invalid_tool_calls() -> None:
     pytest.importorskip("IPython")
-    from rdflibr.middleware.tracing import TraceEvent, TraceSink
-    from rdflibr.middleware.tracing_notebook import NotebookTraceRenderer
+    from rdflib_reasoning.middleware.tracing import TraceEvent, TraceSink
+    from rdflib_reasoning.middleware.tracing_notebook import NotebookTraceRenderer
 
     sink = TraceSink()
     sink.append(
@@ -206,8 +206,8 @@ def test_notebook_trace_renderer_shows_requested_and_invalid_tool_calls() -> Non
 
 def test_notebook_trace_renderer_compacts_single_tool_lifecycle() -> None:
     pytest.importorskip("IPython")
-    from rdflibr.middleware.tracing import TraceEvent, TraceSink
-    from rdflibr.middleware.tracing_notebook import NotebookTraceRenderer
+    from rdflib_reasoning.middleware.tracing import TraceEvent, TraceSink
+    from rdflib_reasoning.middleware.tracing_notebook import NotebookTraceRenderer
 
     sink = TraceSink()
     sink.append(
@@ -261,8 +261,8 @@ def test_notebook_trace_renderer_compacts_single_tool_lifecycle() -> None:
 
 def test_notebook_trace_renderer_shows_tool_rejection() -> None:
     pytest.importorskip("IPython")
-    from rdflibr.middleware.tracing import TraceEvent, TraceSink
-    from rdflibr.middleware.tracing_notebook import NotebookTraceRenderer
+    from rdflib_reasoning.middleware.tracing import TraceEvent, TraceSink
+    from rdflib_reasoning.middleware.tracing_notebook import NotebookTraceRenderer
 
     sink = TraceSink()
     sink.append(

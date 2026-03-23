@@ -1,4 +1,4 @@
-from rdflibr.engine import (
+from rdflib_reasoning.engine import (
     RDFS_RULES,
     CallbackConsequent,
     DerivationLogger,
@@ -11,11 +11,11 @@ from rdflibr.engine import (
     TripleConsequent,
     TriplePattern,
 )
-from rdflibr.engine.api import RETEEngine as ApiEngine
-from rdflibr.engine.derivation import (
+from rdflib_reasoning.engine.api import RETEEngine as ApiEngine
+from rdflib_reasoning.engine.derivation import (
     ExplanationReconstructor as DerivationReconstructor,
 )
-from rdflibr.engine.rete import Fact, RuleCompiler, TMSController
+from rdflib_reasoning.engine.rete import Fact, RuleCompiler, TMSController
 
 
 def test_public_engine_api_is_exposed_from_api() -> None:

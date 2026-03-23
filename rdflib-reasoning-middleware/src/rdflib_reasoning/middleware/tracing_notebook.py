@@ -4,7 +4,7 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
     raise ImportError(
         "Notebook tracing requires optional dependency support. "
         "Install `rdflib-reasoning-middleware[notebook]` to use "
-        "`rdflibr.middleware.tracing_notebook`."
+        "`rdflib_reasoning.middleware.tracing_notebook`."
     ) from exc
 
 import json

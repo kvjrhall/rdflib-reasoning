@@ -10,7 +10,7 @@ from typing import Final
 from rdflib import OWL, PROV, RDFS, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import DefinedNamespace
 from rdflib.query import Result, ResultRow
-from rdflibr.middleware.namespaces.spec_index import (
+from rdflib_reasoning.middleware.namespaces.spec_index import (
     RDFVocabulary,
     VocabularyTerm,
     VocabularyTermType,

@@ -1,6 +1,8 @@
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.types import Command
-from rdflibr.middleware.ministral_middleware import MinistralPromptSuffixMiddleware
+from rdflib_reasoning.middleware.ministral_middleware import (
+    MinistralPromptSuffixMiddleware,
+)
 
 
 def test_after_model_reprompts_on_unfinished_recovery_after_tool_error() -> None:
@@ -88,7 +90,7 @@ def test_after_model_only_injects_recovery_reminder_once() -> None:
             ),
             HumanMessage(
                 content=(
-                    "[rdflibr-recovery] A tool call just failed. Do not narrate that "
+                    "[rdflib_reasoning-recovery] A tool call just failed. Do not narrate that "
                     "you will fix it."
                 )
             ),

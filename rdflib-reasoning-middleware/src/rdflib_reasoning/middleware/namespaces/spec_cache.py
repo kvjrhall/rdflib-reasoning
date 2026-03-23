@@ -7,7 +7,7 @@ from typing import Final
 from rdflib import Graph, Namespace, URIRef
 from rdflib.graph import ReadOnlyGraphAggregate
 from rdflib.namespace import PROV, RDFS
-from rdflibr.middleware.namespaces.spec_index import RDFVocabulary
+from rdflib_reasoning.middleware.namespaces.spec_index import RDFVocabulary
 
 # NOTE: Disabled caching and fetching remote specs for now; will revisit later.
 # from platformdirs import user_cache_path

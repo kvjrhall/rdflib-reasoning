@@ -8,7 +8,8 @@
 			"charliermarsh.ruff",
 			"timonwong.shellcheck",
 			"davidanson.vscode-markdownlint",
-			"bierner.markdown-mermaid"
+			"bierner.markdown-mermaid",
+			"ms-toolsai.jupyter-renderers"
 		]
 	},
 	"folders": [

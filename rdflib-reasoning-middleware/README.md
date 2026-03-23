@@ -27,7 +27,7 @@ Minimal usage:
 
 ```python
 from deepagents import create_deep_agent
-from rdflibr.middleware import DatasetMiddleware
+from rdflib_reasoning.middleware import DatasetMiddleware
 
 agent = create_deep_agent(
     model=llm,
@@ -47,15 +47,15 @@ Dataset tool inputs accept RDF terms in canonical N3 form. For IRIs, the middlew
 
 The tracing support is split into a core callback-based recorder and an optional notebook renderer.
 
-- Core tracing lives in `rdflibr.middleware.tracing` and does not require `IPython`
-- Notebook rendering lives in `rdflibr.middleware.tracing_notebook` and is optional via the `notebook` extra
+- Core tracing lives in `rdflib_reasoning.middleware.tracing` and does not require `IPython`
+- Notebook rendering lives in `rdflib_reasoning.middleware.tracing_notebook` and is optional via the `notebook` extra
 
 Notebook example:
 
 ```python
 from deepagents import create_deep_agent
-from rdflibr.middleware import DatasetMiddleware
-from rdflibr.middleware.tracing_notebook import LiveNotebookTrace
+from rdflib_reasoning.middleware import DatasetMiddleware
+from rdflib_reasoning.middleware.tracing_notebook import LiveNotebookTrace
 
 with LiveNotebookTrace(heading="Dataset Trace") as trace:
     agent = trace.attach(

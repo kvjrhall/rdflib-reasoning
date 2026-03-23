@@ -24,7 +24,7 @@ Your thinking process must follow the template below:[THINK]Your thoughts or/and
 """
 
 _RECOVERY_REMINDER_PREFIX: Final[str] = (
-    "[rdflibr-recovery] A tool call just failed. Do not narrate that you will fix it."
+    "[rdflib_reasoning-recovery] A tool call just failed. Do not narrate that you will fix it."
 )
 _RECOVERY_REMINDER: Final[str] = (
     f"{_RECOVERY_REMINDER_PREFIX} Instead, either emit the corrected tool call now or, "

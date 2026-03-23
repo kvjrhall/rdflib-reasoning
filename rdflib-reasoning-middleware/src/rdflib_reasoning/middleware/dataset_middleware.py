@@ -18,7 +18,7 @@ from langchain.tools import BaseTool, tool
 from langchain_core.messages import ToolMessage
 from pydantic import BaseModel, NonNegativeInt
 from rdflib import BNode, Dataset, Graph, IdentifiedNode, Node
-from rdflibr.axiom.common import Triple
+from rdflib_reasoning.axiom.common import Triple
 from readerwriterlock import rwlock
 
 from .dataset_model import (
@@ -42,7 +42,16 @@ DATASET_SYSTEM_PROMPT: Final[str] = """## Knowledge Base
 - Use the knowledge base when facts should persist across multiple reasoning steps.
 - Use the knowledge base when semantics should be unambiguously represented.
 - Use the knowledge base if you are expected to output RDF
-   - When presenting RDF to the user or serializing the knowledge base for inspection, you SHOULD prefer Turtle unless the user requests a different RDF serialization.
+- Prefer adding or correcting exact triples over resetting the entire knowledge base.
+- Model facts in an atemporal, stable way when possible rather than storing transient phrasing as timeless truth.
+- When asserting facts into the knowledge base, you SHOULD keep them grounded in the provided content unless the user explicitly asks for inference, extrapolation, or hypothesis generation.
+- You SHOULD NOT assert uncertain facts as settled triples.
+- When transforming unstructured content into RDF, you SHOULD prefer controlled vocabularies when they fit the source material and task.
+- If you mint IRIs and the user does not specify a base IRI, you SHOULD use <urn:rdflib_reasoning:> as the default base for minted IRIs.
+- When presenting RDF to the user or serializing the knowledge base for inspection, you SHOULD prefer Turtle unless the user requests a different RDF serialization.
+- SHOULD NOT mint IRIs if convention dictates that they be blank nodes (e.g., OWL 2 Class Restrictions).
+- You SHOULD prefer a minted IRI over a blank node when there is an authorative IRI base for that resource.
+- When minting an IRI to represent a Class, Datatype, or Property, you MUST assign it a `rdfs:label` and define it using `rdfs:comment`.
 
 ### Knowledge Base Tools
 
@@ -95,7 +104,7 @@ The subject of this example is a class called `Foo`, but it is analogous to defi
 ### Usage of IRIs and Blank Nodes
 
 - When transforming unstructured content into RDF, you SHOULD prefer controlled vocabularies when they fit the source material and task.
-- If you mint IRIs and the user does not specify a base IRI, you SHOULD use <urn:rdflibr:> as the default base for minted IRIs.
+- If you mint IRIs and the user does not specify a base IRI, you SHOULD use <urn:rdflib_reasoning:> as the default base for minted IRIs.
 - You SHOULD NOT mint IRIs if convention dictates that they be blank nodes (e.g., OWL 2 Class Restrictions).
 - You SHOULD prefer a minted IRI over a blank node when there is an authorative IRI base for that resource.
 - When minting an IRI to represent a Class, Datatype, or Property, you MUST assign it a `rdfs:label` and define it using `rdfs:comment`.

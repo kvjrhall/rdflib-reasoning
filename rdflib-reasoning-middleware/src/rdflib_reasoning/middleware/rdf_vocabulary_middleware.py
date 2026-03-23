@@ -13,11 +13,14 @@ from langchain.agents.middleware.types import (
 from langchain.tools import BaseTool, tool
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 from rdflib import RDFS, Graph, IdentifiedNode, URIRef
-from rdflibr.axiom.common import Triple
-from rdflibr.middleware.dataset_model import N3IRIRef, SerializationResponse
-from rdflibr.middleware.dataset_state import DatasetState
-from rdflibr.middleware.namespaces.spec_cache import SpecificationCache
-from rdflibr.middleware.namespaces.spec_index import RDFVocabulary, VocabularyTerm
+from rdflib_reasoning.axiom.common import Triple
+from rdflib_reasoning.middleware.dataset_model import N3IRIRef, SerializationResponse
+from rdflib_reasoning.middleware.dataset_state import DatasetState
+from rdflib_reasoning.middleware.namespaces.spec_cache import SpecificationCache
+from rdflib_reasoning.middleware.namespaces.spec_index import (
+    RDFVocabulary,
+    VocabularyTerm,
+)
 
 logger = logging.getLogger(__name__)
 

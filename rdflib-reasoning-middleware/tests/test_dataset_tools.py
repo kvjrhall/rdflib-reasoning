@@ -2,7 +2,7 @@ from deepagents import create_deep_agent
 from langchain.agents import create_agent
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from rdflib import Literal, URIRef
-from rdflibr.middleware import (
+from rdflib_reasoning.middleware import (
     DatasetMiddleware,
     N3Triple,
     NewResourceNodeResponse,

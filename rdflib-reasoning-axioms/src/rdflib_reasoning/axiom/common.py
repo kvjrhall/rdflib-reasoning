@@ -19,6 +19,6 @@ type Quad = Annotated[
     tuple[*Triple, ContextIdentifier],
     Field(
         ...,
-        description="A quad of a subject, predicate, object, and context; i.e., a fact in a specific context.",
+        description="A quad of a subject, predicate, object, and context identifier; i.e., a fact in a specific context.",
     ),
 ]

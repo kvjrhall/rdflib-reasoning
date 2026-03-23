@@ -6,7 +6,7 @@ from typing import overload
 from pydantic import BaseModel, ConfigDict
 from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DefinedNamespace
-from rdflibr.middleware.dataset_model import N3IRIRef
+from rdflib_reasoning.middleware.dataset_model import N3IRIRef
 
 
 class VocabularyTermType(StrEnum):
@@ -66,6 +66,8 @@ class RDFVocabulary(BaseModel):
         | str,
         graph: Graph,
     ) -> "RDFVocabulary":
-        from rdflibr.middleware.namespaces.spec_normalizer import build_vocabulary
+        from rdflib_reasoning.middleware.namespaces.spec_normalizer import (
+            build_vocabulary,
+        )
 
         return build_vocabulary(namespace, graph)

@@ -11,7 +11,7 @@ from pydantic import (
     TypeAdapter,
 )
 from rdflib import RDF, XSD, BNode, IdentifiedNode, Literal, Node, URIRef
-from rdflibr.middleware.dataset_model import (
+from rdflib_reasoning.middleware.dataset_model import (
     _TURTLE_ECMA_BLANK_NODE_PATTERN,
     N3ContextIdentifier,
     N3IRIRef,
@@ -598,7 +598,7 @@ regression = {
         {
             "subject": "urn:ex:homo_sapiens",
             "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
-            "object": "homo sapiens",
+            "object": '"homo sapiens"',
         },
         {
             "subject": "urn:ex:homo_sapiens",

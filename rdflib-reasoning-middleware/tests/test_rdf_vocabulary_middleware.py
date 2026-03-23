@@ -1,5 +1,7 @@
 from rdflib import PROV, RDFS, URIRef
-from rdflibr.middleware.rdf_vocabulary_middleware import RDFVocabularyMiddleware
+from rdflib_reasoning.middleware.rdf_vocabulary_middleware import (
+    RDFVocabularyMiddleware,
+)
 
 
 def test_list_terms_filters_classes() -> None:

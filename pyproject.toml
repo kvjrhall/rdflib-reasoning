@@ -56,7 +56,8 @@ source = "vcs"
 fallback-version = "0.1.0"
 
 [tool.hatch.version.raw-options]
-version_scheme = "no-guess-dev"
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
 
 [tool.ruff]
 line-length = 88
@@ -123,5 +124,5 @@ files = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["rdflibr.middleware.*"]
+module = ["rdflib_reasoning.middleware.*"]
 disable_error_code = ["import-not-found"]

@@ -2,16 +2,16 @@ from collections.abc import Generator
 from importlib import resources
 
 import pytest
-import rdflibr.middleware.namespaces
+import rdflib_reasoning.middleware.namespaces
 from rdflib import PROV, RDFS, Graph, URIRef
 from rdflib.graph import ReadOnlyGraphAggregate
-from rdflibr.middleware.namespaces.spec_cache import SpecificationCache
-from rdflibr.middleware.namespaces.spec_index import RDFVocabulary
+from rdflib_reasoning.middleware.namespaces.spec_cache import SpecificationCache
+from rdflib_reasoning.middleware.namespaces.spec_index import RDFVocabulary
 
 
 @pytest.fixture(scope="session")
 def rdfs_graph() -> Generator[Graph, None, None]:
-    with resources.path(rdflibr.middleware.namespaces, "rdfs.ttl") as path:
+    with resources.path(rdflib_reasoning.middleware.namespaces, "rdfs.ttl") as path:
         graph = Graph()
         graph.parse(path, format="turtle")
         graph = ReadOnlyGraphAggregate([graph])
@@ -20,7 +20,7 @@ def rdfs_graph() -> Generator[Graph, None, None]:
 
 @pytest.fixture(scope="session")
 def prov_graph() -> Generator[Graph, None, None]:
-    with resources.path(rdflibr.middleware.namespaces, "prov-o.ttl") as path:
+    with resources.path(rdflib_reasoning.middleware.namespaces, "prov-o.ttl") as path:
         graph = Graph()
         graph.parse(path, format="turtle")
         graph = ReadOnlyGraphAggregate([graph])

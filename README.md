@@ -8,7 +8,8 @@
 
 [![Coverage](https://raw.githubusercontent.com/kvjrhall/rdflib-reasoning/python-coverage-comment-action-data/badge.svg)](https://github.com/kvjrhall/rdflib-reasoning/tree/python-coverage-comment-action-data)
 
-`rdflib-reasoning` is a monorepo for Python packages and notebooks used to study how tool-grounded Research Agents interact with RDF graphs and formal reasoning systems.
+`rdflib-reasoning` is the metapackage for a family of Python libraries used to study how tool-grounded Research Agents interact with RDF graphs and formal reasoning systems.
+The source repository is organized as a multi-package workspace with supporting notebooks and development documentation.
 
 The repository is organized around one practical research question:
 
@@ -83,27 +84,44 @@ columns 3
 
 ## Installation
 
-Development in this repository is expected to use the `rdflib-reasoning` conda environment.
+### Use the Published Packages
 
-Base install:
+If you want to use the packaged system from another project, install the published metapackage:
+
+```sh
+pip install rdflib-reasoning
+```
+
+That install pulls in the repository's published component packages:
+
+- `rdflib-reasoning`
+- `rdflib-reasoning-axioms`
+- `rdflib-reasoning-engine`
+- `rdflib-reasoning-middleware`
+
+If you only need part of the system, you can also install the component packages directly from PyPI.
+
+### Work on This Repository Locally
+
+Clone the repository and install the local workspace in editable mode:
 
 ```sh
 pip install -e .
 ```
 
-Developer tooling:
+Add developer tooling:
 
 ```sh
 pip install -e .[dev]
 ```
 
-Notebook and research tooling:
+Add notebook and research dependencies:
 
 ```sh
 pip install -e .[research]
 ```
 
-Full local workspace:
+Install the full local workspace:
 
 ```sh
 pip install -e .[dev,research]
@@ -119,6 +137,18 @@ uv sync --extra dev --extra research
 ```
 
 The root `Makefile` wraps those commands with `install`, `install-dev`, `install-research`, `install-all`, and `notebook`.
+
+### Add or Review Research Notebooks
+
+If you want to contribute notebooks to this repository, or inspect the notebooks that already exist, install the repository locally with the `research` extra and work from the [notebooks](./notebooks/) directory. The notebooks are part of the repository's research record rather than a separate published package.
+
+### Develop Against These Packages Elsewhere
+
+If you are building another system on top of this work, the usual path is:
+
+1. Install the published packages from PyPI in your own project.
+2. Read [docs/dev/architecture.md](./docs/dev/architecture.md) for the intended package boundaries.
+3. Use the monorepo checkout only when you need to modify package code, contribute notebooks, or inspect unpublished changes.
 
 ## Why This Repository Exists
 

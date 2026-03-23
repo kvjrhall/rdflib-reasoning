@@ -138,6 +138,33 @@ This release completes the staged engine plan for support-aware removal and begi
 
 ## 6. Release review rules
 
+## 6. Release `1.0.0`: Citation and presentation baseline
+
+Priority: medium
+
+This release establishes the public-facing citation and presentation baseline expected of a stable, citable software release.
+
+### 6.1. In scope
+
+1. Citation metadata
+   - Provide maintained repository citation guidance through `CITATION.cff`.
+1. Release citation and archival guidance
+   - Document the release citation path and prepare stable DOI-oriented archival integration.
+1. Zenodo presentation
+   - Add Zenodo-oriented citation guidance and repository badges once the release workflow and metadata are stable.
+
+### 6.2. Exit criteria
+
+- The repository exposes citation metadata that GitHub and downstream users can consume directly.
+- Citation guidance is visible to readers of the repository and release artifacts.
+- Zenodo badge and citation guidance are present for stable releases.
+
+### 6.3. Open question
+
+- Decide whether repository citation metadata should cite the metapackage release, the software family as a whole, or both.
+
+## 7. Release review rules
+
 - Development Agents SHOULD consult this roadmap when estimating scope, selecting the next feature to implement, or deciding whether a task belongs in the current release.
 - Development Agents MUST verify that this roadmap remains accurate before closing a substantial feature task that changes Python behavior, middleware capability boundaries, release scope, or architectural assumptions.
 - Development Agents MUST consider reprioritizing roadmap items or moving scope across releases when implementation uncovers missing architectural detail, hidden dependency chains, validation failures, or feature slices too large to complete coherently within the current release target.
