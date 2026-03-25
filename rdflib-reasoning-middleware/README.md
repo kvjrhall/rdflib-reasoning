@@ -5,11 +5,13 @@ This package exposes this repository's functionality to DeepAgents (runtime/Rese
 - `GraphBacked` and `StructuralElement` instances (from `rdflib-reasoning-axioms`) MUST be usable as tool argument/response models and as values carried inside middleware state. They are stateless, immutable domain snapshots.
 - `GraphBacked` and `StructuralElement` MUST NOT subclass LangGraph `AgentState`. Middleware MAY map them into `AgentState` fields (e.g. as payloads or lists of axioms).
 
-## Demo notebook
+## Demo notebooks
 
-The package includes a checked-in demonstration notebook:
+The package includes checked-in demonstration notebooks:
 
+- [demo-baseline-ontology-extraction.ipynb](../notebooks/demo-baseline-ontology-extraction.ipynb): prompt-only baseline for RDF extraction without middleware (negative control)
 - [demo-dataset-middleware.ipynb](../notebooks/demo-dataset-middleware.ipynb): end-to-end walkthrough of `DatasetMiddleware` plus live notebook tracing of agent activity
+- [demo-vocabulary-middleware.ipynb](../notebooks/demo-vocabulary-middleware.ipynb): `DatasetMiddleware` combined with `RDFVocabularyMiddleware` for vocabulary-grounded extraction
 
 ## DatasetMiddleware tutorial
 
@@ -105,9 +107,12 @@ Status values:
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Default-graph triple access | Implemented | `0.1.0` baseline: list, add, and remove triples in the default graph |
-| Default-graph serialization | Implemented | `0.1.0` baseline: serialize current state as RDF text for inspection |
-| Dataset reset | Implemented | `0.1.0` baseline escape hatch for clearing the middleware-owned dataset session |
+| Default-graph triple access | Implemented | `0.2.0` baseline: list, add, and remove triples in the default graph |
+| Default-graph serialization | Implemented | `0.2.0` baseline: serialize current state as RDF text for inspection |
+| Dataset reset | Implemented | `0.2.0` baseline escape hatch for clearing the middleware-owned dataset session |
+| Namespace whitelisting: enforcement | Not started | `0.3.0` scope: reject URIs from non-whitelisted namespaces in `add_triples` |
+| Namespace whitelisting: enumeration | Not started | `0.3.0` scope: include allowed vocabulary list in middleware prompt when enabled |
+| Namespace whitelisting: remediation | Not started | `0.3.0` scope: suggest nearest valid term via Levenshtein distance for closed-vocabulary near-misses |
 | Named graph management | Not started | Later phase: list graphs, create named graphs, and remove named graphs |
 | Graph-scoped triple access | Not started | Later phase: extend triple tools with an optional graph/context argument while keeping the default graph as the default target |
 | Dataset quad access | Not started | Later phase: explicit quad-level CRUD across graphs |
@@ -121,6 +126,21 @@ Status values:
 | Trace recording callbacks | Implemented | Normalized capture of model and tool lifecycle events for LangChain-based runs |
 | Notebook-rendered tracing of agent activity | Implemented | Optional `IPython`-backed live rendering of model decisions, tool calls, tool results, and final responses |
 | Non-notebook rich trace renderers | Not started | Future console, HTML, or serialized trace views over the same core trace sink |
+
+### RDF vocabulary middleware
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| List indexed vocabularies | Implemented | `list_vocabularies` tool: enumerate available vocabulary namespaces with labels and term counts |
+| List vocabulary terms | Implemented | `list_terms` tool: list indexed terms from a vocabulary, filterable by term type (class, property, datatype, individual) |
+| Describe term (normalized) | Implemented | `describe_term` tool: return a normalized schema-facing description of one indexed vocabulary term |
+| Describe term (native RDF) | Implemented | `describe_term_spec` tool: render one term's native RDF including transitive `rdfs:subClassOf` / `rdfs:subPropertyOf` paths |
+| Bundled RDFS specification | Implemented | Indexed and available through `SpecificationCache` |
+| Bundled PROV-O specification | Implemented | Indexed and available through `SpecificationCache` |
+| Bundled OWL specification | Not started | `0.3.0` scope: enable from existing commented-out entry in `SpecificationCache` |
+| Bundled SKOS specification | Not started | `0.3.0` scope: enable from existing commented-out entry in `SpecificationCache` |
+| Additional bundled vocabularies | Not started | `0.3.0` scope: evaluate and enable remaining vocabularies from the commented-out list (DC, FOAF, SHACL, etc.) |
+| User-supplied vocabularies at construction | Implemented | `SpecificationCache` accepts additional graphs at construction time |
 
 ### Dataset middleware implementation pattern
 

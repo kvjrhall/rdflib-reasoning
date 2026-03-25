@@ -23,7 +23,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "langchain-openai", "types-regex"]
-notebook = ["ipython", "mistune", "networkx", "numpy", "scipy"]
+notebook = [
+    "ipython",
+    "mistune",
+    "numpy",
+    "scipy",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rdflib_reasoning"]

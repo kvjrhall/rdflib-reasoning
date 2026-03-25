@@ -12,11 +12,10 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ## 2. Planning assumptions
 
-- The first planned release is `0.1.0`.
 - Release planning is intentionally incremental. A later release MAY be re-scoped when implementation feedback, validation work, or design clarification shows that a planned feature is under-specified or too large for the target release.
 - A roadmap item may appear before it has a full architectural section. In that case, the item MUST be treated as planned intent, not fully authorized design.
 
-## 3. Release `0.1.0`: Reasoning and proof baseline
+## 3. Release `0.1.0`: Reasoning and proof baseline (released)
 
 Priority: highest
 
@@ -24,16 +23,6 @@ This release establishes the minimum coherent platform for graph-backed reasonin
 
 ### 3.1. In scope
 
-1. Dataset-backed middleware foundation
-   - Deliver the foundational dataset lifecycle needed by higher middleware layers.
-   - Keep copied runtime state lightweight by treating live RDFLib datasets and coordination objects as middleware-owned infrastructure rather than `AgentState` payload.
-   - Provide per-dataset multi-reader / single-writer coordination for dataset-backed tool, retrieval, and inference access without expanding the scope to general transaction support.
-   - Limit `0.1.0` dataset middleware scope to the default-graph baseline: list triples, add triples, remove triples, serialize current state, and reset the dataset.
-   - Implement Research Agent-facing dataset tools as thin adapters over internal middleware methods so later middleware layers and tests can compose over one source of truth.
-   - Architecture: [Dataset middleware](architecture.md#dataset-middleware)
-1. Middleware capability gating
-   - Ensure dataset, retrieval, and inference capabilities are enabled or withheld through middleware composition rather than hidden prompt changes or ad hoc runtime paths.
-   - Architecture: [Middleware composition and capability gating](architecture.md#middleware-composition-and-capability-gating)
 1. Structural-element and middleware interoperability baseline
    - Preserve `GraphBacked` and `StructuralElement` as the schema-facing contract between middleware and Research Agents.
    - Architecture: [Structural elements and middleware](architecture.md#structural-elements-and-middleware)
@@ -60,20 +49,81 @@ This release establishes the minimum coherent platform for graph-backed reasonin
 
 ### 3.2. Exit criteria
 
-- A Research Agent can operate over dataset-backed state with inference capability exposed only through explicit middleware composition.
-- The `0.1.0` dataset middleware surface is limited to the default-graph baseline and does not yet require named-graph management or generic quad-level CRUD.
 - The engine supports the documented add-only fixed-point flow and derivation logging baseline.
 - The engine provides the complete informative RDFS entailment baseline (`rdfs1`-`rdfs13`) within that add-only flow.
 - Proofs can be represented, assessed, and rendered through stable typed interfaces.
-- Any `0.1.0` feature lacking sufficient architectural detail MUST either be clarified in `architecture.md` before implementation or deferred to a later release.
 
-## 4. Release `0.2.0`: Retrieval and experiment expansion
+## 4. Release `0.2.0`: Dataset middleware and experiment foundation (released)
+
+Priority: highest
+
+This release delivers the foundational dataset-backed middleware and the initial experiment notebook series.
+
+### 4.1. In scope
+
+1. Dataset-backed middleware foundation
+   - Deliver the foundational dataset lifecycle needed by higher middleware layers.
+   - Keep copied runtime state lightweight by treating live RDFLib datasets and coordination objects as middleware-owned infrastructure rather than `AgentState` payload.
+   - Provide per-dataset multi-reader / single-writer coordination for dataset-backed tool, retrieval, and inference access without expanding the scope to general transaction support.
+   - Limit `0.2.0` dataset middleware scope to the default-graph baseline: list triples, add triples, remove triples, serialize current state, and reset the dataset.
+   - Implement Research Agent-facing dataset tools as thin adapters over internal middleware methods so later middleware layers and tests can compose over one source of truth.
+   - Architecture: [Dataset middleware](architecture.md#dataset-middleware)
+1. Middleware capability gating
+   - Ensure dataset, retrieval, and inference capabilities are enabled or withheld through middleware composition rather than hidden prompt changes or ad hoc runtime paths.
+   - Architecture: [Middleware composition and capability gating](architecture.md#middleware-composition-and-capability-gating)
+1. Schema-facing RDF boundary models
+   - Deliver Pydantic-based boundary models with lexical RDF wire forms, reusable schema aliases, and concise normative descriptions for the Research Agent communication surface.
+   - Architecture: [Schema-facing RDF boundary models](architecture.md#schema-facing-rdf-boundary-models)
+1. Middleware-owned dataset sessions and coordination
+   - Deliver per-dataset session ownership and multi-reader / single-writer coordination.
+   - Architecture: [Dataset middleware](architecture.md#dataset-middleware)
+1. Dataset middleware internal method and tool adapter pattern
+   - Maintain a clear separation between internal RDFLib-native methods and Research Agent-facing tool adapters.
+   - Architecture: [Dataset middleware internal methods and tool adapters](architecture.md#dataset-middleware-internal-methods-and-tool-adapters)
+1. Baseline and middleware demo notebooks
+   - Deliver the prompt-only baseline (`demo-baseline-ontology-extraction.ipynb`) and dataset middleware condition (`demo-dataset-middleware.ipynb`) with shared evaluation infrastructure (`demo_utils.py`).
+
+### 4.2. Exit criteria
+
+- A Research Agent can operate over dataset-backed state with capabilities exposed only through explicit middleware composition.
+- The `0.2.0` dataset middleware surface is limited to the default-graph baseline and does not yet require named-graph management or generic quad-level CRUD.
+- Baseline and middleware conditions are comparable through shared evaluation metrics with reduced prompt asymmetry.
+
+## 5. Release `0.3.0`: Vocabulary middleware and namespace discipline
+
+Priority: high
+
+This release adds vocabulary inspection and namespace-discipline capabilities to the middleware stack, enabling Research Agents to discover, inspect, and correctly use established RDF vocabularies.
+
+### 5.1. In scope
+
+1. RDF vocabulary middleware
+   - Deliver indexed vocabulary inspection tools (`list_vocabularies`, `list_terms`, `describe_term`, `describe_term_spec`) as an explicit middleware capability over locally-bundled specification files.
+   - Architecture: [RDF vocabulary middleware](architecture.md#rdf-vocabulary-middleware)
+1. Namespace whitelisting for dataset middleware
+   - Deliver opt-in namespace whitelisting with three affordances: enforcement (rejecting non-whitelisted URIs), enumeration (listing allowed vocabularies in the prompt), and remediation (Levenshtein-based suggestions for near-miss terms in closed vocabularies).
+   - Architecture: [Namespace whitelisting](architecture.md#namespace-whitelisting)
+   - Decision: [DR-014 Namespace Whitelisting for Dataset Middleware](decision-records/DR-014%20Namespace%20Whitelisting%20for%20Dataset%20Middleware.md)
+1. Expanded indexed vocabulary set
+   - Enable bundled specification files for at minimum RDF, RDFS, OWL, SKOS, and PROV. Additional well-known vocabularies MAY be enabled from the existing commented-out set in `SpecificationCache`.
+   - Architecture: [RDF vocabulary middleware](architecture.md#rdf-vocabulary-middleware)
+1. Vocabulary middleware demo notebook
+   - Align `demo-vocabulary-middleware.ipynb` with the shared evaluation infrastructure (`demo_utils.py`) established in `0.2.0`, including shared prompts, evaluation metrics, and the parseability gate pattern.
+
+### 5.2. Exit criteria
+
+- A Research Agent with vocabulary middleware can discover and inspect indexed vocabulary terms before using them in `add_triples`.
+- Namespace whitelisting is available as an opt-in configuration and does not alter behavior when disabled.
+- The vocabulary middleware demo notebook uses the same shared evaluation infrastructure as baseline and dataset middleware demos, enabling quantitative comparison across all three conditions.
+- The indexed vocabulary set includes at minimum the core Semantic Web vocabularies (RDF, RDFS, OWL, SKOS, PROV).
+
+## 6. Release `0.4.0`: Retrieval and experiment expansion
 
 Priority: high
 
 This release expands the baseline into a more capable experimental platform by adding controlled knowledge import and richer evaluation ergonomics.
 
-### 4.1. In scope
+### 6.1. In scope
 
 1. Knowledge retrieval middleware
    - Add remote RDF retrieval and structured site metadata ingestion as explicit middleware capabilities over dataset-backed state.
@@ -95,19 +145,19 @@ This release expands the baseline into a more capable experimental platform by a
    - Improve human-readable proof outputs without mutating canonical proof structures.
    - Architecture: [Proof rendering](architecture.md#proof-rendering)
 
-### 4.2. Exit criteria
+### 6.2. Exit criteria
 
 - Retrieval remains capability-gated and composes cleanly over dataset middleware.
 - Imported knowledge can be traced to its source in a way suitable for debugging and evaluation.
 - Any new retrieval-facing schema exposed to a Research Agent is explicit, typed, and inspectable.
 
-## 5. Release `0.3.0`: Retraction and advanced engine behavior
+## 7. Release `0.5.0`: Retraction and advanced engine behavior
 
 Priority: medium
 
 This release completes the staged engine plan for support-aware removal and begins more advanced optimization and explanation work.
 
-### 5.1. In scope
+### 7.1. In scope
 
 1. JTMS support verification APIs
    - Expose support-checking behavior needed to decide whether conclusions remain justified after a support path is invalidated.
@@ -130,21 +180,19 @@ This release completes the staged engine plan for support-aware removal and begi
    - Architecture: [Contradiction signaling](architecture.md#contradiction-signaling)
    - Architecture: [Proof evaluation harness](architecture.md#proof-evaluation-harness)
 
-### 5.2. Exit criteria
+### 7.2. Exit criteria
 
 - Derived facts remain present or are removed according to support validity rather than naive event mirroring.
 - Retraction behavior preserves the architectural support invariants for stated and derived facts.
 - Performance-oriented engine additions do not weaken the explicit proof and derivation contracts established earlier.
 
-## 6. Release review rules
-
-## 6. Release `1.0.0`: Citation and presentation baseline
+## 8. Release `1.0.0`: Citation and presentation baseline
 
 Priority: medium
 
 This release establishes the public-facing citation and presentation baseline expected of a stable, citable software release.
 
-### 6.1. In scope
+### 8.1. In scope
 
 1. Citation metadata
    - Provide maintained repository citation guidance through `CITATION.cff`.
@@ -153,17 +201,17 @@ This release establishes the public-facing citation and presentation baseline ex
 1. Zenodo presentation
    - Add Zenodo-oriented citation guidance and repository badges once the release workflow and metadata are stable.
 
-### 6.2. Exit criteria
+### 8.2. Exit criteria
 
 - The repository exposes citation metadata that GitHub and downstream users can consume directly.
 - Citation guidance is visible to readers of the repository and release artifacts.
 - Zenodo badge and citation guidance are present for stable releases.
 
-### 6.3. Open question
+### 8.3. Open question
 
 - Decide whether repository citation metadata should cite the metapackage release, the software family as a whole, or both.
 
-## 7. Release review rules
+## 9. Release review rules
 
 - Development Agents SHOULD consult this roadmap when estimating scope, selecting the next feature to implement, or deciding whether a task belongs in the current release.
 - Development Agents MUST verify that this roadmap remains accurate before closing a substantial feature task that changes Python behavior, middleware capability boundaries, release scope, or architectural assumptions.

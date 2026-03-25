@@ -82,7 +82,7 @@ Dataset middleware capability MUST be introduced in phased slices rather than as
 1. Phase 1: Default-graph baseline
    - The initial public tool surface SHOULD focus on the default graph only.
    - The default Phase 1 tool set SHOULD be limited to listing triples, adding triples, removing triples, serializing current state, and resetting the dataset.
-   - `0.1.0` dataset middleware scope MUST be limited to this baseline unless architecture and roadmap are deliberately revised.
+   - `0.2.0` dataset middleware scope is limited to this baseline.
 
 2. Phase 2: Named-graph management and graph-scoped triple access
    - A later phase MAY add named graph creation, listing, and removal.
@@ -92,7 +92,7 @@ Dataset middleware capability MUST be introduced in phased slices rather than as
    - Generic quad-level CRUD and other explicitly dataset-wide manipulation SHOULD remain a later phase.
    - These operations SHOULD be added only when the agent or higher middleware layers have a demonstrated need for cross-graph manipulation that graph-scoped triple tools cannot express cleanly.
 
-This phased structure is intended to preserve a narrow `0.1.0` baseline while keeping later dataset semantics available as explicit future scope.
+This phased structure is intended to preserve a narrow `0.2.0` baseline while keeping later dataset semantics available as explicit future scope.
 
 #### Dataset middleware prompt and tool-description strategy
 
@@ -123,9 +123,39 @@ Dataset middleware MUST maintain a clear separation between internal implementat
 
 These rules are aligned with [DR-013 Dataset Middleware Internal Method and Tool Adapter Pattern](decision-records/DR-013%20Dataset%20Middleware%20Internal%20Method%20and%20Tool%20Adapter%20Pattern.md).
 
+#### Namespace whitelisting
+
+Namespace whitelisting is an opt-in configuration for dataset middleware that constrains which namespace prefixes — and, for closed vocabularies, which specific terms — the Research Agent may use in `add_triples`.
+
+- Namespace whitelisting MUST be disabled by default so that existing experiments and demos are unaffected.
+- When whitelisting is enabled, it MUST provide three affordances:
+  1. **Enforcement**: `add_triples` MUST reject URIs whose namespace is not among the allowed vocabularies. For closed vocabularies (rdflib `DefinedNamespace` subclasses), enforcement MUST include term-level membership testing. For open vocabularies (rdflib `Namespace` instances), enforcement MUST be limited to namespace-prefix matching.
+  2. **Enumeration**: The middleware-appended system prompt MUST include a structured enumeration of the allowed vocabularies. A corresponding tool-agnostic extraction of this enumeration SHOULD be maintained for baseline prompt-asymmetry reduction, following the `DATASET_TIPS` / `VOCABULARY_TIPS` pattern.
+  3. **Remediation**: For closed vocabularies, the middleware SHOULD use Levenshtein distance (or equivalent string-similarity metric) to suggest the nearest valid term when a rejected URI names a non-existent term in a whitelisted closed namespace.
+- Whitelisting MUST distinguish open and closed vocabularies through rdflib's `Namespace` / `DefinedNamespace` type hierarchy. This distinction determines whether enforcement operates at the prefix level or the term level.
+- The whitelisting configuration MUST be expressible through `DatasetMiddlewareConfig` or an equivalent configuration surface on dataset middleware.
+
+These rules are aligned with [DR-014 Namespace Whitelisting for Dataset Middleware](decision-records/DR-014%20Namespace%20Whitelisting%20for%20Dataset%20Middleware.md).
+
+### RDF vocabulary middleware
+
+RDF vocabulary middleware provides indexed vocabulary inspection to the Research Agent through a dedicated tool surface.
+It is architecturally distinct from knowledge retrieval middleware: vocabulary middleware exposes pre-indexed, locally-bundled vocabulary definitions for term discovery and validation, whereas knowledge retrieval middleware performs remote RDF import.
+
+- Vocabulary middleware MUST compose alongside dataset middleware but does NOT depend on dataset session state. Its tools are read-only queries against a local vocabulary index, not mutations of the Research Agent's dataset.
+- The indexed vocabulary set is backed by bundled specification files and extensible through `SpecificationCache`. Additional vocabularies MAY be supplied at construction time.
+- The indexed vocabulary set SHOULD include at minimum the core Semantic Web vocabularies (RDF, RDFS, OWL, SKOS, PROV) and MAY expand to additional well-known vocabularies as bundled specification files become available.
+- Vocabulary middleware MUST expose its capability through explicit tools: `list_vocabularies`, `list_terms`, `describe_term`, and `describe_term_spec`.
+- `describe_term_spec` SHOULD render a term's native RDF description including transitive `rdfs:subClassOf` and `rdfs:subPropertyOf` paths so that the Research Agent can inspect the structural context of a term before using it.
+- Vocabulary middleware SHOULD follow the same prompt-layering pattern as dataset middleware: a middleware-level system prompt introduces the capability and its tools, while tool descriptions and schema fields carry operational detail.
+- Vocabulary middleware capabilities MUST be enabled or disabled by inclusion or exclusion of the middleware. A Research Agent without vocabulary middleware MUST NOT be able to query the vocabulary index through some alternate path.
+
+These rules are aligned with [DR-014 Namespace Whitelisting for Dataset Middleware](decision-records/DR-014%20Namespace%20Whitelisting%20for%20Dataset%20Middleware.md).
+
 ### Knowledge retrieval middleware
 
 Knowledge retrieval middleware is responsible for importing structured knowledge into dataset-backed state.
+It is architecturally distinct from RDF vocabulary middleware: retrieval middleware performs remote RDF import and entity resolution, whereas vocabulary middleware exposes pre-indexed local vocabulary definitions.
 
 - Retrieval middleware MAY support remote RDF retrieval from providers such as DBpedia and, later, Wikidata.
 - Retrieval middleware MAY support extraction of structured site metadata such as embedded JSON-LD from HTML pages.
