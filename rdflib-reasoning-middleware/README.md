@@ -110,9 +110,9 @@ Status values:
 | Default-graph triple access | Implemented | `0.2.0` baseline: list, add, and remove triples in the default graph |
 | Default-graph serialization | Implemented | `0.2.0` baseline: serialize current state as RDF text for inspection |
 | Dataset reset | Implemented | `0.2.0` baseline escape hatch for clearing the middleware-owned dataset session |
-| Namespace whitelisting: enforcement | Not started | `0.3.0` scope: reject URIs from non-whitelisted namespaces in `add_triples` |
-| Namespace whitelisting: enumeration | Not started | `0.3.0` scope: include allowed vocabulary list in middleware prompt when enabled |
-| Namespace whitelisting: remediation | Not started | `0.3.0` scope: suggest nearest valid term via Levenshtein distance for closed-vocabulary near-misses |
+| Namespace whitelisting: enforcement | Implemented | `0.3.0`: reject URIs from non-whitelisted namespaces in `add_triples` |
+| Namespace whitelisting: enumeration | Implemented | `0.3.0`: include allowed vocabulary list in middleware prompt when enabled |
+| Namespace whitelisting: remediation | Implemented | `0.3.0`: suggest nearest valid term via Levenshtein distance for closed-vocabulary near-misses |
 | Named graph management | Not started | Later phase: list graphs, create named graphs, and remove named graphs |
 | Graph-scoped triple access | Not started | Later phase: extend triple tools with an optional graph/context argument while keeping the default graph as the default target |
 | Dataset quad access | Not started | Later phase: explicit quad-level CRUD across graphs |

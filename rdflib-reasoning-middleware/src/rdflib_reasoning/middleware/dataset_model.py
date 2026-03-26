@@ -206,7 +206,7 @@ type N3Resource = Annotated[
         Full IRIs MAY be provided either as canonical N3 like <urn:example:s> or
         as a bare RFC 3987 IRI like urn:example:s.
         It SHOULD be an IRI when a globally stable identifier is available.
-        """),
+        """).strip(),
         examples=TURTLE_IRI_EXAMPLES + ["urn:example:s"] + TURTLE_BLANK_NODE_EXAMPLES,
     ),
 ]
@@ -223,7 +223,7 @@ type N3IRIRef = Annotated[
         Full IRIs MAY be provided either as canonical N3 like <urn:example:p> or
         as a bare RFC 3987 IRI like urn:example:p.
         Use this for predicates and for resources that cannot be blank nodes.
-        """),
+        """).strip(),
         examples=TURTLE_IRI_EXAMPLES + ["urn:example:p"],
     ),
 ]
@@ -242,7 +242,7 @@ type N3Node = Annotated[
         - {TURTLE_LITERAL}
         Full IRIs MAY be provided either as canonical N3 like <urn:example:o> or
         as a bare RFC 3987 IRI like urn:example:o.
-        """),
+        """).strip(),
         examples=TURTLE_IRI_EXAMPLES
         + ["urn:example:o"]
         + TURTLE_BLANK_NODE_EXAMPLES
@@ -262,7 +262,7 @@ type N3ContextIdentifier = Annotated[
         Full IRIs MAY be provided either as canonical N3 like <urn:example:g> or
         as a bare RFC 3987 IRI like urn:example:g.
         It SHOULD be an IRI when a globally stable graph identifier is available.
-        """),
+        """).strip(),
         examples=TURTLE_IRI_EXAMPLES + ["urn:example:g"] + TURTLE_BLANK_NODE_EXAMPLES,
     ),
 ]

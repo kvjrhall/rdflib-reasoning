@@ -2,7 +2,7 @@ import logging
 from collections.abc import Awaitable, Callable, Iterable, MutableSet, Sequence
 from dataclasses import dataclass
 from dataclasses import field as DataclassField
-from typing import Any, Final, Literal, override
+from typing import Any, Final, Literal, TypeGuard, override
 
 import more_itertools
 from deepagents.middleware._utils import append_to_system_message
@@ -16,8 +16,8 @@ from langchain.agents.middleware.types import (
 )
 from langchain.tools import BaseTool, tool
 from langchain_core.messages import ToolMessage
-from pydantic import BaseModel, NonNegativeInt
-from rdflib import BNode, Dataset, Graph, IdentifiedNode, Node
+from pydantic import NonNegativeInt
+from rdflib import BNode, Dataset, Graph, IdentifiedNode, Node, URIRef
 from rdflib_reasoning.axiom.common import Triple
 from readerwriterlock import rwlock
 
@@ -32,8 +32,52 @@ from .dataset_model import (
     TripleListResponse,
 )
 from .dataset_state import DatasetState
+from .namespaces.spec_whitelist import (
+    AllowAllNamespaceWhitelist,
+    NamespaceWhitelist,
+    WhitelistResult,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _format_whitelist_violation_message(
+    bad_term: URIRef, result: WhitelistResult
+) -> str:
+    """Build a single human-oriented tool error for Research Agents (see DR-014)."""
+    lines: list[str] = [
+        f"The term {bad_term} is not in the vocabulary whitelist for this knowledge base. "
+        "You SHOULD verify that you are using the correct term or consider the alternatives "
+        "below. "
+        "You MUST NOT call `add_triples` again with this same IRI.",
+        "",
+    ]
+    if result.nearest_matches:
+        lines.extend(
+            [
+                "Suggested alternatives (Levenshtein distance measures string similarity; "
+                "lower is better):",
+                "",
+                "| Qualified name | IRI | Levenshtein distance |",
+                "| --- | --- | ---: |",
+            ]
+        )
+        for term, dist in result.nearest_matches:
+            qn = str(term.qname).replace("|", "\\|")
+            iri = str(term.term).replace("|", "\\|")
+            lines.append(f"| `{qn}` | `{iri}` | {dist} |")
+        lines.append("")
+        lines.append(
+            "If none of the suggestions fit your intent, you MUST use a different term "
+            "from the allowed vocabularies listed in the system prompt."
+        )
+    else:
+        lines.append(
+            "No close matches were found. You MUST use a different term from the "
+            "allowed vocabularies listed in the system prompt."
+        )
+    return "\n".join(lines)
+
 
 DATASET_SYSTEM_PROMPT: Final[str] = """## Knowledge Base
 
@@ -247,28 +291,50 @@ class DatasetSession:
             return dataset
 
 
-class DatasetMiddlewareConfig(BaseModel):
-    """Configuration for the initial dataset middleware surface."""
+@dataclass(frozen=True, slots=True)
+class DatasetMiddlewareConfig:
+    """Configuration for the dataset middleware surface.
 
-    pass
+    Attributes:
+        namespace_whitelist: Controls which namespaces the Research Agent may
+            use in ``add_triples``.  Defaults to ``AllowAllNamespaceWhitelist``
+            (no restriction).  Set to a ``RestrictedNamespaceWhitelist`` to
+            enable enforcement, enumeration, and remediation.
+    """
+
+    namespace_whitelist: NamespaceWhitelist = DataclassField(
+        default_factory=AllowAllNamespaceWhitelist
+    )
 
 
 class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
-    """
-    Initial dataset middleware for dataset-backed agent experiments.
+    """Dataset middleware for dataset-backed agent experiments.
 
-    This phase intentionally exposes only default-graph operations to the
-    Research Agent.
+    Exposes default-graph operations (``add_triples``, ``serialize_dataset``,
+    ``reset_dataset``) to the Research Agent and appends RDF-modeling guidance
+    to the system prompt.
+
+    When configured with a ``RestrictedNamespaceWhitelist``, the middleware also:
+
+    - **Enforces** namespace constraints by rejecting URIs from non-whitelisted
+      namespaces in ``add_triples``.
+    - **Enumerates** allowed vocabularies in the system prompt.
+    - **Suggests remediation** via Levenshtein-distance nearest matches for
+      closed-vocabulary near-misses.
     """
 
     state_schema = DatasetState
     session: DatasetSession
     tools: Sequence[BaseTool]
+    whitelist: NamespaceWhitelist
+    _whitelist_confirmed: MutableSet[URIRef]
 
     def __init__(self, config: DatasetMiddlewareConfig | None = None) -> None:
         self.config = config or DatasetMiddlewareConfig()
         self.session = DatasetSession(_dataset=Dataset())
         self.tools = self._build_tools()
+        self.whitelist = self.config.namespace_whitelist
+        self._whitelist_confirmed = set()
 
     def _create_state(self) -> DatasetState:
         """Create a fresh middleware state."""
@@ -289,6 +355,14 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         del state, runtime
         return None
 
+    def _build_system_prompt(self) -> str:
+        """Assemble the full middleware system prompt, including enumeration if active."""
+        prompt = DATASET_SYSTEM_PROMPT
+        enumeration = self.whitelist.enumerate_prompt()
+        if enumeration is not None:
+            prompt = prompt + "\n" + enumeration
+        return prompt
+
     @override
     def wrap_model_call(
         self,
@@ -300,7 +374,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         request = request.override(
             system_message=append_to_system_message(
                 request.system_message,
-                DATASET_SYSTEM_PROMPT,
+                self._build_system_prompt(),
             )
         )
         return handler(request)
@@ -318,7 +392,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         request = request.override(
             system_message=append_to_system_message(
                 request.system_message,
-                DATASET_SYSTEM_PROMPT,
+                self._build_system_prompt(),
             )
         )
         return await handler(request)
@@ -356,7 +430,25 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
                 status="error",
             )
 
-        return handler(request)
+        try:
+            return handler(request)
+        except WhitelistViolation as e:
+            return ToolMessage(
+                content=_format_whitelist_violation_message(e.bad_term, e.result),
+                name=tool_name,
+                tool_call_id=tool_call_id,
+                status="error",
+            )
+
+    def _should_check_whitelist_node(self, node: Node) -> TypeGuard[URIRef]:
+        if isinstance(node, URIRef) and node not in self._whitelist_confirmed:
+            return True
+        return False
+
+    def _should_check_whitelist(self, statement: Iterable[Node]) -> Sequence[URIRef]:
+        return tuple(
+            node for node in statement if self._should_check_whitelist_node(node)
+        )
 
     def _should_reject_reset_dataset(self, request: ToolCallRequest) -> bool:
         """Hook for reset-dataset misuse detection."""
@@ -395,15 +487,31 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
 
     def add_triples(self, triples: Iterable[Triple]) -> MutationResponse:
         """Add exact triples to the default graph."""
+        given = 0
         with self.session._lock.gen_wlock():
             graph = self.session._dataset.default_graph
             before = len(graph)
             for triple in triples:
+                given += 1
+                for to_check in self._should_check_whitelist(triple):
+                    result = self.whitelist.find_term(to_check)
+                    if result.allowed:
+                        self._whitelist_confirmed.add(to_check)
+                    else:
+                        raise WhitelistViolation(to_check, result)
+
                 graph.add(triple)
             updated = len(graph) - before
+
+        preexisting = given - updated
+
+        message = f"{updated} of {given} triples added."
+        if preexisting > 0:
+            message += f" {preexisting} of {given} triples already existed."
+
         return MutationResponse(
             updated=NonNegativeInt(updated),
-            message="Triples added to the default graph.",
+            message=message,
         )
 
     def remove_triples(self, triples: Iterable[Triple]) -> MutationResponse:
@@ -509,3 +617,12 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
             reset_dataset_tool,
             new_blank_node_tool,
         )
+
+
+class WhitelistViolation(Exception):
+    """Exception raised when a term is rejected by the whitelist."""
+
+    def __init__(self, bad_term: URIRef, result: WhitelistResult) -> None:
+        self.bad_term = bad_term
+        self.result = result
+        super().__init__(f"Whitelist violation: {bad_term}")

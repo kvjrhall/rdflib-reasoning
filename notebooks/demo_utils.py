@@ -13,6 +13,7 @@ Constants:
   - CORE_PROMPT: The core prompt for the agent.
   - DATASET_TIPS: Tool-agnostic RDF modeling guidance extracted from DatasetMiddleware.
   - VOCABULARY_TIPS: Tool-agnostic vocabulary-selection guidance extracted from VocabularyMiddleware.
+  - WHITELIST_TIPS: Tool-agnostic vocabulary-constraint guidance extracted from namespace whitelisting.
   - STOPPING_CRITERIA: Completion criteria shared across notebook experiments.
   - TASK: The task for the agent to complete.
 """
@@ -105,6 +106,18 @@ VOCABULARY_TIPS: Final[str] = """
   that is still clearly justified by the source.
 """
 
+WHITELIST_TIPS: Final[str] = """
+## Vocabulary Constraint Guidance
+
+- You SHOULD only use terms from established, well-known RDF vocabularies
+  such as RDF, RDFS, OWL, and XSD for predicates and type assertions.
+- If you need to use terms from additional vocabularies, prefer well-known
+  ones (SKOS, PROV, FOAF, etc.) when they fit the source material.
+- Before using a vocabulary term, verify that it exists in that vocabulary.
+  For example, rdfs:type does not exist -- the correct term is rdf:type.
+- For your own minted terms, use the base IRI specified in the task.
+"""
+
 STOPPING_CRITERIA: Final[str] = """
 ## Completion / Stop Condition
 
@@ -157,19 +170,26 @@ ex:John a ex:Person .
 ex:Person rdfs:subClassOf ex:HomoSapiens ;
           owl:equivalentClass ex:HomoSapiens .
 
-ex:HomoSapiens rdfs:subClassOf ex:Hominina .
+ex:HomoSapiens rdfs:subClassOf ex:Hominina ;
+               a rdfs:Class, owl:Class .
 
-ex:Hominina rdfs:subClassOf ex:Hominidae .
+ex:Hominina rdfs:subClassOf ex:Hominidae ;
+            a rdfs:Class, owl:Class .
 
-ex:Hominidae rdfs:subClassOf ex:Haplorhini .
+ex:Hominidae rdfs:subClassOf ex:Haplorhini ;
+             a rdfs:Class, owl:Class .
 
-ex:Haplorhini rdfs:subClassOf ex:Primate .
+ex:Haplorhini rdfs:subClassOf ex:Primate ;
+              a rdfs:Class, owl:Class .
 
-ex:Primate rdfs:subClassOf ex:Mammal .
+ex:Primate rdfs:subClassOf ex:Mammal ;
+           a rdfs:Class, owl:Class .
 
-ex:Mammal rdfs:subClassOf ex:Animal .
+ex:Mammal rdfs:subClassOf ex:Animal ;
+          a rdfs:Class, owl:Class .
 
-"""
+""",
+    format="turtle",
 )
 
 
