@@ -19,7 +19,7 @@ This repository MUST support research into agents and their interoperability wit
 
 - Development MUST use the `rdflib-reasoning` conda environment.
 - All use [src-layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
-- All use the `rdflib_reasoning` [namespace package](https://packaging.python.org/en/latest/guides/packaging-namespace-packages/)
+- All use the `rdflib_reasoning` [namespace package](https://packaging.python.org/en/latest/guides/packaging-namespace-packages/) with a shared **PEP 420** implicit namespace at the `rdflib_reasoning` root (no root `__init__.py` in published wheels; subpackages merge at runtime across distributions)
 
 | Project Path                   | Description                                                                                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |

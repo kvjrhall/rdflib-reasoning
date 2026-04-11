@@ -57,6 +57,51 @@ This is an architectural constraint for both correctness and experimental contro
 - Knowledge retrieval middleware and inference middleware depend on dataset middleware because they operate on dataset-backed runtime state. If the concrete state shape or dataset-session abstraction changes, that dependency MUST remain explicit at the architectural level.
 - Middleware that exposes capabilities to a Research Agent SHOULD do so through explicit tool/state surfaces with clear schemas rather than through hidden side effects.
 
+### Middleware stack layering and hook-role boundaries
+
+Middleware composition SHOULD use an explicit layered order (outer to inner):
+
+1. Deep Agents default middleware unless deliberately replaced for a specific
+   experiment
+2. LangChain prebuilt generic resilience middleware when needed (for example
+   retry, fallback, context editing, and limits)
+3. RDF capability middleware such as `DatasetMiddleware` and
+   `RDFVocabularyMiddleware`
+4. RDF orchestration and policy middleware such as
+   `ContinuationGuardMiddleware`
+5. Provider-specific adapter middleware only when model-specific behavior
+   requires it
+
+Middleware hook ownership MUST remain explicit:
+
+- Node hooks (`before_model` / `after_model`) MUST be used for state
+  transitions, orchestration updates, and non-conflicting state writes.
+- Wrap hooks (`wrap_model_call` / `awrap_model_call`) MUST own provider-bound
+  request/response canonicalization, including transcript-shape normalization.
+- Middleware SHOULD avoid node-hook transcript surgery via `RemoveMessage` when
+  equivalent provider-bound request repair exists.
+
+Reducer semantics are an architectural constraint:
+
+- Middleware that updates `messages` MUST remain compatible with LangGraph
+  `add_messages` reducer semantics.
+- Reducer-fragile update patterns, including stale-delete paths that can target
+  already-removed message ids, MUST be avoided.
+
+Memory and skills integration SHOULD be staged:
+
+- `MemoryMiddleware` and `SkillsMiddleware` SHOULD be introduced only after
+  stack layering and hook-role boundaries are stable.
+- Middleware state keys SHOULD remain concern-scoped (for example `rdf_*`,
+  `continuation_*`, `memory_*`, `skills_*`) to avoid cross-concern coupling.
+
+Process adoption guidance:
+
+- Middleware PR gates and rubric scoring SHOULD be used as advisory internal
+  review guidance for now.
+- These gates are intentionally not mandatory enforcement requirements for the
+  current one-developer plus Development-Agent workflow.
+
 ### Dataset middleware
 
 Dataset middleware is the foundational runtime layer for graph-backed experimentation.
@@ -65,11 +110,12 @@ Dataset middleware is the foundational runtime layer for graph-backed experiment
 - Dataset middleware MUST treat the live RDFLib dataset as middleware-owned runtime infrastructure rather than as copied `AgentState` payload.
 - Middleware state exposed to LangChain MUST remain `TypedDict`-compatible and cheap to copy. Live RDFLib datasets, stores, locks, and similar heavy runtime objects MUST NOT be stored directly in copied runtime state.
 - Dataset middleware SHOULD resolve the active working dataset through a middleware-owned per-dataset session or equivalent internal container.
+- Dataset middleware MAY expose a developer-facing `DatasetRuntime` service that owns the active dataset session and is used for explicit shared runtime injection.
 - Each dataset session MUST own the live `rdflib.Dataset` together with the coordination primitive that protects it.
 - Dataset middleware MUST provide multi-reader / single-writer coordination per dataset session so unrelated datasets do not block one another unnecessarily.
 - Read-only dataset operations SHOULD execute under read coordination, and mutating dataset operations MUST execute under write coordination.
 - Other middleware layers that retrieve knowledge or run inference MUST compose over dataset middleware rather than bypassing it.
-- Retrieval and inference middleware that operate on the same dataset MUST use the same dataset-session coordination boundary as dataset tools.
+- Retrieval and inference middleware that operate on the same dataset MUST use the same dataset-session coordination boundary as dataset tools, typically by sharing the same injected `DatasetRuntime`.
 - Dataset middleware MUST NOT claim general transaction semantics for the baseline. Rollback, snapshot isolation, branch-local dataset copies, and conflict-merge semantics are explicitly out of scope unless later architecture extends the contract.
 - RDF 1.2 triple-statement or quoted-triple support MAY be considered in the future, but it is not part of the current architectural baseline.
 
@@ -82,7 +128,7 @@ Dataset middleware capability MUST be introduced in phased slices rather than as
 1. Phase 1: Default-graph baseline
    - The initial public tool surface SHOULD focus on the default graph only.
    - The default Phase 1 tool set SHOULD be limited to listing triples, adding triples, removing triples, serializing current state, and resetting the dataset.
-   - `0.1.0` dataset middleware scope MUST be limited to this baseline unless architecture and roadmap are deliberately revised.
+   - `0.2.0` dataset middleware scope is limited to this baseline.
 
 2. Phase 2: Named-graph management and graph-scoped triple access
    - A later phase MAY add named graph creation, listing, and removal.
@@ -92,7 +138,7 @@ Dataset middleware capability MUST be introduced in phased slices rather than as
    - Generic quad-level CRUD and other explicitly dataset-wide manipulation SHOULD remain a later phase.
    - These operations SHOULD be added only when the agent or higher middleware layers have a demonstrated need for cross-graph manipulation that graph-scoped triple tools cannot express cleanly.
 
-This phased structure is intended to preserve a narrow `0.1.0` baseline while keeping later dataset semantics available as explicit future scope.
+This phased structure is intended to preserve a narrow `0.2.0` baseline while keeping later dataset semantics available as explicit future scope.
 
 #### Dataset middleware prompt and tool-description strategy
 
@@ -111,6 +157,66 @@ This strategy is informed by Deep Agents documentation describing middleware-app
 - [Deep Agents repository overview](https://github.com/langchain-ai/deepagents)
 - [FilesystemMiddleware reference](https://reference.langchain.com/python/deepagents/middleware/filesystem/FilesystemMiddleware)
 
+#### Research Agent tracing and observability
+
+Runtime tracing in `rdflib-reasoning-middleware` MUST distinguish between raw
+callback capture and correlated turn-level trace artifacts.
+
+- Raw callback events such as `TraceEvent` emitted through `TraceRecorder` and
+  stored in `TraceSink` MUST remain available as the low-level debugging
+  substrate.
+- Correlated turn-level artifacts such as `TurnTrace` MUST be derived from raw
+  events rather than replacing them.
+- The correlated tracing layer SHOULD preserve enough context to explain what
+  the Research Agent emitted, which tool calls it requested, what tool
+  results or `ToolMessage` payloads it observed, and how the turn ended.
+- Renderers and other downstream consumers SHOULD depend on correlated turn
+  artifacts rather than reimplementing event grouping and tool-correlation
+  logic themselves.
+- Raw events MAY still be consumed directly by tests, low-level debugging
+  tools, or future alternate renderers when that level of detail is needed.
+
+These rules are aligned with [DR-015 Correlated Turn Tracing over Raw Callback Events](decision-records/DR-015%20Correlated%20Turn%20Tracing%20over%20Raw%20Callback%20Events.md).
+
+#### Continuation guard middleware
+
+Continuation guards are optional orchestration-control middleware for
+single-run, completion-oriented Research Agent harnesses.
+
+- Continuation guard middleware MUST model continuation control as a small
+  private runtime state machine rather than as reminder-only prompt text.
+- The conceptual continuation-control modes are:
+  - `normal`: ordinary single-run behavior
+  - `finalize_only`: the next acceptable step is finalization or a specific
+    corrective dataset change
+  - `stop_now`: the run MUST terminate deterministically
+- Continuation guard middleware MAY re-prompt when the Research Agent has
+  clearly stopped in an unfinished mode, but provider-safe continuation MUST
+  use injected `HumanMessage` prompts rather than relying on implicit
+  continuation from an assistant-final transcript.
+- Provider-safe continuation MUST be role-aware: middleware SHOULD inject a
+  `HumanMessage` reminder only when that transition is valid for the current
+  transcript shape, and SHOULD NOT force a `tool -> user` transition.
+- Once the latest assistant output contains a valid completed Turtle answer,
+  continuation guard middleware SHOULD terminate the run deterministically
+  rather than allowing further model continuation.
+- Middleware that owns a strong continuation trigger, such as repeated
+  unchanged serialization rejection, SHOULD emit an explicit state transition
+  into `finalize_only` rather than relying on the Research Agent to infer the
+  correct control branch from prose alone.
+- Continuation guard middleware is distinct from capability middleware such as
+  dataset or vocabulary middleware and MUST NOT be used to hide or replace
+  capability boundaries.
+- Continuation guard middleware SHOULD be used when a harness expects the
+  Research Agent to continue acting until a completed answer or next tool call.
+- Continuation guard middleware SHOULD NOT be implied by default for
+  deliberately multi-round conversational or memory-backed agent setups where a
+  planning-only turn may be acceptable.
+- Model-specific prompt adaptation middleware SHOULD remain separate from
+  continuation discipline middleware.
+
+These rules are aligned with [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md).
+
 #### Dataset middleware internal methods and tool adapters
 
 Dataset middleware MUST maintain a clear separation between internal implementation methods and Research Agent-facing tool adapters.
@@ -123,9 +229,105 @@ Dataset middleware MUST maintain a clear separation between internal implementat
 
 These rules are aligned with [DR-013 Dataset Middleware Internal Method and Tool Adapter Pattern](decision-records/DR-013%20Dataset%20Middleware%20Internal%20Method%20and%20Tool%20Adapter%20Pattern.md).
 
+#### Shared middleware services
+
+Middleware MAY compose over explicit shared services when multiple middleware
+components need coordinated access to the same runtime state, policy, or
+telemetry.
+
+- Shared middleware services MUST be injected explicitly through constructors or
+  configuration objects.
+- Middleware MUST NOT discover sibling middleware instances implicitly and MUST
+  NOT rely on middleware composition order as a hidden service-sharing
+  mechanism.
+- `DatasetRuntime` is the shared mutable coordination boundary for middleware
+  that operate on the same live RDF dataset.
+- Shared services that do not require dataset mutation, such as vocabulary
+  policy or run-local telemetry, SHOULD remain separate from `DatasetRuntime`
+  rather than broadening the dataset session into a monolithic coordination
+  object.
+- Run-local telemetry such as asserted term-usage counts MAY be recorded by one
+  middleware and consumed by another, but that sharing MUST remain explicit and
+  capability-scoped.
+- Vocabulary setup SHOULD use a two-step pattern:
+  - `VocabularyConfiguration` as declarative input
+  - `VocabularyContext` as validated cached runtime state
+- Middleware that needs vocabulary policy or indexed vocabulary visibility
+  SHOULD consume one shared `VocabularyContext` rather than separately injected
+  whitelist and cache objects.
+
+These rules are aligned with [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md).
+
+#### Namespace whitelisting
+
+Namespace whitelisting is a shared vocabulary-policy mechanism that constrains
+which namespace prefixes — and, for closed vocabularies, which specific terms —
+the Research Agent may use.
+
+- Namespace whitelisting MUST be explicit through `VocabularyContext`; there is
+  no ambient default middleware path that bypasses it.
+- When whitelisting is enabled, it MUST provide three affordances:
+  1. **Enforcement**: `add_triples` MUST reject URIs whose namespace is not among the allowed vocabularies. For closed vocabularies (rdflib `DefinedNamespace` subclasses), enforcement MUST include term-level membership testing. For open vocabularies (rdflib `Namespace` instances), enforcement MUST be limited to namespace-prefix matching.
+     `list_terms` and `inspect_term` in vocabulary middleware MAY also enforce the same injected whitelist when present.
+  2. **Enumeration**: The middleware-appended system prompt MUST include a structured enumeration of the allowed vocabularies. A corresponding tool-agnostic extraction of this enumeration SHOULD be maintained for baseline prompt-asymmetry reduction, following the `DATASET_TIPS` / `VOCABULARY_TIPS` pattern.
+  3. **Remediation**: For closed vocabularies, the middleware SHOULD use Levenshtein distance (or equivalent string-similarity metric) to suggest the nearest valid term when a rejected URI names a non-existent term in a whitelisted closed namespace.
+- Whitelisting MUST distinguish open and closed vocabularies through rdflib's `Namespace` / `DefinedNamespace` type hierarchy. This distinction determines whether enforcement operates at the prefix level or the term level.
+- The same whitelist type SHOULD be shareable between dataset middleware and
+  vocabulary middleware.
+- The whitelisting configuration SHOULD be derived from
+  `VocabularyConfiguration` and carried at runtime through `VocabularyContext`.
+- Public middleware setup SHOULD take `VocabularyContext` through middleware
+  config objects rather than accepting raw whitelist/cache wiring.
+
+These rules are aligned with [DR-014 Namespace Whitelisting for Dataset Middleware](decision-records/DR-014%20Namespace%20Whitelisting%20for%20Dataset%20Middleware.md) and [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md).
+
+### RDF vocabulary middleware
+
+RDF vocabulary middleware provides indexed vocabulary retrieval and inspection to
+the Research Agent through a dedicated tool surface. It is architecturally
+distinct from knowledge retrieval middleware: vocabulary middleware exposes
+pre-indexed, locally-bundled vocabulary definitions for term discovery and
+validation, whereas knowledge retrieval middleware performs remote RDF import.
+
+- Vocabulary middleware MUST compose alongside dataset middleware and MUST NOT
+  mutate dataset state directly.
+- Vocabulary middleware SHALL consume one injected `VocabularyContext` for
+  vocabulary policy and indexed vocabulary visibility.
+- Vocabulary middleware MAY also consume explicitly injected shared read-only
+  services such as `RunTermTelemetry`.
+- The indexed vocabulary set is backed by bundled specification files and
+  extensible through `UserSpec`, but bundled vocabularies are visible only when
+  declared into the `VocabularyContext`.
+- The indexed vocabulary set SHOULD include at minimum the core Semantic Web vocabularies (RDF, RDFS, OWL, SKOS, PROV) and MAY expand to additional well-known vocabularies as bundled specification files become available.
+- Vocabulary middleware SHOULD use VANN annotation properties such as
+  `vann:preferredNamespacePrefix` and `vann:preferredNamespaceUri` as optional
+  metadata enrichment for vocabulary summaries and namespace presentation when
+  those annotations are present in an indexed vocabulary.
+- VANN-derived metadata MAY improve labels, descriptions, prefix presentation,
+  and later ranking signals, but it MUST NOT change which vocabularies are
+  declared in `VocabularyContext` and MUST NOT weaken whitelist or vocabulary
+  visibility policy.
+- Vocabulary middleware MUST expose its capability through explicit tools: `list_vocabularies`, `list_terms`, `search_terms`, and `inspect_term`.
+- `search_terms` SHOULD be the primary discovery path when the Research Agent knows the meaning it wants to express but does not yet know the correct indexed term.
+- `inspect_term` SHOULD remain the confirmation path for semantically important candidates before use.
+- `list_terms` and `list_vocabularies` SHOULD remain available for narrower or manual exploration, but they SHOULD NOT be the default search path for ordinary Research Agent term selection.
+- `inspect_term` SHOULD provide a compact normalized description suitable for fast term selection and MAY include the term's native RDF description including transitive `rdfs:subClassOf` and `rdfs:subPropertyOf` paths when the Research Agent requests richer structural context.
+- `search_terms` MAY use lexical, structural, and other ranking signals derived from the local indexed vocabulary set, but that ranking policy remains middleware-owned rather than a Research Agent responsibility.
+- Vocabulary middleware SHOULD expose only the indexed vocabularies present in
+  the injected `VocabularyContext` and SHOULD convert policy violations or
+  unindexed-term lookups into tool-facing recoverable errors rather than raw
+  exceptions.
+- Vocabulary middleware SHOULD follow the same prompt-layering pattern as dataset middleware: a middleware-level system prompt introduces the capability and its tools, while tool descriptions and schema fields carry operational detail.
+- Vocabulary middleware SHOULD discourage repeated unchanged inspection of immutable index results through both agent-facing guidance and middleware-owned misuse controls when the same query is retried without modification.
+- Vocabulary middleware SHOULD present search-and-confirm behavior directly, rather than introducing an explicit frontier abstraction that the Research Agent must reason about.
+- Vocabulary middleware capabilities MUST be enabled or disabled by inclusion or exclusion of the middleware. A Research Agent without vocabulary middleware MUST NOT be able to query the vocabulary index through some alternate path.
+
+These rules are aligned with [DR-017 Search-First RDF Vocabulary Retrieval](decision-records/DR-017%20Search-First%20RDF%20Vocabulary%20Retrieval.md) and [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md).
+
 ### Knowledge retrieval middleware
 
 Knowledge retrieval middleware is responsible for importing structured knowledge into dataset-backed state.
+It is architecturally distinct from RDF vocabulary middleware: retrieval middleware performs remote RDF import and entity resolution, whereas vocabulary middleware exposes pre-indexed local vocabulary definitions.
 
 - Retrieval middleware MAY support remote RDF retrieval from providers such as DBpedia and, later, Wikidata.
 - Retrieval middleware MAY support extraction of structured site metadata such as embedded JSON-LD from HTML pages.
