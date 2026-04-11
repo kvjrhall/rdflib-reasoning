@@ -293,14 +293,7 @@ class DatasetSession:
 
 @dataclass(frozen=True, slots=True)
 class DatasetMiddlewareConfig:
-    """Configuration for the dataset middleware surface.
-
-    Attributes:
-        namespace_whitelist: Controls which namespaces the Research Agent may
-            use in ``add_triples``.  Defaults to ``AllowAllNamespaceWhitelist``
-            (no restriction).  Set to a ``RestrictedNamespaceWhitelist`` to
-            enable enforcement, enumeration, and remediation.
-    """
+    """Configuration for the dataset middleware surface."""
 
     namespace_whitelist: NamespaceWhitelist = DataclassField(
         default_factory=AllowAllNamespaceWhitelist

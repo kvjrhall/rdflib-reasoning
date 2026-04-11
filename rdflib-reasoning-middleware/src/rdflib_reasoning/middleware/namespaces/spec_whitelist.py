@@ -252,19 +252,20 @@ class AllowAllNamespaceWhitelist(NamespaceWhitelist):
 class RestrictedNamespaceWhitelist(NamespaceWhitelist):
     """A fixed whitelist of namespaces that are allowed to be used in the knowledge base.
 
-    Typical Usage:
-    ```python
-    from rdflib import Namespace
+    Typical usage:
 
-    EX = Namespace("http://example.org/voc#")
+    .. code-block:: python
 
-    whitelist = RestrictedNamespaceWhitelist().plus_entries(
-        ("ex", EX),
-    )
+       from rdflib import Namespace
 
-    result0 = whitelist.find_term(EX.foo)
-    result1 = whitelist.find_term(RDF.type)
-    ```
+       EX = Namespace("http://example.org/voc#")
+
+       whitelist = RestrictedNamespaceWhitelist().plus_entries(
+           ("ex", EX),
+       )
+
+       result0 = whitelist.find_term(EX.foo)
+       result1 = whitelist.find_term(RDF.type)
     """
 
     ALL_RDFLIB_ENTRIES: ClassVar[Sequence[WhitelistEntry]] = [
