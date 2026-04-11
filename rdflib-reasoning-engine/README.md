@@ -60,16 +60,16 @@ This matrix tracks functional engine features independent of standards coverage.
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Alpha memory / node support | In progress | Shared alpha nodes now perform literal filtering and retain persistent alpha memory across incremental updates |
-| Beta memory / join node support | In progress | Shared beta nodes now perform left-deep joins and retain persistent partial-match memory across incremental updates |
-| Triple pattern matching | In progress | Public Rule IR, compiler normalization, and `NetworkMatcher` now execute RDFLib-variable triple patterns end-to-end |
-| Rule firing and agenda management | In progress | `Agenda` now orders activations by salience and breadth-first depth; richer conflict resolution policy remains future work |
-| Inference materialization | In progress | Compiled logical productions now execute to fixed point in `RETEEngine`, and `RETEStore` materializes inferred triples into RDFLib contexts |
+| Alpha memory / node support | Implemented | Shared alpha nodes perform literal filtering and retain persistent alpha memory across incremental updates |
+| Beta memory / join node support | Implemented | Shared beta nodes perform left-deep joins and retain persistent partial-match memory across incremental updates |
+| Triple pattern matching | Implemented | Public Rule IR, compiler normalization, and `NetworkMatcher` execute RDFLib-variable triple patterns end-to-end |
+| Rule firing and agenda management | Implemented | `Agenda` orders activations by salience and breadth-first depth; richer conflict resolution policy remains future work |
+| Inference materialization | Implemented | Compiled logical productions execute to fixed point in `RETEEngine`, and `RETEStore` materializes inferred triples into RDFLib contexts |
 | RDF triple well-formedness enforcement | Implemented | The engine rejects or warns-and-skips triples with literal subjects or non-IRI predicates, preventing malformed triples from entering working memory or derived outputs |
-| Builtin predicate / function support | In progress | Predicate conditions compile and execute through the RETE matcher using injected read-only predicate hooks |
-| Rule action callbacks | In progress | Callback consequents now execute through the agenda with read-only invocation context; richer signature validation and retraction-time policy remain future work |
-| Derivation / trace logging | In progress | Engine-native `DerivationRecord` values are now emitted for new logical conclusions produced by fired rules |
-| JTMS-compatible support bookkeeping | In progress | `WorkingMemory`, `DependencyGraph`, and `Justification` records now track stated facts and multi-parent support for derived facts; recursive retraction remains future work |
+| Builtin predicate / function support | Implemented | Predicate conditions compile and execute through the RETE matcher using injected read-only predicate hooks |
+| Rule action callbacks | Implemented | Callback consequents execute through the agenda with read-only invocation context; richer signature validation and retraction-time policy remain future work |
+| Derivation / trace logging | Implemented | Engine-native `DerivationRecord` values are emitted for new logical conclusions produced by fired rules |
+| JTMS-compatible support bookkeeping | Implemented | `WorkingMemory`, `DependencyGraph`, and `Justification` records track stated facts and multi-parent support for derived facts; recursive retraction remains future work |
 | Explanation reconstruction | In progress | Proof models and reconstruction protocol exist, but derivation records are not yet rebuilt into concrete `DirectProof` paths |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
 | Specialized transitive relation index | Not started | Intended optimization path for `rdfs:subClassOf` and `rdfs:subPropertyOf` first; broader general transitive-property support remains a later design question |

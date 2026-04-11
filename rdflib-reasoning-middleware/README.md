@@ -5,11 +5,13 @@ This package exposes this repository's functionality to DeepAgents (runtime/Rese
 - `GraphBacked` and `StructuralElement` instances (from `rdflib-reasoning-axioms`) MUST be usable as tool argument/response models and as values carried inside middleware state. They are stateless, immutable domain snapshots.
 - `GraphBacked` and `StructuralElement` MUST NOT subclass LangGraph `AgentState`. Middleware MAY map them into `AgentState` fields (e.g. as payloads or lists of axioms).
 
-## Demo notebook
+## Demo notebooks
 
-The package includes a checked-in demonstration notebook:
+The package includes checked-in demonstration notebooks:
 
+- [demo-baseline-ontology-extraction.ipynb](../notebooks/demo-baseline-ontology-extraction.ipynb): prompt-only baseline for RDF extraction without middleware (negative control)
 - [demo-dataset-middleware.ipynb](../notebooks/demo-dataset-middleware.ipynb): end-to-end walkthrough of `DatasetMiddleware` plus live notebook tracing of agent activity
+- [demo-vocabulary-middleware.ipynb](../notebooks/demo-vocabulary-middleware.ipynb): `DatasetMiddleware` combined with `RDFVocabularyMiddleware` for vocabulary-grounded extraction
 
 ## DatasetMiddleware tutorial
 
@@ -27,11 +29,25 @@ Minimal usage:
 
 ```python
 from deepagents import create_deep_agent
-from rdflib_reasoning.middleware import DatasetMiddleware
+from rdflib import Namespace
+from rdflib_reasoning.middleware import (
+    DatasetMiddleware,
+    DatasetMiddlewareConfig,
+    VocabularyConfiguration,
+    VocabularyDeclaration,
+)
+
+vocabulary_context = VocabularyConfiguration.bundled_plus(
+    VocabularyDeclaration(prefix="ex", namespace=Namespace("urn:example:"))
+).build_context()
 
 agent = create_deep_agent(
     model=llm,
-    middleware=[DatasetMiddleware()],
+    middleware=[
+        DatasetMiddleware(
+            DatasetMiddlewareConfig(vocabulary_context=vocabulary_context)
+        )
+    ],
 )
 
 result = agent.invoke(
@@ -39,7 +55,66 @@ result = agent.invoke(
 )
 ```
 
+Coordinated task-specific vocabulary setup:
+
+```python
+from rdflib import FOAF, Namespace
+from rdflib_reasoning.middleware import (
+    DatasetMiddleware,
+    DatasetMiddlewareConfig,
+    RDFVocabularyMiddleware,
+    RDFVocabularyMiddlewareConfig,
+    VocabularyConfiguration,
+    VocabularyDeclaration,
+)
+from rdflib_reasoning.middleware.namespaces.spec_cache import UserSpec
+
+EX = Namespace("urn:example:vocab#")
+
+vocabulary_context = VocabularyConfiguration.bundled_plus(
+    VocabularyDeclaration(
+        prefix="ex",
+        namespace=EX,
+        user_spec=UserSpec.from_graph(
+            domain_terms,
+            namespace=EX,
+            description="Task-specific terms for this extraction run.",
+        ),
+    )
+).build_context()
+
+agent = create_deep_agent(
+    model=llm,
+    middleware=[
+        DatasetMiddleware(
+            DatasetMiddlewareConfig(vocabulary_context=vocabulary_context)
+        ),
+        RDFVocabularyMiddleware(
+            RDFVocabularyMiddlewareConfig(vocabulary_context=vocabulary_context)
+        ),
+    ],
+)
+```
+
 The middleware contributes both tool implementations and capability-specific system guidance. The Research Agent sees a tool surface such as `add_triples` and `serialize_dataset`, while the live RDFLib dataset remains middleware-owned runtime infrastructure.
+
+Dataset tool inputs accept RDF terms in canonical N3 form. For IRIs, the middleware also accepts bare RFC 3987 IRI strings such as `urn:example:Person` as an input convenience and serializes them back in canonical N3 form such as `<urn:example:Person>`.
+
+When vocabulary middleware is also present, the intended workflow is to search
+for a fitting indexed term first, inspect a candidate only when confirmation is
+needed, and then continue modeling rather than manually browsing large
+vocabulary slices by default.
+
+For single-pass or notebook-style harnesses, you MAY also add
+`ContinuationGuardMiddleware` to provide continuation control for single-run
+harnesses. It can re-prompt after unfinished planning or recovery narration,
+switch into a final-answer-only mode after strong completion signals, and stop
+deterministically once a valid Turtle answer is present. This middleware is
+role-aware about when it injects `HumanMessage` reminders and does not force a
+`tool -> user` transition for providers that reject that message order. This
+middleware is
+optional and is usually unnecessary for deliberately multi-round threaded
+agents.
 
 ## Tracing tutorial
 
@@ -52,14 +127,30 @@ Notebook example:
 
 ```python
 from deepagents import create_deep_agent
-from rdflib_reasoning.middleware import DatasetMiddleware
+from rdflib import Namespace
+from rdflib_reasoning.middleware import (
+    ContinuationGuardMiddleware,
+    DatasetMiddleware,
+    DatasetMiddlewareConfig,
+    VocabularyConfiguration,
+    VocabularyDeclaration,
+)
 from rdflib_reasoning.middleware.tracing_notebook import LiveNotebookTrace
+
+vocabulary_context = VocabularyConfiguration.bundled_plus(
+    VocabularyDeclaration(prefix="ex", namespace=Namespace("urn:example:"))
+).build_context()
 
 with LiveNotebookTrace(heading="Dataset Trace") as trace:
     agent = trace.attach(
         create_deep_agent(
             model=llm,
-            middleware=[DatasetMiddleware()],
+            middleware=[
+                DatasetMiddleware(
+                    DatasetMiddlewareConfig(vocabulary_context=vocabulary_context)
+                ),
+                ContinuationGuardMiddleware(),
+            ],
         )
     )
     result = agent.invoke(
@@ -68,6 +159,10 @@ with LiveNotebookTrace(heading="Dataset Trace") as trace:
 ```
 
 The notebook renderer is intended for tutorial and demo scenarios. It presents model decisions, tool calls, tool results, and final responses as a live-updating notebook view without making `IPython` a required runtime dependency for the package.
+`ContinuationGuardMiddleware` is an optional companion for these scenarios when
+the harness expects the Research Agent to keep acting until a completed answer
+and needs provider-safe continuation rather than assistant-final implicit
+continuation.
 
 ## Proof Evaluation Harness
 
@@ -99,13 +194,21 @@ Status values:
 - `Not started`: identified feature target with no concrete implementation yet
 - `Out of scope`: intentionally not roadmapped for the current implementation phase
 
+The matrix below reflects the package's current implemented state. Some entries
+are part of the broader planned `0.3.0` target but are intentionally still in
+progress.
+
 ### Dataset middleware
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Default-graph triple access | Implemented | `0.1.0` baseline: list, add, and remove triples in the default graph |
-| Default-graph serialization | Implemented | `0.1.0` baseline: serialize current state as RDF text for inspection |
-| Dataset reset | Implemented | `0.1.0` baseline escape hatch for clearing the middleware-owned dataset session |
+| Default-graph triple access | Implemented | `0.2.0` baseline: list, add, and remove triples in the default graph |
+| Default-graph serialization | Implemented | `0.2.0` baseline: serialize current state as RDF text for inspection |
+| Dataset reset | Implemented | `0.2.0` baseline escape hatch for clearing the middleware-owned dataset session |
+| Shared dataset runtime injection | Implemented | `DatasetRuntime` can be injected explicitly when multiple middleware components need the same live dataset boundary |
+| Namespace whitelisting: enforcement | Implemented | `0.3.0`: reject URIs from non-whitelisted namespaces in `add_triples` |
+| Namespace whitelisting: enumeration | Implemented | `0.3.0`: include allowed vocabulary list in middleware prompt when enabled |
+| Namespace whitelisting: remediation | Implemented | `0.3.0`: suggest nearest valid term via Levenshtein distance for closed-vocabulary near-misses |
 | Named graph management | Not started | Later phase: list graphs, create named graphs, and remove named graphs |
 | Graph-scoped triple access | Not started | Later phase: extend triple tools with an optional graph/context argument while keeping the default graph as the default target |
 | Dataset quad access | Not started | Later phase: explicit quad-level CRUD across graphs |
@@ -118,7 +221,27 @@ Status values:
 | --- | --- | --- |
 | Trace recording callbacks | Implemented | Normalized capture of model and tool lifecycle events for LangChain-based runs |
 | Notebook-rendered tracing of agent activity | Implemented | Optional `IPython`-backed live rendering of model decisions, tool calls, tool results, and final responses |
+| Continuation guard middleware | Implemented | Optional continuation-control middleware for single-run harnesses with provider-safe re-prompting and deterministic end on valid final Turtle |
 | Non-notebook rich trace renderers | Not started | Future console, HTML, or serialized trace views over the same core trace sink |
+
+### RDF vocabulary middleware
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| List indexed vocabularies | Implemented | `list_vocabularies` tool: enumerate available vocabulary namespaces with labels and term counts |
+| List vocabulary terms | Implemented | `list_terms` tool: list indexed terms from a vocabulary, filterable by term type and pageable with `offset` / `limit` |
+| Search vocabulary terms | Not started | Planned `search_terms` tool: search indexed terms by intended meaning as the primary discovery path |
+| Inspect term | Implemented | `inspect_term` tool: return a compact normalized description of one indexed term, optionally including native RDF with transitive `rdfs:subClassOf` / `rdfs:subPropertyOf` paths |
+| Whitelist-aware vocabulary filtering | Implemented | `list_vocabularies`, `list_terms`, and `inspect_term` honor the injected `VocabularyContext` policy and index set |
+| Unified vocabulary configuration | Implemented | `VocabularyConfiguration.build_context()` produces the single runtime `VocabularyContext` injected into both middleware components |
+| Using VANN annotation metadata | Not started | Planned metadata enrichment: use `vann:preferredNamespacePrefix` / `vann:preferredNamespaceUri` and related VANN annotations to improve vocabulary summaries and namespace presentation without changing policy |
+| Bundled RDF specification | Implemented | Indexed when declared through `VocabularyConfiguration.bundled_plus(...)` |
+| Bundled RDFS specification | Implemented | Indexed when declared through `VocabularyConfiguration.bundled_plus(...)` |
+| Bundled OWL specification | Implemented | Indexed when declared through `VocabularyConfiguration.bundled_plus(...)` |
+| Bundled PROV-O specification | Implemented | Indexed when declared through `VocabularyConfiguration.bundled_plus(...)` |
+| Bundled SKOS specification | Not started | `0.3.0` scope: enable as an additional declared bundled vocabulary in the vocabulary layer |
+| Additional bundled vocabularies | Not started | `0.3.0` scope: evaluate and enable additional declared bundled vocabularies (DC, SHACL, etc.) |
+| User-supplied vocabularies at construction | Implemented | `VocabularyDeclaration(user_spec=...)` feeds `VocabularyConfiguration`, and the resulting `VocabularyContext` indexes those declarations explicitly |
 
 ### Dataset middleware implementation pattern
 
