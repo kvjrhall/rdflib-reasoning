@@ -31,9 +31,6 @@ def _namespace_uri(namespace: ResolvedVocabularyNamespace) -> str:
     return str(namespace._NS)
 
 
-STANDARD_BUNDLED_VOCABULARY_DECLARATIONS: tuple["VocabularyDeclaration", ...]
-
-
 def _standard_bundled_declarations() -> tuple["VocabularyDeclaration", ...]:
     return STANDARD_BUNDLED_VOCABULARY_DECLARATIONS
 

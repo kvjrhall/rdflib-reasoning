@@ -378,12 +378,7 @@ your final answer.
 
 @dataclass(frozen=True, slots=True)
 class DatasetMiddlewareConfig:
-    """Configuration for the dataset middleware surface.
-
-    Attributes:
-        vocabulary_context: Shared runtime vocabulary policy and index
-            configuration for dataset-backed middleware.
-    """
+    """Configuration for the dataset middleware surface."""
 
     vocabulary_context: VocabularyContext
     runtime: DatasetRuntime | None = None

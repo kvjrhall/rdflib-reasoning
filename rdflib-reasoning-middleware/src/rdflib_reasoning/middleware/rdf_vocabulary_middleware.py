@@ -362,6 +362,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Command[Any]],
     ) -> ToolMessage | Command[Any]:
+        """Guard repeated static vocabulary lookups and adapt tool-facing errors."""
         tool_name = (
             request.tool.name if request.tool is not None else request.tool_call["name"]
         )
