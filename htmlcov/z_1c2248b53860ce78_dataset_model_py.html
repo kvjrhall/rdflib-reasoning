@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for rdflib-reasoning-middleware/src/rdflib_reasoning/middleware/dataset_model.py: 87%</title>
+    <title>Coverage for rdflib-reasoning-middleware/src/rdflib_reasoning/middleware/dataset_model.py: 88%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_9ff733b0.css" type="text/css">
     <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>rdflib-reasoning-middleware&#8201;/&#8201;src&#8201;/&#8201;rdflib_reasoning&#8201;/&#8201;middleware&#8201;/&#8201;dataset_model.py</b>:
-            <span class="pc_cov">87%</span>
+            <span class="pc_cov">88%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">145 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">126<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">19<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">128<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">17<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_1c2248b53860ce78_dataset_state_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-04-12 00:56 +0000
+            created at 2026-04-12 01:10 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -438,17 +438,17 @@
     <p class="pln"><span class="n"><a id="t356" href="#t356">356</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t357" href="#t357">357</a></span><span class="t">    <span class="op">@</span><span class="nam">property</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t358" href="#t358">358</a></span><span class="t">    <span class="key">def</span> <span class="nam">as_rdflib</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-></span> <span class="nam">Triple</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t359" href="#t359">359</a></span><span class="t">        <span class="key">return</span> <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">subject</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">predicate</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">object</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t359" href="#t359">359</a></span><span class="t">        <span class="key">return</span> <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">subject</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">predicate</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">object</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t360" href="#t360">360</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t361" href="#t361">361</a></span><span class="t">    <span class="op">@</span><span class="nam">classmethod</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t362" href="#t362">362</a></span><span class="t">    <span class="key">def</span> <span class="nam">from_rdflib</span><span class="op">(</span><span class="nam">cls</span><span class="op">,</span> <span class="nam">triple</span><span class="op">:</span> <span class="nam">tuple</span><span class="op">[</span><span class="nam">Node</span><span class="op">,</span> <span class="nam">Node</span><span class="op">,</span> <span class="nam">Node</span><span class="op">]</span><span class="op">)</span> <span class="op">-></span> <span class="nam">Self</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t363" href="#t363">363</a></span><span class="t">        <span class="key">return</span> <span class="nam">cls</span><span class="op">.</span><span class="nam">model_validate</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t364" href="#t364">364</a></span><span class="t">            <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t365" href="#t365">365</a></span><span class="t">                <span class="str">"subject"</span><span class="op">:</span> <span class="nam">triple</span><span class="op">[</span><span class="num">0</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t366" href="#t366">366</a></span><span class="t">                <span class="str">"predicate"</span><span class="op">:</span> <span class="nam">triple</span><span class="op">[</span><span class="num">1</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t367" href="#t367">367</a></span><span class="t">                <span class="str">"object"</span><span class="op">:</span> <span class="nam">triple</span><span class="op">[</span><span class="num">2</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t368" href="#t368">368</a></span><span class="t">            <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t369" href="#t369">369</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t363" href="#t363">363</a></span><span class="t">        <span class="key">return</span> <span class="nam">cls</span><span class="op">.</span><span class="nam">model_validate</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t364" href="#t364">364</a></span><span class="t">            <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t365" href="#t365">365</a></span><span class="t">                <span class="str">"subject"</span><span class="op">:</span> <span class="nam">triple</span><span class="op">[</span><span class="num">0</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t366" href="#t366">366</a></span><span class="t">                <span class="str">"predicate"</span><span class="op">:</span> <span class="nam">triple</span><span class="op">[</span><span class="num">1</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t367" href="#t367">367</a></span><span class="t">                <span class="str">"object"</span><span class="op">:</span> <span class="nam">triple</span><span class="op">[</span><span class="num">2</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t368" href="#t368">368</a></span><span class="t">            <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t369" href="#t369">369</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t370" href="#t370">370</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t371" href="#t371">371</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t372" href="#t372">372</a></span><span class="t"><span class="key">class</span> <span class="nam">N3Quad</span><span class="op">(</span><span class="nam">_HasSpo</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -671,7 +671,7 @@
             <a class="nav" href="z_1c2248b53860ce78_dataset_state_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-04-12 00:56 +0000
+            created at 2026-04-12 01:10 +0000
         </p>
     </div>
 </footer>

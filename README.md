@@ -25,12 +25,13 @@
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/\_\_init\_\_.py                   |        2 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/rdfs.py                           |       15 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/\_\_init\_\_.py                    |        9 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/\_message\_heuristics.py           |       96 |       10 |     90% |67-68, 75, 79-80, 88, 104, 120, 169, 172 |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/continuation\_guard\_middleware.py |      256 |       47 |     82% |93, 97, 103, 191-198, 283-289, 298-310, 328-335, 348, 359, 363, 367, 369, 371, 373, 415, 423, 443, 451, 459, 469, 474, 487-497, 528, 549, 553, 566 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/\_message\_heuristics.py           |       96 |        9 |     91% |67-68, 75, 79-80, 88, 104, 120, 172 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/continuation\_guard\_middleware.py |      256 |       27 |     89% |93, 97, 103, 191-198, 285-289, 300-306, 332-334, 348, 367, 443, 451, 459, 469, 474, 528, 553, 566 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/continuation\_state.py             |       10 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_middleware.py             |      400 |       83 |     79% |435, 439-440, 449-450, 467, 479, 524-531, 560-566, 577-583, 601-605, 608-609, 619-624, 736-742, 782-783, 787-798, 807, 809, 813-814, 823, 828-838, 857-859, 872, 891, 899, 914, 918, 929, 939-946, 950-951, 955-957, 1004, 1076-1080, 1088-1089, 1097-1098, 1113, 1136-1141 |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_model.py                  |      145 |       19 |     87% |65, 67, 72, 125, 135, 137-138, 142-147, 157, 359, 363, 389, 393, 399-400 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_middleware.py             |      400 |       70 |     82% |435, 439-440, 467, 479, 524-531, 577-583, 608-609, 619-624, 736-742, 782-783, 787-798, 807, 809, 813-814, 823, 828-838, 857-859, 872, 891, 914, 918, 929, 939-946, 951, 955-957, 1004, 1097-1098, 1113, 1136-1141 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_model.py                  |      145 |       17 |     88% |65, 67, 72, 125, 135, 137-138, 142-147, 157, 389, 393, 399-400 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_state.py                  |        2 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/ministral\_middleware.py           |       17 |        2 |     88% |     50-56 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/\_\_init\_\_.py         |        0 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_cache.py          |      128 |       19 |     85% |173, 180, 234, 239, 241, 243, 248-249, 281-283, 295-303, 335, 341, 351 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_index.py          |       36 |        3 |     92% |44, 51, 56 |
@@ -41,7 +42,7 @@
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/tracing.py                         |       63 |        3 |     95% | 46, 89-90 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary\_configuration.py       |       75 |        5 |     93% |20, 22, 25, 53, 119 |
 | src/rdflib\_reasoning/\_\_init\_\_.py                                                           |        2 |        0 |    100% |           |
-| **TOTAL**                                                                                       | **2860** |  **337** | **88%** |           |
+| **TOTAL**                                                                                       | **2877** |  **303** | **89%** |           |
 
 
 ## Setup coverage badge
