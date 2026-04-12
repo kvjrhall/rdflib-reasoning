@@ -2,37 +2,40 @@
 
 [Full report](https://htmlpreview.github.io/?https://github.com/kvjrhall/rdflib-reasoning/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
-| Name                                                                                       |    Stmts |     Miss |   Cover |   Missing |
-|------------------------------------------------------------------------------------------- | -------: | -------: | ------: | --------: |
-| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/\_\_init\_\_.py                        |        0 |        0 |    100% |           |
-| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/common.py                              |        6 |        0 |    100% |           |
-| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/structural\_element.py                 |       77 |       27 |     65% |39, 42, 46, 68, 74, 79, 96, 101-115, 119-140, 149, 154 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/\_\_init\_\_.py                       |        6 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/api.py                                |      158 |        8 |     95% |166, 184, 246-254, 303 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/batch\_dispatcher.py                  |       73 |        2 |     97% |  125, 157 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/derivation.py                         |       34 |        2 |     94% |   66, 103 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/proof.py                              |       91 |        1 |     99% |        12 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/\_\_init\_\_.py                  |        8 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/agenda.py                        |       40 |        2 |     95% |    64, 67 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/callbacks.py                     |       16 |        6 |     62% |     41-48 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/compiler.py                      |       79 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/consequents.py                   |       37 |        3 |     92% |     76-78 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/facts.py                         |       15 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/network.py                       |      221 |        5 |     98% |302-303, 372, 381, 393 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/tms.py                           |      102 |        7 |     93% |34, 37, 90, 94, 169, 174, 183 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete\_store.py                        |       86 |       15 |     83% |85, 92-93, 98, 102, 130, 142, 149, 160, 177, 181, 185, 189, 193, 197 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rules.py                              |       48 |        4 |     92% |11-12, 24, 32 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/\_\_init\_\_.py              |        2 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/rdfs.py                      |       15 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/\_\_init\_\_.py               |        5 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_middleware.py        |      203 |       57 |     72% |272-291, 334, 338-339, 348-349, 366-373, 384-391, 400-429, 448-449, 453-463, 470-472, 503, 551-555, 563-564, 572-573, 591-592 |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_model.py             |      134 |       22 |     84% |52-62, 64, 69, 105, 115, 117-118, 122-127, 137, 332, 336, 362, 366, 372-373 |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_state.py             |        2 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/\_\_init\_\_.py    |        0 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_whitelist.py |      127 |        4 |     97% |232, 237, 400, 406 |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/tracing.py                    |       63 |        3 |     95% | 46, 89-90 |
-| src/rdflib\_reasoning/\_\_init\_\_.py                                                      |        2 |        0 |    100% |           |
-| **TOTAL**                                                                                  | **1650** |  **168** | **90%** |           |
+| Name                                                                                            |    Stmts |     Miss |   Cover |   Missing |
+|------------------------------------------------------------------------------------------------ | -------: | -------: | ------: | --------: |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/\_\_init\_\_.py                             |        0 |        0 |    100% |           |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/common.py                                   |        6 |        0 |    100% |           |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/structural\_element.py                      |       77 |       27 |     65% |39, 42, 46, 68, 74, 79, 96, 101-115, 119-140, 149, 154 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/\_\_init\_\_.py                            |        6 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/api.py                                     |      158 |        8 |     95% |166, 184, 246-254, 303 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/batch\_dispatcher.py                       |       73 |        2 |     97% |  125, 157 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/derivation.py                              |       34 |        2 |     94% |   66, 103 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/proof.py                                   |       91 |        1 |     99% |        12 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/\_\_init\_\_.py                       |        8 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/agenda.py                             |       40 |        2 |     95% |    64, 67 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/callbacks.py                          |       16 |        6 |     62% |     41-48 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/compiler.py                           |       79 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/consequents.py                        |       37 |        3 |     92% |     76-78 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/facts.py                              |       15 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/network.py                            |      221 |        5 |     98% |302-303, 372, 381, 393 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/tms.py                                |      102 |        7 |     93% |34, 37, 90, 94, 169, 174, 183 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete\_store.py                             |       86 |       15 |     83% |85, 92-93, 98, 102, 130, 142, 149, 160, 177, 181, 185, 189, 193, 197 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rules.py                                   |       48 |        4 |     92% |11-12, 24, 32 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/\_\_init\_\_.py                   |        2 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/rdfs.py                           |       15 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/\_\_init\_\_.py                    |        6 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/\_message\_heuristics.py           |       96 |       15 |     84% |67-68, 73-81, 88, 104, 120, 169, 172 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/continuation\_guard\_middleware.py |      256 |       47 |     82% |93, 97, 103, 191-198, 283-289, 298-310, 328-335, 348, 359, 363, 367, 369, 371, 373, 415, 423, 443, 451, 459, 469, 474, 487-497, 528, 549, 553, 566 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/continuation\_state.py             |       10 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_middleware.py             |      203 |       57 |     72% |272-291, 334, 338-339, 348-349, 366-373, 384-391, 400-429, 448-449, 453-463, 470-472, 503, 551-555, 563-564, 572-573, 591-592 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_model.py                  |      134 |       22 |     84% |52-62, 64, 69, 105, 115, 117-118, 122-127, 137, 332, 336, 362, 366, 372-373 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_state.py                  |        2 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/\_\_init\_\_.py         |        0 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_whitelist.py      |      127 |        4 |     97% |232, 237, 400, 406 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/tracing.py                         |       63 |        3 |     95% | 46, 89-90 |
+| src/rdflib\_reasoning/\_\_init\_\_.py                                                           |        2 |        0 |    100% |           |
+| **TOTAL**                                                                                       | **2013** |  **230** | **89%** |           |
 
 
 ## Setup coverage badge
