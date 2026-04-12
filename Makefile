@@ -7,7 +7,7 @@ help:  # show this help (targets and descriptions)
 	@echo "Targets:"
 	@awk -F'[:#]' '/^[a-zA-Z0-9_-]+:.*#/ {gsub(/^[ \t]+/,"",$$3); printf "  %-12s %s\n", $$1, $$3}' $(MAKEFILE_LIST)
 
-check:  # execute all pre-commit hooks
+check: install-dev  # install dev deps, then execute all pre-commit hooks
 	uv run pre-commit run --all-files
 
 audit: install-dev  # audit the resolved Python environment for known vulnerabilities
@@ -54,10 +54,10 @@ install-all:  # install base + all optional extras used in this repository
 notebook: install-research  # launch Jupyter Lab from the synced environment
 	uv run jupyter lab
 
-test: install-dev  # run pytest unit tests. E.g., `make test [TESTS=<test_file.py>]`
+test: install-dev  # install dev deps, then run pytest unit tests. E.g., `make test [TESTS=<test_file.py>]`
 	uv run pytest $(TESTS)
 
-validate: check  # run mypy type check & all pre-commit hooks
+validate: check  # install dev deps, run all pre-commit hooks, then run mypy
 	uv run mypy
 
 specs-fetch:  # fetch raw W3C specs into docs/specs/<name>/raw.html
