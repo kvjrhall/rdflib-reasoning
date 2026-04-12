@@ -20,7 +20,14 @@ from .rdf_vocabulary_middleware import (
     RDFVocabularyMiddlewareConfig,
 )
 from .shared_services import DatasetRuntime, RunTermTelemetry
-from .tracing import TraceEvent, TraceRecorder, TraceSink
+from .tracing import (
+    TraceEvent,
+    TraceRecorder,
+    TraceSink,
+    TurnTrace,
+    TurnTracer,
+    TurnTraceToolCall,
+)
 from .vocabulary_configuration import (
     VocabularyConfiguration,
     VocabularyContext,
@@ -49,6 +56,9 @@ __all__ = [
     "TraceEvent",
     "TraceRecorder",
     "TraceSink",
+    "TurnTrace",
+    "TurnTraceToolCall",
+    "TurnTracer",
     "TripleBatchRequest",
     "TripleListResponse",
     "VocabularyConfiguration",

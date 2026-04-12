@@ -1,5 +1,7 @@
+# mypy: disable-error-code="import-not-found"
+
 try:
-    from IPython.display import Markdown, display
+    from IPython.display import Markdown, display  # type: ignore[import-not-found]
 except ImportError as exc:  # pragma: no cover - exercised only without the extra
     raise ImportError(
         "Notebook tracing requires optional dependency support. "
@@ -12,7 +14,7 @@ from collections.abc import Iterable, Mapping
 from threading import Event, Thread
 from typing import Any, Self
 
-from .tracing import TraceEvent, TraceRecorder, TraceSink
+from .tracing import TraceRecorder, TraceSink, TurnTrace, TurnTracer, TurnTraceToolCall
 
 
 class NotebookTraceRenderer:
@@ -30,124 +32,83 @@ class NotebookTraceRenderer:
         """Render the current sink snapshot into the notebook output."""
         self._handle.update(Markdown(self._render_markdown(self.sink.snapshot())))
 
-    def _render_markdown(self, events: Iterable[TraceEvent]) -> str:
+    def _render_markdown(self, events: Iterable[Any]) -> str:
+        turns = TurnTracer().snapshot(events)
         lines = [f"# {self.heading}", ""]
-        for turn_index, turn in enumerate(self._group_events(events), start=1):
+        for turn_index, turn in enumerate(turns, start=1):
             lines.append(f"## Turn {turn_index}")
             lines.append("")
-            token_buffer: list[str] = []
-            for event in turn:
-                if event.kind == "llm_new_token":
-                    payload = dict(event.payload)
-                    content = payload.get("content") or payload.get("token")
-                    if content:
-                        token_buffer.append(str(content))
-                    continue
-                if token_buffer:
-                    lines.extend(
-                        [
-                            "### Agent Output",
-                            "",
-                            *self._quote_block("".join(token_buffer)),
-                            "",
-                        ]
-                    )
-                    token_buffer.clear()
-                lines.extend(self._render_event(event))
-            if token_buffer:
-                lines.extend(
-                    [
-                        "### Agent Output",
-                        "",
-                        *self._quote_block("".join(token_buffer)),
-                        "",
-                    ]
-                )
+            lines.extend(self._render_turn(turn))
         if len(lines) == 2:
             lines.append("_No trace events yet._")
         return "\n".join(lines)
 
-    def _group_events(self, events: Iterable[TraceEvent]) -> list[list[TraceEvent]]:
-        turns: list[list[TraceEvent]] = []
-        current_turn: list[TraceEvent] = []
+    def _render_turn(self, turn: TurnTrace) -> list[str]:
+        lines: list[str] = []
+        if turn.input_summary:
+            lines.extend(
+                [
+                    "### Model Input Summary",
+                    "",
+                    *self._render_input_summary(turn.input_summary),
+                    "",
+                ]
+            )
 
-        for event in events:
-            if event.kind == "chat_model_start" and current_turn:
-                turns.append(current_turn)
-                current_turn = []
-            current_turn.append(event)
-            if event.kind == "llm_end":
-                payload = dict(event.payload)
-                tool_calls = payload.get("tool_calls", ())
-                finish_reason = dict(payload.get("response_metadata", {})).get(
-                    "finish_reason"
-                )
-                if not tool_calls and finish_reason != "tool_calls":
-                    turns.append(current_turn)
-                    current_turn = []
+        if turn.agent_output:
+            lines.extend(
+                [
+                    "### Agent Output",
+                    "",
+                    *self._quote_block(turn.agent_output),
+                    "",
+                ]
+            )
 
-        if current_turn:
-            turns.append(current_turn)
+        lines.extend(self._render_turn_decision(turn))
+        lines.extend(self._render_tool_events(turn.tool_invocations))
+        return lines
 
-        return turns
-
-    def _render_event(self, event: TraceEvent) -> list[str]:
-        payload = dict(event.payload)
-        if event.kind == "chat_model_start":
-            return []
-        if event.kind == "tool_start":
-            tool_input = payload.get("inputs") or payload.get("input_str")
-            return [
-                f"### Tool Call: {event.name or 'unknown'}",
-                "",
-                "#### Arguments",
-                "",
-                "```json",
-                self._pretty_json(tool_input),
-                "```",
-                "",
-            ]
-        if event.kind == "tool_end":
-            return [
-                f"### Tool Result: {event.name or 'unknown'}",
-                "",
-                "```json",
-                self._pretty_json(payload.get("output")),
-                "```",
-                "",
-            ]
-        if event.kind == "llm_end":
-            metadata = payload.get("response_metadata", {})
-            finish_reason = metadata.get("finish_reason")
-            tool_calls = payload.get("tool_calls", ())
-            content = payload.get("content")
-            if tool_calls:
-                return [
+    def _render_turn_decision(self, turn: TurnTrace) -> list[str]:
+        lines: list[str] = []
+        finish_reason = turn.response_metadata.get("finish_reason")
+        if turn.requested_tool_calls:
+            if len(turn.requested_tool_calls) == 1 and not turn.invalid_tool_calls:
+                return lines
+            lines.extend(
+                [
                     "### Model Decision",
                     "",
                     f"- Finish reason: `{finish_reason}`",
-                    f"- Tool calls: `{len(tool_calls)}`",
+                    f"- Tool calls: `{len(turn.requested_tool_calls)}`",
                     "",
                 ]
-            if content:
-                return [
-                    "### Final Response",
-                    "",
-                    *self._quote_block(str(content)),
-                    "",
-                ]
+            )
+            if len(turn.requested_tool_calls) > 1 or turn.invalid_tool_calls:
+                lines.extend(self._render_tool_calls(turn.requested_tool_calls))
+            if turn.invalid_tool_calls:
+                lines.extend(
+                    [
+                        "#### Invalid Tool Calls",
+                        "",
+                        "```json",
+                        self._pretty_json(turn.invalid_tool_calls),
+                        "```",
+                        "",
+                    ]
+                )
+            return lines
+        if turn.final_content:
             return [
-                "### Model Decision",
+                "### Final Response",
                 "",
-                f"- Finish reason: `{finish_reason}`",
+                *self._quote_block(str(turn.final_content)),
                 "",
             ]
         return [
-            f"### Event: {event.kind}",
+            "### Model Decision",
             "",
-            "```json",
-            self._pretty_json(payload),
-            "```",
+            f"- Finish reason: `{finish_reason}`",
             "",
         ]
 
@@ -164,9 +125,117 @@ class NotebookTraceRenderer:
             return [self._normalize(item) for item in value]
         if isinstance(value, list):
             return [self._normalize(item) for item in value]
+        model_dump = getattr(value, "model_dump", None)
+        if callable(model_dump):
+            return self._normalize(model_dump(mode="json"))
         if isinstance(value, (str, int, float, bool)) or value is None:
             return value
         return str(value)
+
+    def _render_tool_calls(self, tool_calls: Any) -> list[str]:
+        lines = ["#### Requested Tool Calls", ""]
+        for index, tool_call in enumerate(tool_calls, start=1):
+            normalized = self._normalize(tool_call)
+            if isinstance(normalized, Mapping):
+                name = normalized.get("name", "unknown")
+                arguments = normalized.get("args")
+                if arguments is None:
+                    function = normalized.get("function")
+                    if isinstance(function, Mapping):
+                        name = function.get("name", name)
+                        arguments = function.get("arguments")
+                lines.append(f"{index}. `{name}`")
+                if arguments is not None:
+                    lines.extend(
+                        [
+                            "",
+                            "```json",
+                            self._pretty_json(arguments),
+                            "```",
+                            "",
+                        ]
+                    )
+                else:
+                    lines.append("")
+                continue
+            lines.extend(
+                [
+                    f"{index}.",
+                    "",
+                    "```json",
+                    self._pretty_json(normalized),
+                    "```",
+                    "",
+                ]
+            )
+        return lines
+
+    def _render_tool_events(self, events: Iterable[TurnTraceToolCall]) -> list[str]:
+        if not events:
+            return []
+
+        lines: list[str] = []
+        for invocation in events:
+            lines.extend(self._render_tool_invocation(invocation))
+        return lines
+
+    def _render_tool_invocation(self, invocation: TurnTraceToolCall) -> list[str]:
+        lines = [f"### Tool: {invocation.name}", ""]
+
+        if invocation.requested_arguments is not None:
+            lines.extend(
+                [
+                    "#### Arguments",
+                    "",
+                    "```json",
+                    self._pretty_json(invocation.requested_arguments),
+                    "```",
+                    "",
+                ]
+            )
+
+        if invocation.result is not None:
+            lines.extend(
+                [
+                    "#### Result",
+                    "",
+                    "```json",
+                    self._pretty_json(invocation.result),
+                    "```",
+                    "",
+                ]
+            )
+
+        if invocation.tool_message is not None:
+            status = invocation.tool_message.get("status")
+            heading = "#### Rejection" if status == "error" else "#### Message"
+            lines.extend(
+                [
+                    heading,
+                    "",
+                    "```json",
+                    self._pretty_json(invocation.tool_message),
+                    "```",
+                    "",
+                ]
+            )
+
+        return lines
+
+    def _render_input_summary(self, summary: Iterable[Mapping[str, Any]]) -> list[str]:
+        lines: list[str] = []
+        for message in summary:
+            normalized = self._normalize(message)
+            if not isinstance(normalized, Mapping):
+                lines.append(f"- `{normalized}`")
+                continue
+            message_type = normalized.get("type", "message")
+            content_preview = normalized.get("content_preview")
+            if content_preview:
+                lines.append(f"- `{message_type}`: {content_preview}")
+            else:
+                lines.append(f"- `{message_type}`")
+        return lines
 
     def _quote_block(self, content: str) -> list[str]:
         return [f"> {line}" if line else ">" for line in content.splitlines()]
