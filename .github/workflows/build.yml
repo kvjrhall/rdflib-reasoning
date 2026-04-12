@@ -1,10 +1,16 @@
 name: build
 
 on:
-  push:
-    branches-ignore:
-      - "python-coverage-comment-action-data"
   pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
