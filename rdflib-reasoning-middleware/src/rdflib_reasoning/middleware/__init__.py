@@ -1,3 +1,4 @@
+from .continuation_guard_middleware import ContinuationGuardMiddleware
 from .dataset_middleware import DatasetMiddleware, DatasetMiddlewareConfig
 from .dataset_model import (
     MutationResponse,
@@ -20,6 +21,7 @@ __all__ = [
     "DatasetMiddleware",
     "DatasetMiddlewareConfig",
     "DatasetState",
+    "ContinuationGuardMiddleware",
     "MutationResponse",
     "N3ContextIdentifier",
     "N3IRIRef",
