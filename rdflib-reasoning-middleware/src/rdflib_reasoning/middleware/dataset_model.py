@@ -37,11 +37,14 @@ _TURTLE_ECMA_BLANK_NODE_PATTERN: Final[str] = (
 _turtle_blank_node_regex: Final[re.Pattern[str]] = re.compile(
     _TURTLE_ECMA_BLANK_NODE_PATTERN
 )
-_PLAINTEXT_LITERAL_HINT_PATTERN: Final[re.Pattern[str]] = re.compile(r"\s|[.!?,;:]")
+_PLAINTEXT_LITERAL_HINT_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\s|[.!?,;:]|^[A-Za-z][A-Za-z0-9_-]*$"
+)
 
 
 def _parse_node(value: str | Node) -> Node:
     original_value = value
+    input_was_text = not isinstance(value, Node)
     try:
         if isinstance(value, Node):
             node = value
@@ -69,6 +72,23 @@ def _parse_node(value: str | Node) -> Node:
             raise ValueError(f"Unable to parse RDF term from text: {original_value}")
         node_text = _node_to_string(node).removeprefix("<").removesuffix(">")
 
+        if input_was_text and isinstance(original_value, str):
+            candidate = original_value.strip()
+            if (
+                candidate
+                and not candidate.startswith(("<", "_:", '"', "'", "(", "["))
+                and isinstance(node, URIRef | BNode)
+                and ":" not in candidate
+                and _PLAINTEXT_LITERAL_HINT_PATTERN.search(candidate) is not None
+            ):
+                raise ValueError(
+                    "Could not parse RDF term from "
+                    f"{original_value}. If this is plain text, encode it as an RDF "
+                    f'literal like "\\"{candidate}\\"". If this is an IRI, provide '
+                    "it either in canonical N3 form like <urn:example:Thing> or "
+                    "as a bare RFC 3987 IRI."
+                )
+
         if isinstance(node, URIRef):
             if not is_valid_syntax_iri(node_text):
                 raise ValueError("IRI is not a valid RFC 3987 IRI (required for RDF)")
@@ -76,7 +96,7 @@ def _parse_node(value: str | Node) -> Node:
             raise ValueError(f"Invalid blank node: {node_text}")
         return node
     except Exception as e:
-        if isinstance(original_value, str):
+        if input_was_text and isinstance(original_value, str):
             candidate = original_value.strip()
             if candidate and not candidate.startswith(("<", "_:", '"', "'", "(", "[")):
                 if (
@@ -187,6 +207,8 @@ TURTLE_LITERAL: Final[str] = (
     + "(https://www.w3.org/TR/turtle/#literals)"
 )
 TURTLE_LITERAL_EXAMPLES: Final[list[str]] = [
+    '"Project report"',
+    '"A short human-readable description."',
     '"Hello, World!"@en',
     '"Hello, World!"^^<http://www.w3.org/2001/XMLSchema#string>',
     '"123"^^<http://www.w3.org/2001/XMLSchema#integer>',
@@ -308,11 +330,16 @@ class _HasSpo(BaseModel):
     )
     object: N3Node = Field(
         ...,
-        description="The object of relationship indicated by the predicate.",
+        description=(
+            "The object of relationship indicated by the predicate. "
+            "Use RDF literals for plain text values such as labels and comments."
+        ),
         examples=[
-            "<https://schema.org/Person>",
-            "<http://www.w3.org/ns/prov#Agent>",
-            "<http://xmlns.com/foaf/0.1/Person>",
+            "<https://schema.org/CreativeWork>",
+            "<http://www.w3.org/ns/prov#Entity>",
+            "<urn:example:ProjectReport>",
+            '"Project report"',
+            '"A short human-readable description."',
         ],
     )
 
@@ -390,14 +417,39 @@ class MutationResponse(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
+    requested: NonNegativeInt | None = Field(
+        default=None,
+        description=(
+            "Number of RDF statements or graphs the caller asked this operation to "
+            "consider when that count is well-defined."
+        ),
+        examples=[None, 1, 2, 3],
+    )
     updated: NonNegativeInt = Field(
         description="Number of RDF statements or graphs affected by the operation.",
         examples=[0, 1, 3],
+    )
+    unchanged: NonNegativeInt = Field(
+        default=0,
+        description=(
+            "Number of requested RDF statements or graphs already in the desired "
+            "state after this call."
+        ),
+        examples=[0, 1, 2],
+    )
+    no_action_needed: bool = Field(
+        default=False,
+        description=(
+            "Whether the requested end state was already satisfied, so retrying the "
+            "same mutation unchanged is unnecessary."
+        ),
+        examples=[False, True],
     )
     message: str = Field(
         description="Short human-readable summary of the mutation.",
         examples=[
             "Triples added to the default graph.",
+            "No action was needed. All requested triples were already present.",
             "Triples removed from the default graph.",
             "Dataset reset.",
         ],
@@ -434,6 +486,25 @@ class SerializationResponse(BaseModel):
             "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
         ],
     )
+    default_graph_triple_count: NonNegativeInt = Field(
+        description="Number of triples currently present in the default graph.",
+        examples=[0, 1, 3],
+    )
+    is_empty: bool = Field(
+        description="Whether the default graph is currently empty.",
+        examples=[False, True],
+    )
+    message: str | None = Field(
+        default=None,
+        description=(
+            "Optional operational guidance about the serialization result. This "
+            "guidance is separate from `content`, which remains pure RDF text."
+        ),
+        examples=[
+            "Serialized the current default graph containing 3 triples.",
+            "The default graph is empty. Changing serialization formats will not add data to an unchanged dataset.",
+        ],
+    )
 
 
 class SerializeRequest(BaseModel):
@@ -459,21 +530,21 @@ class TripleBatchRequest(BaseModel):
         examples=[
             [
                 {
-                    "subject": "<urn:example:Person>",
+                    "subject": "<urn:example:ProjectReport>",
                     "predicate": "<http://www.w3.org/2000/01/rdf-schema#label>",
-                    "object": '"Person"',
+                    "object": '"Project report"',
                 }
             ],
             [
                 {
-                    "subject": "urn:example:Person",
-                    "predicate": "http://www.w3.org/2000/01/rdf-schema#subClassOf",
-                    "object": "urn:example:Agent",
-                },
-                {
-                    "subject": "urn:example:Person",
+                    "subject": "urn:example:ProjectReport",
                     "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
                     "object": "http://www.w3.org/2000/01/rdf-schema#Class",
+                },
+                {
+                    "subject": "urn:example:ProjectReport",
+                    "predicate": "http://www.w3.org/2000/01/rdf-schema#subClassOf",
+                    "object": "https://schema.org/CreativeWork",
                 },
             ],
         ],
@@ -490,21 +561,21 @@ class TripleListResponse(BaseModel):
         examples=[
             [
                 {
-                    "subject": "<urn:example:Person>",
+                    "subject": "<urn:example:ProjectReport>",
                     "predicate": "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
                     "object": "<http://www.w3.org/2000/01/rdf-schema#Class>",
                 }
             ],
             [
                 {
-                    "subject": "<urn:example:Person>",
+                    "subject": "<urn:example:ProjectReport>",
                     "predicate": "<http://www.w3.org/2000/01/rdf-schema#label>",
-                    "object": '"Person"',
+                    "object": '"Project report"',
                 },
                 {
-                    "subject": "<urn:example:Person>",
+                    "subject": "<urn:example:ProjectReport>",
                     "predicate": "<http://www.w3.org/2000/01/rdf-schema#comment>",
-                    "object": '"A human-readable class label."',
+                    "object": '"A written report that summarizes project work."',
                 },
             ],
         ],
