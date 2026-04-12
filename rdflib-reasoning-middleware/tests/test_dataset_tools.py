@@ -1,17 +1,30 @@
 from deepagents import create_deep_agent
 from langchain.agents import create_agent
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
-from rdflib import Literal, URIRef
+from rdflib import Literal, Namespace, URIRef
 from rdflib_reasoning.middleware import (
     DatasetMiddleware,
+    DatasetMiddlewareConfig,
     N3Triple,
     NewResourceNodeResponse,
     SerializationResponse,
     SerializeRequest,
     TripleBatchRequest,
+    VocabularyConfiguration,
+    VocabularyDeclaration,
 )
 
 EX = "urn:test:"
+EX_NS = Namespace(EX)
+
+
+def _dataset_middleware() -> DatasetMiddleware:
+    vocabulary_context = VocabularyConfiguration.bundled_plus(
+        VocabularyDeclaration(prefix="ex", namespace=EX_NS)
+    ).build_context()
+    return DatasetMiddleware(
+        DatasetMiddlewareConfig(vocabulary_context=vocabulary_context)
+    )
 
 
 def test_tool_models_validate_n3_shapes() -> None:
@@ -26,6 +39,25 @@ def test_tool_models_validate_n3_shapes() -> None:
         URIRef(f"{EX}p"),
         Literal("value"),
     )
+
+
+def test_tool_models_accept_bare_iris_and_serialize_canonically() -> None:
+    triple = N3Triple(
+        subject=f"{EX}s",
+        predicate=f"{EX}p",
+        object=f"{EX}o",
+    )
+
+    assert (triple.subject, triple.predicate, triple.object) == (
+        URIRef(f"{EX}s"),
+        URIRef(f"{EX}p"),
+        URIRef(f"{EX}o"),
+    )
+    assert triple.model_dump(mode="json") == {
+        "subject": f"<{EX}s>",
+        "predicate": f"<{EX}p>",
+        "object": f"<{EX}o>",
+    }
 
 
 def test_request_models_are_tuple_backed_and_validate_expected_shapes() -> None:
@@ -45,7 +77,7 @@ def test_request_models_are_tuple_backed_and_validate_expected_shapes() -> None:
 
 
 def test_tool_input_schemas_match_request_models() -> None:
-    middleware = DatasetMiddleware()
+    middleware = _dataset_middleware()
     tools = {tool.name: tool for tool in middleware.tools}
 
     assert {tool.name for tool in middleware.tools} == {
@@ -62,6 +94,9 @@ def test_tool_input_schemas_match_request_models() -> None:
     serialized = tools["serialize_dataset"].invoke({"format": "turtle"})
     assert isinstance(serialized, SerializationResponse)
     assert serialized.format == "turtle"
+    assert serialized.default_graph_triple_count == 0
+    assert serialized.is_empty is True
+    assert serialized.message is not None
     assert serialized.model_dump(mode="json")["format"] == "turtle"
 
     blank_node = tools["new_blank_node"].invoke({})
@@ -69,8 +104,40 @@ def test_tool_input_schemas_match_request_models() -> None:
     assert blank_node.resource.startswith("_:")
 
 
+def test_dataset_tool_descriptions_and_examples_are_agent_facing() -> None:
+    middleware = _dataset_middleware()
+    tools = {tool.name: tool for tool in middleware.tools}
+    triple_batch_schema = TripleBatchRequest.model_json_schema()
+    serialize_schema = SerializeRequest.model_json_schema()
+
+    assert "top-level argument" in tools["add_triples"].description
+    assert "top-level argument" in tools["remove_triples"].description
+    assert "IRI inputs MAY be given either" in tools["add_triples"].description
+    assert (
+        "Literal text MUST be encoded as RDF literals"
+        in tools["add_triples"].description
+    )
+    assert (
+        "Literal text MUST be encoded as RDF literals"
+        in tools["remove_triples"].description
+    )
+    assert "one subject per call" in tools["add_triples"].description
+    assert (
+        "you MUST NOT submit any of those same triples again in this run"
+        in tools["remove_triples"].description
+    )
+    assert (
+        "repeatedly call `serialize_dataset`" in tools["serialize_dataset"].description
+    )
+    assert (
+        "If the response sets `is_empty=true`" in tools["serialize_dataset"].description
+    )
+    assert len(triple_batch_schema["properties"]["triples"]["examples"]) >= 2
+    assert len(serialize_schema["properties"]["format"]["examples"]) >= 2
+
+
 def test_dataset_middleware_crud_surface_supports_default_graph_triples() -> None:
-    middleware = DatasetMiddleware()
+    middleware = _dataset_middleware()
     triple = N3Triple(
         subject=f"<{EX}s1>",
         predicate=f"<{EX}p>",
@@ -84,13 +151,36 @@ def test_dataset_middleware_crud_surface_supports_default_graph_triples() -> Non
         [(triple.subject, triple.predicate, triple.object)]
     )
 
+    assert add_response.requested == 1
     assert add_response.updated == 1
+    assert add_response.unchanged == 0
+    assert add_response.no_action_needed is False
     assert remove_response.updated == 1
     assert middleware.list_triples() == ()
 
 
+def test_dataset_middleware_add_reports_idempotent_no_op_explicitly() -> None:
+    middleware = _dataset_middleware()
+    triple = N3Triple(
+        subject=f"<{EX}s1>",
+        predicate=f"<{EX}p>",
+        object='"default"',
+    )
+
+    middleware.add_triples([(triple.subject, triple.predicate, triple.object)])
+    response = middleware.add_triples(
+        [(triple.subject, triple.predicate, triple.object)]
+    )
+
+    assert response.requested == 1
+    assert response.updated == 0
+    assert response.unchanged == 1
+    assert response.no_action_needed is True
+    assert "already present" in response.message
+
+
 def test_dataset_middleware_serializes_default_graph_only() -> None:
-    middleware = DatasetMiddleware()
+    middleware = _dataset_middleware()
     middleware.add_triples(
         [(URIRef(f"{EX}s1"), URIRef(f"{EX}p"), Literal("default"))],
     )
@@ -101,7 +191,7 @@ def test_dataset_middleware_serializes_default_graph_only() -> None:
 
 
 def test_dataset_middleware_reset_replaces_state() -> None:
-    middleware = DatasetMiddleware()
+    middleware = _dataset_middleware()
     middleware.add_triples(
         [(URIRef(f"{EX}s"), URIRef(f"{EX}p"), Literal("value"))],
     )
@@ -113,7 +203,7 @@ def test_dataset_middleware_reset_replaces_state() -> None:
 
 
 def test_dataset_middleware_registers_langchain_tools() -> None:
-    middleware = DatasetMiddleware()
+    middleware = _dataset_middleware()
 
     assert {tool.name for tool in middleware.tools} == {
         "list_triples",
@@ -127,12 +217,15 @@ def test_dataset_middleware_registers_langchain_tools() -> None:
 
 def test_dataset_middleware_can_be_registered_as_agent_middleware() -> None:
     model = FakeListChatModel(responses=["ok"])
+    config = DatasetMiddlewareConfig(
+        vocabulary_context=_dataset_middleware().vocabulary_context
+    )
 
-    agent = create_agent(model=model, middleware=[DatasetMiddleware()])
+    agent = create_agent(model=model, middleware=[DatasetMiddleware(config)])
     deep_agent = create_deep_agent(
         model=model,
         system_prompt="You are a research assistant specialized in technical documentation.",
-        middleware=[DatasetMiddleware()],
+        middleware=[DatasetMiddleware(config)],
     )
 
     assert agent is not None

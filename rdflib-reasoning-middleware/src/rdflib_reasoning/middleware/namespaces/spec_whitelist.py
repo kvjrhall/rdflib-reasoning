@@ -1,42 +1,12 @@
-from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from inspect import get_annotations
-from typing import Annotated, ClassVar, Literal, Self, overload, override
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 from rdflib import Namespace, URIRef
-from rdflib.namespace import (
-    BRICK,
-    CSVW,
-    DC,
-    DCAM,
-    DCAT,
-    DCMITYPE,
-    DCTERMS,
-    DOAP,
-    FOAF,
-    ODRL2,
-    ORG,
-    OWL,
-    PROF,
-    PROV,
-    QB,
-    RDF,
-    RDFS,
-    SDO,
-    SH,
-    SKOS,
-    SOSA,
-    SSN,
-    TIME,
-    VANN,
-    VOID,
-    WGS,
-    XSD,
-    DefinedNamespace,
-)
+from rdflib.namespace import DefinedNamespace
 from rdflib_reasoning.middleware.dataset_model import N3IRIRef
 
 # SCHEMA FACING RESULT TYPES
@@ -212,104 +182,19 @@ def _closed_vocab_local_names(ns: type[DefinedNamespace]) -> frozenset[str]:
     return frozenset(names)
 
 
-# Whitelists (NOT EXPOSED TO SCHEMA)
-# -----------------------------------------------------------------------------
+class RestrictedNamespaceWhitelist:
+    """A fixed whitelist of namespaces allowed in the knowledge base.
 
-
-class NamespaceWhitelist(ABC):
-    """Abstract contract for namespace whitelisting strategies.
-
-    Two implementations are provided:
-
-    - ``AllowAllNamespaceWhitelist`` -- no-op pass-through (default).
-    - ``RestrictedNamespaceWhitelist`` -- enforces a fixed set of allowed
-      vocabularies with optional Levenshtein-based remediation for closed
-      namespaces.
+    This is internal runtime machinery used by ``VocabularyContext``. Callers
+    SHOULD construct vocabulary policy through ``VocabularyConfiguration``
+    rather than assembling whitelist entries ad hoc.
     """
-
-    @abstractmethod
-    def find_term(self, uri: URIRef) -> WhitelistResult:
-        pass
-
-    @abstractmethod
-    def enumerate_prompt(self) -> str | None:
-        """Return a prompt section enumerating allowed vocabularies, or None."""
-        pass
-
-
-class AllowAllNamespaceWhitelist(NamespaceWhitelist):
-    """A whitelist that allows all namespaces."""
-
-    @override
-    def find_term(self, uri: URIRef) -> WhitelistResult:
-        return WhitelistResult(allowed=True, term=None, nearest_matches=[])
-
-    @override
-    def enumerate_prompt(self) -> str | None:
-        return None
-
-
-class RestrictedNamespaceWhitelist(NamespaceWhitelist):
-    """A fixed whitelist of namespaces that are allowed to be used in the knowledge base.
-
-    Typical usage:
-
-    .. code-block:: python
-
-       from rdflib import Namespace
-
-       EX = Namespace("http://example.org/voc#")
-
-       whitelist = RestrictedNamespaceWhitelist().plus_entries(
-           ("ex", EX),
-       )
-
-       result0 = whitelist.find_term(EX.foo)
-       result1 = whitelist.find_term(RDF.type)
-    """
-
-    ALL_RDFLIB_ENTRIES: ClassVar[Sequence[WhitelistEntry]] = [
-        WhitelistEntry(prefix="brick", namespace=BRICK),
-        WhitelistEntry(prefix="csvw", namespace=CSVW),
-        WhitelistEntry(prefix="dc", namespace=DC),
-        WhitelistEntry(prefix="dcat", namespace=DCAT),
-        WhitelistEntry(prefix="dctype", namespace=DCMITYPE),
-        WhitelistEntry(prefix="dcterms", namespace=DCTERMS),
-        WhitelistEntry(prefix="dcam", namespace=DCAM),
-        WhitelistEntry(prefix="doap", namespace=DOAP),
-        WhitelistEntry(prefix="foaf", namespace=FOAF),
-        WhitelistEntry(prefix="odrl2", namespace=ODRL2),
-        WhitelistEntry(prefix="org", namespace=ORG),
-        WhitelistEntry(prefix="owl", namespace=OWL),
-        WhitelistEntry(prefix="prof", namespace=PROF),
-        WhitelistEntry(prefix="prov", namespace=PROV),
-        WhitelistEntry(prefix="qb", namespace=QB),
-        WhitelistEntry(prefix="rdf", namespace=RDF),
-        WhitelistEntry(prefix="rdfs", namespace=RDFS),
-        WhitelistEntry(prefix="sdo", namespace=SDO),
-        WhitelistEntry(prefix="sh", namespace=SH),
-        WhitelistEntry(prefix="skos", namespace=SKOS),
-        WhitelistEntry(prefix="sosa", namespace=SOSA),
-        WhitelistEntry(prefix="ssn", namespace=SSN),
-        WhitelistEntry(prefix="time", namespace=TIME),
-        WhitelistEntry(prefix="vann", namespace=VANN),
-        WhitelistEntry(prefix="void", namespace=VOID),
-        WhitelistEntry(prefix="wgs", namespace=WGS),
-        WhitelistEntry(prefix="xsd", namespace=XSD),
-    ]
-
-    DEFAULT_ENTRIES: ClassVar[Sequence[WhitelistEntry]] = [
-        WhitelistEntry(prefix="owl", namespace=OWL),
-        WhitelistEntry(prefix="rdf", namespace=RDF),
-        WhitelistEntry(prefix="rdfs", namespace=RDFS),
-        WhitelistEntry(prefix="xsd", namespace=XSD),
-    ]
 
     entries: tuple[WhitelistEntry, ...]
     _qname_index: Mapping[str, tuple[WhitelistedTerm, ...]]
 
-    def __init__(self, whitelist: Iterable[WhitelistEntry] = DEFAULT_ENTRIES) -> None:
-        self.entries = tuple(sorted(whitelist))
+    def __init__(self, entries: Iterable[WhitelistEntry]) -> None:
+        self.entries = tuple(sorted(entries))
         self._qname_index = self._build_qname_index()
 
     def _build_qname_index(self) -> Mapping[str, tuple[WhitelistedTerm, ...]]:
@@ -330,7 +215,6 @@ class RestrictedNamespaceWhitelist(NamespaceWhitelist):
                 )
         return {k: tuple(sorted(v, key=lambda t: t.qname)) for k, v in index.items()}
 
-    @override
     def find_term(self, uri: URIRef) -> WhitelistResult:
         for entry in self.entries:
             ns: Namespace = (
@@ -368,7 +252,6 @@ class RestrictedNamespaceWhitelist(NamespaceWhitelist):
                 )
         return WhitelistResult(allowed=False, term=None, nearest_matches=[])
 
-    @override
     def enumerate_prompt(self) -> str | None:
         lines = [
             "### Allowed Vocabularies",
@@ -386,6 +269,15 @@ class RestrictedNamespaceWhitelist(NamespaceWhitelist):
             "Closed vocabularies only allow declared terms. "
             "Open vocabularies allow any term under the namespace prefix."
         )
+        lines.append(
+            "The fact that an open vocabulary permits a new local term does NOT by "
+            "itself justify minting one."
+        )
+        lines.append(
+            "You SHOULD treat open-vocabulary minting as a fallback to use only when "
+            "no fitting established term is available and a new local term is "
+            "actually needed for the task."
+        )
         lines.append("")
         lines.append(
             "If an `add_triples` tool call is rejected due to a namespace whitelist "
@@ -395,27 +287,8 @@ class RestrictedNamespaceWhitelist(NamespaceWhitelist):
         )
         return "\n".join(lines)
 
-    @overload
-    def plus_entries(self, *entries: WhitelistEntry) -> Self:
-        pass
-
-    @overload
-    def plus_entries(
-        self, *entries: tuple[str, Namespace | type[DefinedNamespace]]
-    ) -> Self:
-        pass
-
-    def plus_entries(
-        self,
-        *entries: WhitelistEntry | tuple[str, Namespace | type[DefinedNamespace]],
-    ) -> Self:
-        def new_entry(
-            entry: WhitelistEntry | tuple[str, Namespace | type[DefinedNamespace]],
-        ) -> WhitelistEntry:
-            if isinstance(entry, WhitelistEntry):
-                return entry
-            else:
-                prefix, namespace = entry
-                return WhitelistEntry(prefix=prefix, namespace=namespace)
-
-        return type(self)({new_entry(entry) for entry in entries}.union(self.entries))
+    def allows_namespace(self, namespace: URIRef | Namespace | str) -> bool:
+        key = str(namespace)
+        return any(
+            WhitelistEntry._ns_key(entry.namespace) == key for entry in self.entries
+        )

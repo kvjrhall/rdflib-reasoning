@@ -15,11 +15,22 @@ from .dataset_model import (
     TripleListResponse,
 )
 from .dataset_state import DatasetState
+from .rdf_vocabulary_middleware import (
+    RDFVocabularyMiddleware,
+    RDFVocabularyMiddlewareConfig,
+)
+from .shared_services import DatasetRuntime, RunTermTelemetry
 from .tracing import TraceEvent, TraceRecorder, TraceSink
+from .vocabulary_configuration import (
+    VocabularyConfiguration,
+    VocabularyContext,
+    VocabularyDeclaration,
+)
 
 __all__ = [
     "DatasetMiddleware",
     "DatasetMiddlewareConfig",
+    "DatasetRuntime",
     "DatasetState",
     "ContinuationGuardMiddleware",
     "MutationResponse",
@@ -30,6 +41,9 @@ __all__ = [
     "N3Resource",
     "N3Triple",
     "NewResourceNodeResponse",
+    "RDFVocabularyMiddleware",
+    "RDFVocabularyMiddlewareConfig",
+    "RunTermTelemetry",
     "SerializationResponse",
     "SerializeRequest",
     "TraceEvent",
@@ -37,4 +51,7 @@ __all__ = [
     "TraceSink",
     "TripleBatchRequest",
     "TripleListResponse",
+    "VocabularyConfiguration",
+    "VocabularyContext",
+    "VocabularyDeclaration",
 ]
