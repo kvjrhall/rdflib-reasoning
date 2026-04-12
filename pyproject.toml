@@ -20,8 +20,10 @@ dependencies = [
 dev = [
   "beautifulsoup4",
   "build",
+  "ipython",
   "mypy",
   "myst-parser",
+  "nbformat",
   "pip-audit",
   "pre-commit",
   "pytest",
@@ -65,6 +67,16 @@ target-version = "py314"
 
 [tool.ruff.lint]
 extend-select = ["B", "I"]
+
+# Match [tool.mypy] mypy_path so Pylance/Pyright resolve `rdflib_reasoning` from workspace
+# sources (e.g. notebooks at repo root) without depending only on site-packages.
+[tool.basedpyright]
+extraPaths = [
+  "src",
+  "rdflib-reasoning-axioms/src",
+  "rdflib-reasoning-engine/src",
+  "rdflib-reasoning-middleware/src",
+]
 
 [tool.pytest.ini_options]
 testpaths = [
@@ -117,7 +129,6 @@ mypy_path = [
   "rdflib-reasoning-middleware/src",
 ]
 files = [
-  "src",
   "rdflib-reasoning-axioms/src",
   "rdflib-reasoning-engine/src",
   "rdflib-reasoning-middleware/src",
@@ -126,3 +137,8 @@ files = [
 [[tool.mypy.overrides]]
 module = ["rdflib_reasoning.middleware.*"]
 disable_error_code = ["import-not-found"]
+
+# Glob above does not suppress import-not-found for optional IPython imports in some mypy versions.
+[[tool.mypy.overrides]]
+module = ["rdflib_reasoning.middleware.tracing_notebook"]
+ignore_missing_imports = true
