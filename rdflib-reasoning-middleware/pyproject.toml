@@ -22,7 +22,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "langchain-openai", "types-regex"]
+dev = [
+    "pytest>=9.0.3",
+    "langchain-openai>=1.1.14",
+    "langsmith>=0.7.31",
+    "types-regex",
+]
 notebook = [
     "ipython",
     "mistune",
