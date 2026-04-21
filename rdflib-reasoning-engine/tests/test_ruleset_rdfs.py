@@ -111,6 +111,14 @@ _RDFS_RULE_SPECS: Final[dict[str, str]] = {
 }
 
 _IMPLEMENTED_RDFS_RULE_IDS: Final[set[str]] = {rule.id.rule_id for rule in RDFS_RULES}
+_NON_MATERIALIZED_MICRO_RULE_IDS: Final[set[str]] = {
+    "rdfs1",
+    "rdfs4a",
+    "rdfs4b",
+    "rdfs6",
+    "rdfs10",
+    "rdfs13",
+}
 
 
 RDFS_TEST_CASES: Final[Sequence[RdfsTestCase]] = (
@@ -287,7 +295,10 @@ def test_rdfs_entailment_micro(
         for input in test_case.inputs:
             graph.add(input)
         for output in test_case.outputs:
-            assert output in graph
+            if test_case.rule_id in _NON_MATERIALIZED_MICRO_RULE_IDS:
+                assert output not in graph
+            else:
+                assert output in graph
 
         # There may be multiple derivations for the same entailed triple as the
         # ruleset evolves. Assert that at least one derivation record matches
