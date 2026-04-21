@@ -524,6 +524,94 @@ def test_after_model_ends_deterministically_when_valid_completed_turtle_answer_p
     }
 
 
+def test_after_model_recovers_previous_successful_serialization_in_finalize_only_mode() -> (
+    None
+):
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "continuation_mode": "finalize_only",
+        "messages": [
+            ToolMessage(
+                content=(
+                    "format='turtle' content='@prefix ex: <urn:ex:> .\\n\\nex:John a ex:Person .\\n' "
+                    "default_graph_triple_count=1 is_empty=False "
+                    "message='Serialized the current default graph containing 1 triples.'"
+                ),
+                name="serialize_dataset",
+                tool_call_id="tool-serialize-success",
+                status="success",
+            ),
+            ToolMessage(
+                content=(
+                    "The dataset has not changed since the previous `serialize_dataset` "
+                    "call in this format. Re-serializing will not reformat or improve "
+                    "the graph. Use the previous successful serialization as your final "
+                    "answer if it already reflects the graph you intend to present."
+                ),
+                name="serialize_dataset",
+                tool_call_id="tool-serialize-repeat",
+                status="error",
+            ),
+            AIMessage(
+                content=(
+                    "I will now return the previous successful serialization as the "
+                    "final answer. The dataset accurately represents all the explicit "
+                    "claims from the source text:"
+                )
+            ),
+        ],
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert isinstance(result, dict)
+    assert result["continuation_mode"] == "stop_now"
+    assert result["jump_to"] == "end"
+    assert result["finalize_only_forbidden_tool_rounds"] == 0
+    recovered = result["messages"][0]
+    assert isinstance(recovered, AIMessage)
+    assert "```text/turtle" in str(recovered.content)
+    assert "ex:John a ex:Person ." in str(recovered.content)
+
+
+def test_after_model_recovers_immediately_preceding_successful_serialization_in_normal_mode() -> (
+    None
+):
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "messages": [
+            ToolMessage(
+                content=(
+                    "format='turtle' content='@prefix ex: <urn:ex:> .\\n\\nex:John a ex:Person .\\n' "
+                    "default_graph_triple_count=1 is_empty=False "
+                    "message='Serialized the current default graph containing 1 triples.'"
+                ),
+                name="serialize_dataset",
+                tool_call_id="tool-serialize-success",
+                status="success",
+            ),
+            AIMessage(
+                content=(
+                    "I will now return the Turtle representation as the final answer. "
+                    "The representation accurately captures all the explicit claims in "
+                    "the source text:"
+                )
+            ),
+        ]
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert isinstance(result, dict)
+    assert result["continuation_mode"] == "stop_now"
+    assert result["jump_to"] == "end"
+    assert result["finalize_only_forbidden_tool_rounds"] == 0
+    recovered = result["messages"][0]
+    assert isinstance(recovered, AIMessage)
+    assert "```text/turtle" in str(recovered.content)
+    assert "ex:John a ex:Person ." in str(recovered.content)
+
+
 def test_after_model_only_injects_planning_reminder_once() -> None:
     middleware = ContinuationGuardMiddleware()
     state = {

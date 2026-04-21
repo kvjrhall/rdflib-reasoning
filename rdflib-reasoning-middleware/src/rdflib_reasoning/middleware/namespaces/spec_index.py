@@ -1,5 +1,4 @@
-from collections.abc import Set
-from enum import StrEnum
+from collections.abc import Mapping, Set
 from functools import cached_property
 from typing import overload
 
@@ -8,12 +7,7 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DefinedNamespace
 from rdflib_reasoning.middleware.dataset_model import N3IRIRef
 
-
-class VocabularyTermType(StrEnum):
-    CLASS = "class"
-    DATATYPE = "datatype"
-    INDIVIDUAL = "individual"
-    PROPERTY = "property"
+from .common import VocabularyTermType
 
 
 class VocabularyTerm(BaseModel):
@@ -35,6 +29,16 @@ class RDFVocabulary(BaseModel):
     @cached_property
     def all_terms(self) -> Set[VocabularyTerm]:
         return self.classes | self.datatypes | self.individuals | self.properties
+
+    @cached_property
+    def _lookup_table(self) -> Mapping[URIRef, VocabularyTerm]:
+        return {term.uri: term for term in self.all_terms}
+
+    def get_term(self, uri: URIRef) -> VocabularyTerm:
+        return self._lookup_table[uri]
+
+    def contains_term(self, uri: URIRef) -> bool:
+        return uri in self._lookup_table
 
     @classmethod
     @overload

@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Awaitable, Callable, MutableSet, Sequence, Set
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from json import dumps as json_dumps
 from json import loads as json_loads
 from typing import Any, Final, Literal, override
@@ -26,11 +27,21 @@ from rdflib_reasoning.middleware.dataset_middleware import (
 )
 from rdflib_reasoning.middleware.dataset_model import N3IRIRef, SerializationResponse
 from rdflib_reasoning.middleware.dataset_state import DatasetState
+from rdflib_reasoning.middleware.namespaces.common import VocabularyTermType
 from rdflib_reasoning.middleware.namespaces.spec_index import (
     RDFVocabulary,
     VocabularyTerm,
 )
 from rdflib_reasoning.middleware.shared_services import RunTermTelemetry
+from rdflib_reasoning.middleware.vocabulary.search_index import (
+    IndexedTerm,
+    VocabularySearchIndex,
+    uri_local_name,
+)
+from rdflib_reasoning.middleware.vocabulary.search_model import (
+    TermSearchRequest,
+    TermSearchResponse,
+)
 from rdflib_reasoning.middleware.vocabulary_configuration import VocabularyContext
 
 logger = logging.getLogger(__name__)
@@ -40,8 +51,8 @@ _VOCABULARY_SYSTEM_PROMPT: Final[str] = """## RDF Vocabulary Guidance
 You MUST invoke the `list_vocabularies` tool ONCE, inspect the available indexed
 vocabularies and see if any of them are relevant to your task.
 
-You have FAILED in your task if you have not invoked the `list_vocabularies`
-tool once.
+You MUST call `list_vocabularies` before using any other vocabulary tool. If
+you skip this step, you have not followed the required vocabulary workflow.
 
 After you have begun your task, use the vocabulary tools only to help choose
 established RDF terms when you are uncertain whether a standard term fits your
@@ -49,17 +60,24 @@ intended meaning.
 
 Default workflow:
 - If you already know a core RDF/RDFS/OWL term is appropriate, use it and continue.
+- Call `list_vocabularies` once before using any other vocabulary tool so you
+  know what indexed vocabularies are available.
+- If you know the meaning you want to express but do not yet know the right term, use `search_terms`.
 - If you know which vocabulary you want, use `list_terms` to scan candidate terms.
 - If you already have a candidate term in mind, use `inspect_term`.
-- Use `list_vocabularies` only when you do not yet know which indexed vocabulary to inspect.
 
 Decision policy:
 - Prefer one quick inspection over extended self-discussion.
+- Prefer `search_terms` when you know the meaning you want to express but do not yet know the likely vocabulary or term label.
+- Prefer `list_terms` when one available vocabulary appears central to the task and has a small `term_count`.
+- If `list_vocabularies` shows a vocabulary with a small `term_count` that appears central to the task, you SHOULD call `list_terms` once for the relevant term type before issuing multiple narrow searches.
+- After 1-2 successful `search_terms` hits in the same small vocabulary, pause and decide whether a quick `list_terms` scan would reveal nearby terms you still need before continuing modeling.
 - Do not keep re-checking the same term once `inspect_term` has answered your question.
+- Do not repeat the same `search_terms` call unchanged; refine the query or filters if you still need different candidates.
 - Do not repeat the same `inspect_term` call unchanged
 - Do not repeat the same `list_terms` call unchanged; change the
   vocabulary, filter, offset, or limit if you still need different candidates.
-- If `list_terms` gives you a relevant candidate, move to `inspect_term` or
+- If `search_terms` or `list_terms` gives you a relevant candidate, move to `inspect_term` or
   continue modeling instead of widening the search reflexively.
 - If inspection does not quickly reveal a fitting standard term, mint a local term
   only when it is genuinely needed for a faithful representation, document it,
@@ -80,8 +98,19 @@ Decision policy:
 ### Indexed Vocabulary Tools
 
 - `list_vocabularies`: discover which vocabularies are indexed
+- `search_terms`: search indexed terms by intended meaning across the visible indexed vocabularies
 - `list_terms`: scan candidate indexed terms within one vocabulary
 - `inspect_term`: inspect one indexed term in a compact form, optionally including source RDF
+"""
+
+_VOCABULARY_FIRST_STEP_REMINDER: Final[str] = """
+### Required First Step
+
+You have not yet invoked `list_vocabularies` in this run.
+
+Your next vocabulary action MUST be a `list_vocabularies` tool call.
+Do not call `search_terms`, `list_terms`, or `inspect_term` first.
+Do not finalize your answer until `list_vocabularies` has been called once.
 """
 
 LIST_VOCABULARIES_TOOL_DESCRIPTION: Final[
@@ -100,6 +129,9 @@ LIST_TERMS_TOOL_DESCRIPTION: Final[
 Use this when you know the vocabulary but want to scan available classes,
 properties, individuals, or datatypes before choosing one.
 
+This is especially useful when one vocabulary appears central to the task and
+has few enough terms to scan quickly.
+
 The vocabulary index is static for this run. You MUST NOT repeat the same
 `list_terms` call unchanged and expect a different result. If you still need
 different candidates, change `term_type`, `offset`, or `limit`.
@@ -113,6 +145,34 @@ Arguments:
 Example arguments:
 - `{"vocabulary": "<http://www.w3.org/2000/01/rdf-schema#>", "term_type": "class", "limit": 25}`
 - `{"vocabulary": "<http://www.w3.org/2002/07/owl#>", "term_type": "property", "offset": 10, "limit": 10}`
+"""
+
+SEARCH_TERMS_TOOL_DESCRIPTION: Final[
+    str
+] = """Search indexed RDF vocabulary terms by intended meaning.
+
+Use this when you know the meaning you want to express but do not yet know the
+right indexed term or even the right vocabulary.
+
+This is best for finding a term you can already describe in words. If one
+relevant vocabulary is already known and has few terms, `list_terms` may be
+faster and more complete than issuing several narrow searches.
+
+This search is lexical and deterministic over the static indexed vocabulary set
+for this run. You MUST NOT repeat the same `search_terms` call unchanged and
+expect a different result. If you still need different candidates, refine the
+query, change the vocabulary or term type filters, or inspect one of the
+returned candidates.
+
+Arguments:
+- `query`: intended meaning, label fragment, or short descriptive phrase
+- `vocabularies`: optional indexed vocabulary namespace filter
+- `term_types`: optional normalized term type filter (`class`, `property`, `individual`, `datatype`)
+- `limit`: maximum number of ranked candidate terms to return
+
+Example arguments:
+- `{"query": "birth place", "limit": 8}`
+- `{"query": "creator", "vocabularies": ["<http://xmlns.com/foaf/0.1/>"], "term_types": ["property"], "limit": 5}`
 """
 
 INSPECT_TERM_TOOL_DESCRIPTION: Final[str] = """Inspect one indexed RDF term.
@@ -144,6 +204,9 @@ _TERM_TYPE_TO_COLLECTION: Final[dict[str, str]] = {
     "individual": "individuals",
     "property": "properties",
 }
+_REQUIRES_LIST_VOCABULARIES_FIRST_TOOLS: Final[frozenset[str]] = frozenset(
+    {"search_terms", "list_terms", "inspect_term"}
+)
 
 
 class VocabularySummary(BaseModel):
@@ -277,7 +340,7 @@ class TermInspectionResponse(BaseModel):
     uri: N3IRIRef = Field(description="IRI of the indexed term.")
     label: str = Field(description="Human-readable label for the term.")
     definition: str = Field(description="Normalized definition text for the term.")
-    termType: Literal["class", "datatype", "individual", "property"] = Field(
+    termType: VocabularyTermType = Field(
         description="Normalized kind of RDF vocabulary term."
     )
     vocabulary: N3IRIRef = Field(
@@ -306,23 +369,36 @@ class RDFVocabularyMiddlewareConfig:
     """Configuration for the RDF vocabulary middleware surface."""
 
     vocabulary_context: VocabularyContext
+    search_index: VocabularySearchIndex | None = None
     run_term_telemetry: RunTermTelemetry | None = None
 
 
 class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
     vocabulary_context: VocabularyContext
+    search_index: VocabularySearchIndex
     tools: Sequence[BaseTool]
     run_term_telemetry: RunTermTelemetry
-    _previous_list_terms_signature: str | None
-    _previous_inspect_term_signature: str | None
+    _has_listed_vocabularies: bool
+    _seen_search_terms_signatures: set[str]
+    _seen_list_terms_signatures: set[str]
+    _seen_inspect_term_signatures: set[str]
+    _indexed_term_not_found_suggestion_limit: int
 
     def __init__(self, config: RDFVocabularyMiddlewareConfig) -> None:
         self.config = config
         self.vocabulary_context = self.config.vocabulary_context
+        self.search_index = (
+            self.config.search_index
+            if self.config.search_index is not None
+            else VocabularySearchIndex.build(self.vocabulary_context)
+        )
         self.run_term_telemetry = self.config.run_term_telemetry or RunTermTelemetry()
         self.tools = self._build_tools()
-        self._previous_list_terms_signature = None
-        self._previous_inspect_term_signature = None
+        self._has_listed_vocabularies = False
+        self._seen_search_terms_signatures = set()
+        self._seen_list_terms_signatures = set()
+        self._seen_inspect_term_signatures = set()
+        self._indexed_term_not_found_suggestion_limit = 3
 
     @override
     def wrap_model_call(
@@ -331,10 +407,13 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         handler: Callable[[ModelRequest[ContextT]], ModelResponse[ResponseT]],
     ) -> ModelResponse[ResponseT]:
         """Append RDF vocabulary guidance to the system prompt before model execution."""
+        vocabulary_prompt = self._build_vocabulary_system_prompt()
+        if not self._has_listed_vocabularies:
+            vocabulary_prompt += "\n\n" + _VOCABULARY_FIRST_STEP_REMINDER
         request = request.override(
             system_message=append_to_system_message(
                 request.system_message,
-                self._build_vocabulary_system_prompt(),
+                vocabulary_prompt,
             )
         )
         return handler(request)
@@ -348,10 +427,13 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         ],
     ) -> ModelResponse[ResponseT]:
         """Append RDF vocabulary guidance to the system prompt before async model execution."""
+        vocabulary_prompt = self._build_vocabulary_system_prompt()
+        if not self._has_listed_vocabularies:
+            vocabulary_prompt += "\n\n" + _VOCABULARY_FIRST_STEP_REMINDER
         request = request.override(
             system_message=append_to_system_message(
                 request.system_message,
-                self._build_vocabulary_system_prompt(),
+                vocabulary_prompt,
             )
         )
         return await handler(request)
@@ -370,12 +452,54 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         tool_signature = self._tool_call_signature(request)
 
         if (
-            tool_name == "list_terms"
-            and tool_signature is not None
-            and tool_signature == self._previous_list_terms_signature
+            not self._has_listed_vocabularies
+            and tool_name in _REQUIRES_LIST_VOCABULARIES_FIRST_TOOLS
         ):
             logger.debug(
-                "Rejecting repeated list_terms retry because the previous identical call already returned the static indexed result"
+                "Rejecting %s because list_vocabularies has not yet been called in this run",
+                tool_name,
+            )
+            return ToolMessage(
+                content=(
+                    "Misuse: `list_vocabularies` is required before any other vocabulary tool.\n\n"
+                    "Call `list_vocabularies` now, inspect the available indexed vocabularies, "
+                    "and only then decide whether to use `search_terms`, `list_terms`, or "
+                    "`inspect_term`."
+                ),
+                name=tool_name,
+                tool_call_id=tool_call_id,
+                status="error",
+            )
+
+        if (
+            tool_name == "search_terms"
+            and tool_signature is not None
+            and tool_signature in self._seen_search_terms_signatures
+        ):
+            logger.debug(
+                "Rejecting repeated search_terms retry because the same identical call already returned the static indexed result earlier in this run"
+            )
+            return ToolMessage(
+                content=(
+                    "Misuse: repeated `search_terms` query was rejected.\n\n"
+                    "The indexed vocabulary set is static for this run, so the same "
+                    "unchanged `search_terms` call will return the same ranked candidates. "
+                    "Do not retry it unchanged. Either inspect one of the returned terms, "
+                    "refine the query text, change the vocabulary or term type filters, "
+                    "or continue modeling."
+                ),
+                name=tool_name,
+                tool_call_id=tool_call_id,
+                status="error",
+            )
+
+        if (
+            tool_name == "list_terms"
+            and tool_signature is not None
+            and tool_signature in self._seen_list_terms_signatures
+        ):
+            logger.debug(
+                "Rejecting repeated list_terms retry because the same identical call already returned the static indexed result earlier in this run"
             )
             return ToolMessage(
                 content=(
@@ -394,10 +518,10 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         if (
             tool_name == "inspect_term"
             and tool_signature is not None
-            and tool_signature == self._previous_inspect_term_signature
+            and tool_signature in self._seen_inspect_term_signatures
         ):
             logger.debug(
-                "Rejecting repeated inspect_term retry because the previous identical call already answered the question"
+                "Rejecting repeated inspect_term retry because the same identical call already answered the question earlier in this run"
             )
             return ToolMessage(
                 content=(
@@ -455,17 +579,29 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
                 "Rejecting inspect_term for %s because it is not available in the indexed vocabularies",
                 e.term,
             )
+            suggestions = self._nearest_indexed_term_candidates(
+                e.term, limit=self._indexed_term_not_found_suggestion_limit
+            )
             return ToolMessage(
-                content=self._format_indexed_term_not_found_message(e.term),
+                content=self._format_indexed_term_not_found_message(
+                    e.term, suggestions=suggestions
+                ),
                 name=tool_name,
                 tool_call_id=tool_call_id,
                 status="error",
             )
         if not self._tool_result_is_error(result):
-            if tool_name == "list_terms":
-                self._previous_list_terms_signature = tool_signature
+            if tool_name == "list_vocabularies":
+                self._has_listed_vocabularies = True
+            elif tool_name == "search_terms":
+                if tool_signature is not None:
+                    self._seen_search_terms_signatures.add(tool_signature)
+            elif tool_name == "list_terms":
+                if tool_signature is not None:
+                    self._seen_list_terms_signatures.add(tool_signature)
             elif tool_name == "inspect_term":
-                self._previous_inspect_term_signature = tool_signature
+                if tool_signature is not None:
+                    self._seen_inspect_term_signatures.add(tool_signature)
         return result
 
     def list_vocabularies(self) -> tuple[VocabularySummary, ...]:
@@ -503,6 +639,27 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         terms = self._terms_for_vocabulary(vocabulary, term_type)
         return terms[offset : offset + limit]
 
+    def search_terms(
+        self,
+        query: str,
+        vocabularies: tuple[URIRef | str, ...] = (),
+        term_types: tuple[VocabularyTermType, ...] = (),
+        limit: int = 8,
+    ) -> TermSearchResponse:
+        normalized_vocabularies = tuple(str(vocabulary) for vocabulary in vocabularies)
+        for vocabulary in normalized_vocabularies:
+            if not self.vocabulary_context.whitelist.allows_namespace(vocabulary):
+                raise VocabularyNamespaceNotAllowed(URIRef(vocabulary))
+            if vocabulary not in self._visible_indexed_vocabularies():
+                raise IndexedVocabularyNamespaceNotFound(URIRef(vocabulary))
+
+        return self.search_index.search(
+            query,
+            vocabularies=normalized_vocabularies,
+            term_types=term_types,
+            limit=limit,
+        )
+
     def inspect_term(
         self, term: URIRef | str, include_source_rdf: bool = False
     ) -> TermInspectionResponse:
@@ -511,7 +668,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         if not whitelist_result.allowed:
             raise WhitelistViolation(term_iri, whitelist_result)
         vocabulary = self._vocabulary_for_term(term_iri)
-        candidate = next(
+        candidate: VocabularyTerm = next(
             candidate for candidate in vocabulary.all_terms if candidate.uri == term_iri
         )
         graph = self.vocabulary_context.specification_cache.get_spec(
@@ -593,7 +750,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
             uri=candidate.uri,
             label=candidate.label,
             definition=candidate.definition,
-            termType=candidate.termType.value,
+            termType=candidate.termType,
             vocabulary=vocabulary.namespace,
             superTerms=super_terms,
             domain=domain_terms,
@@ -602,20 +759,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         )
 
     def _build_vocabulary_system_prompt(self) -> str:
-        indexed = []
-        for namespace in self._visible_indexed_vocabularies():
-            metadata = (
-                self.vocabulary_context.specification_cache.get_vocabulary_metadata(
-                    namespace
-                )
-            )
-            indexed.append(f"- {metadata.label} ({namespace})")
-
-        return (
-            _VOCABULARY_SYSTEM_PROMPT
-            + "\n\n### Indexed Vocabularies Available Here\n\n"
-            + "\n".join(indexed)
-        )
+        return _VOCABULARY_SYSTEM_PROMPT
 
     def _tool_call_signature(self, request: ToolCallRequest) -> str | None:
         raw_args = request.tool_call.get("args")
@@ -675,13 +819,63 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         return "\n".join(lines)
 
     @staticmethod
-    def _format_indexed_term_not_found_message(term: URIRef) -> str:
-        return (
+    def _format_indexed_term_not_found_message(
+        term: URIRef, suggestions: Sequence[IndexedTerm] = ()
+    ) -> str:
+        lines = [
             f"The term {term} is allowed by the current vocabulary policy, but it is not "
             "available in the indexed vocabularies for this run. Choose a different indexed "
             "term, inspect one of the visible vocabularies, or continue modeling without "
             "`inspect_term` if you genuinely need a new local term."
+        ]
+        if len(suggestions) == 0:
+            return "".join(lines)
+
+        lines.extend(("", "", "Suggested indexed alternatives:"))
+        for candidate in suggestions:
+            lines.append(f"- `{candidate.label}` (`{candidate.uri}`)")
+        return "\n".join(lines)
+
+    def _nearest_indexed_term_candidates(
+        self, term: URIRef, limit: int = 3
+    ) -> tuple[IndexedTerm, ...]:
+        if limit <= 0:
+            return ()
+        term_value = str(term)
+        rejected_local_name = uri_local_name(term_value)
+        if rejected_local_name == "":
+            return ()
+
+        ranked_candidates = sorted(
+            (
+                (
+                    self._local_name_similarity_score(
+                        rejected_local_name, candidate.uri
+                    ),
+                    candidate,
+                )
+                for candidate in self.search_index.terms
+                if candidate.uri != term_value
+            ),
+            key=lambda pair: (-pair[0], pair[1].vocabulary, pair[1].uri),
         )
+        filtered_candidates = tuple(
+            candidate for score, candidate in ranked_candidates if score >= 0.75
+        )
+        return filtered_candidates[:limit]
+
+    @staticmethod
+    def _local_name_similarity_score(
+        rejected_local_name: str, candidate_uri: str
+    ) -> float:
+        candidate_local_name = uri_local_name(candidate_uri)
+        if candidate_local_name == "":
+            return 0.0
+        return SequenceMatcher(
+            None,
+            rejected_local_name.lower(),
+            candidate_local_name.lower(),
+        ).ratio()
 
     @staticmethod
     def _format_indexed_namespace_not_found_message(namespace: URIRef) -> str:
@@ -696,10 +890,12 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
             "list_vocabularies",
             description=LIST_VOCABULARIES_TOOL_DESCRIPTION,
         )
-        def list_vocabularies_tool() -> VocabularyListResponse:
+        def list_vocabularies_tool() -> str:
             vocabularies = self.list_vocabularies()
             logger.debug("Listing %s indexed RDF vocabularies", len(vocabularies))
-            return VocabularyListResponse(vocabularies=vocabularies)
+            return self._json_tool_content(
+                VocabularyListResponse(vocabularies=vocabularies)
+            )
 
         @tool(
             "list_terms",
@@ -712,7 +908,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
             | None = None,
             offset: int = 0,
             limit: int = 50,
-        ) -> tuple[VocabularyTerm, ...]:
+        ) -> str:
             logger.debug(
                 "Listing RDF terms for vocabulary %s (term_type=%s, offset=%s, limit=%s)",
                 vocabulary,
@@ -720,11 +916,40 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
                 offset,
                 limit,
             )
-            return self.list_terms(
-                vocabulary=vocabulary,
-                term_type=term_type,
-                offset=offset,
-                limit=limit,
+            return self._json_tool_content(
+                self.list_terms(
+                    vocabulary=vocabulary,
+                    term_type=term_type,
+                    offset=offset,
+                    limit=limit,
+                )
+            )
+
+        @tool(
+            "search_terms",
+            args_schema=TermSearchRequest,
+            description=SEARCH_TERMS_TOOL_DESCRIPTION,
+        )
+        def search_terms_tool(
+            query: str,
+            vocabularies: tuple[N3IRIRef, ...] = (),
+            term_types: tuple[VocabularyTermType, ...] = (),
+            limit: int = 8,
+        ) -> str:
+            logger.debug(
+                "Searching RDF terms for query %r (vocabularies=%s, term_types=%s, limit=%s)",
+                query,
+                vocabularies,
+                term_types,
+                limit,
+            )
+            return self._json_tool_content(
+                self.search_terms(
+                    query=query,
+                    vocabularies=vocabularies,
+                    term_types=term_types,
+                    limit=limit,
+                )
             )
 
         @tool(
@@ -732,21 +957,41 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
             args_schema=InspectTermRequest,
             description=INSPECT_TERM_TOOL_DESCRIPTION,
         )
-        def inspect_term_tool(
-            term: N3IRIRef, include_source_rdf: bool = False
-        ) -> TermInspectionResponse:
+        def inspect_term_tool(term: N3IRIRef, include_source_rdf: bool = False) -> str:
             logger.debug(
                 "Inspecting RDF term %s (include_source_rdf=%s)",
                 term,
                 include_source_rdf,
             )
-            return self.inspect_term(term, include_source_rdf=include_source_rdf)
+            return self._json_tool_content(
+                self.inspect_term(term, include_source_rdf=include_source_rdf)
+            )
 
         return (
             list_vocabularies_tool,
+            search_terms_tool,
             list_terms_tool,
             inspect_term_tool,
         )
+
+    def _json_tool_content(self, payload: Any) -> str:
+        """Serialize tool output into stable JSON for model-facing ToolMessage content."""
+        if isinstance(payload, BaseModel):
+            return payload.model_dump_json()
+        normalized = self._to_json_compatible(payload)
+        return json_dumps(normalized, ensure_ascii=False, sort_keys=True)
+
+    def _to_json_compatible(self, payload: Any) -> Any:
+        if isinstance(payload, BaseModel):
+            return payload.model_dump(mode="json")
+        if isinstance(payload, dict):
+            return {
+                str(key): self._to_json_compatible(value)
+                for key, value in payload.items()
+            }
+        if isinstance(payload, (tuple, list, set, frozenset)):
+            return [self._to_json_compatible(item) for item in payload]
+        return payload
 
 
 class VocabularyNamespaceNotAllowed(Exception):

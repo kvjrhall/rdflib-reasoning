@@ -1,5 +1,6 @@
 import sys
 from collections.abc import Callable
+from json import loads as json_loads
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,8 @@ from rdflib import Namespace
 from rdflib_reasoning.middleware import (
     DatasetMiddleware,
     DatasetMiddlewareConfig,
+    RDFVocabularyMiddleware,
+    RDFVocabularyMiddlewareConfig,
     VocabularyConfiguration,
     VocabularyDeclaration,
 )
@@ -50,6 +53,17 @@ def _combined_guard_middleware() -> list[Any]:
     ]
 
 
+def _vocabulary_only_middleware() -> list[Any]:
+    vocabulary_context = VocabularyConfiguration.bundled_plus(
+        VocabularyDeclaration(prefix="ex", namespace=EX_NS)
+    ).build_context()
+    return [
+        RDFVocabularyMiddleware(
+            RDFVocabularyMiddlewareConfig(vocabulary_context=vocabulary_context)
+        )
+    ]
+
+
 def _tool_messages(chunks: list[dict[str, Any]]) -> list[ToolMessage]:
     messages: list[ToolMessage] = []
     for chunk in chunks:
@@ -65,6 +79,82 @@ def _tool_messages(chunks: list[dict[str, Any]]) -> list[ToolMessage]:
                 if isinstance(message, ToolMessage)
             )
     return messages
+
+
+def _ai_messages(chunks: list[dict[str, Any]]) -> list[AIMessage]:
+    messages: list[AIMessage] = []
+    for chunk in chunks:
+        for update in chunk.values():
+            if not isinstance(update, dict):
+                continue
+            chunk_messages = update.get("messages")
+            if not isinstance(chunk_messages, list):
+                continue
+            messages.extend(
+                message for message in chunk_messages if isinstance(message, AIMessage)
+            )
+    return messages
+
+
+@pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
+def test_search_terms_tool_result_is_stringified_in_agent_tool_message(
+    factory_name: str, graph_factory: GraphFactory
+) -> None:
+    del factory_name
+    model = ToolFriendlyFakeMessagesListChatModel(
+        responses=[
+            AIMessage(
+                id="ai-list-vocabularies",
+                content="First I should inspect the available vocabularies.",
+                tool_calls=[
+                    {
+                        "name": "list_vocabularies",
+                        "args": {},
+                        "id": "call-list-vocabularies",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-search",
+                content="Searching for the right property.",
+                tool_calls=[
+                    {
+                        "name": "search_terms",
+                        "args": {
+                            "query": "maker",
+                            "vocabularies": ["http://xmlns.com/foaf/0.1/"],
+                            "term_types": ["property"],
+                            "limit": 5,
+                        },
+                        "id": "call-search",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(content="Done."),
+        ]
+    )
+    agent = graph_factory(model=model, middleware=_vocabulary_only_middleware())
+
+    chunks = collect_update_chunks(
+        agent,
+        messages=[{"role": "user", "content": "Find a fitting vocabulary term."}],
+        recursion_limit=20,
+    )
+
+    tool_messages = _tool_messages(chunks)
+    search_message = next(
+        message for message in tool_messages if message.name == "search_terms"
+    )
+
+    assert isinstance(search_message.content, str)
+    parsed = json_loads(search_message.content)
+    assert parsed["query"] == "maker"
+    assert isinstance(parsed["hits"], list)
+    assert len(parsed["hits"]) > 0
+    assert isinstance(parsed["hits"][0]["uri"], str)
+    assert isinstance(parsed["hits"][0]["why_matched"], list)
 
 
 @pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
@@ -219,6 +309,195 @@ def test_graph_guards_handle_repeated_serialize_finalize_only_flow(
         and chunk["ContinuationGuardMiddleware.after_model"].get("jump_to") == "end"
         for chunk in chunks
         if "ContinuationGuardMiddleware.after_model" in chunk
+    )
+
+
+@pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
+def test_graph_reuses_last_successful_serialization_after_repeated_serialize_rejection(
+    factory_name: str, graph_factory: GraphFactory
+) -> None:
+    """Regression: finalize-only should not accept prose that promises to reuse Turtle.
+
+    This mirrors the notebook failure where the model:
+    1. serializes successfully,
+    2. narrates instead of finishing,
+    3. gets a repeated-serialize rejection,
+    4. says it will return the previous serialization,
+    5. but never actually emits the Turtle block.
+    """
+    del factory_name
+    model = ToolFriendlyFakeMessagesListChatModel(
+        responses=[
+            AIMessage(
+                id="ai-add",
+                content="Adding triples now.",
+                tool_calls=[
+                    {
+                        "name": "add_triples",
+                        "args": {
+                            "triples": [
+                                {
+                                    "subject": "<urn:test:s>",
+                                    "predicate": "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+                                    "object": "<http://www.w3.org/2000/01/rdf-schema#Class>",
+                                }
+                            ]
+                        },
+                        "id": "call-add",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-serialize-1",
+                content="Serialize the dataset.",
+                tool_calls=[
+                    {
+                        "name": "serialize_dataset",
+                        "args": {"format": "turtle"},
+                        "id": "call-serialize-1",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-narrate-after-serialize",
+                content=(
+                    "Let me analyze the current RDF representation to ensure it "
+                    "accurately captures the explicit claims from the text."
+                ),
+            ),
+            AIMessage(
+                id="ai-serialize-2",
+                content="Serialize the dataset again.",
+                tool_calls=[
+                    {
+                        "name": "serialize_dataset",
+                        "args": {"format": "turtle"},
+                        "id": "call-serialize-2",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-prose-reuse-only",
+                content=(
+                    "I will now return the previous successful serialization as the "
+                    "final answer. The dataset accurately represents all the explicit "
+                    "claims from the source text:"
+                ),
+            ),
+        ]
+    )
+    agent = graph_factory(model=model, middleware=_combined_guard_middleware())
+
+    chunks = collect_update_chunks(
+        agent,
+        messages=[{"role": "user", "content": "Represent the source text as RDF."}],
+        recursion_limit=40,
+    )
+
+    tool_messages = _tool_messages(chunks)
+    assert any(
+        message.name == "serialize_dataset"
+        and getattr(message, "status", None) == "error"
+        and "The dataset has not changed since the previous `serialize_dataset` call in this format."
+        in str(message.content)
+        for message in tool_messages
+    )
+
+    ai_messages = _ai_messages(chunks)
+    assert any(
+        "I will now return the previous successful serialization as the final answer."
+        in str(message.content)
+        for message in ai_messages
+    )
+    assert any("```text/turtle" in str(message.content) for message in ai_messages), (
+        "Expected the run to surface the last successful Turtle serialization as the final answer."
+    )
+
+
+@pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
+def test_graph_stops_without_another_model_call_after_serialize_final_answer_preamble(
+    factory_name: str, graph_factory: GraphFactory
+) -> None:
+    """Regression: do not re-enter the model after an assistant final-answer preamble.
+
+    This mirrors the current notebook failure where the agent:
+    1. serializes the dataset successfully,
+    2. says it will now return the Turtle as the final answer,
+    3. but the framework calls the model again anyway.
+    """
+    del factory_name
+    model = ToolFriendlyFakeMessagesListChatModel(
+        responses=[
+            AIMessage(
+                id="ai-add",
+                content="Adding triples now.",
+                tool_calls=[
+                    {
+                        "name": "add_triples",
+                        "args": {
+                            "triples": [
+                                {
+                                    "subject": "<urn:test:s>",
+                                    "predicate": "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+                                    "object": "<http://www.w3.org/2000/01/rdf-schema#Class>",
+                                }
+                            ]
+                        },
+                        "id": "call-add",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-serialize-1",
+                content="Let me serialize the current RDF dataset to ensure it accurately reflects the representation and return it as the final answer.",
+                tool_calls=[
+                    {
+                        "name": "serialize_dataset",
+                        "args": {"format": "turtle"},
+                        "id": "call-serialize-1",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-final-answer-preamble",
+                content=(
+                    "I will now return the Turtle representation as the final answer. "
+                    "The representation accurately captures all the explicit claims in "
+                    "the source text:"
+                ),
+            ),
+            AIMessage(
+                id="ai-should-not-be-called",
+                content="SHOULD_NOT_BE_CALLED",
+            ),
+        ]
+    )
+    agent = graph_factory(model=model, middleware=_combined_guard_middleware())
+
+    chunks = collect_update_chunks(
+        agent,
+        messages=[{"role": "user", "content": "Represent the source text as RDF."}],
+        recursion_limit=30,
+    )
+
+    ai_messages = _ai_messages(chunks)
+    assert any(
+        "I will now return the Turtle representation as the final answer."
+        in str(message.content)
+        for message in ai_messages
+    )
+    assert not any(
+        "SHOULD_NOT_BE_CALLED" in str(message.content) for message in ai_messages
+    ), (
+        "The framework should have terminated locally instead of calling the model again."
+    )
+    assert any("```text/turtle" in str(message.content) for message in ai_messages), (
+        "Expected the run to surface the serialized Turtle as the final answer."
     )
 
 

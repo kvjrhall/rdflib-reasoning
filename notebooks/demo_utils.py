@@ -137,6 +137,29 @@ VOCABULARY_TIPS: Final[str] = """
   that is still clearly justified by the source.
 """
 
+# TODO: Trial this as notebook-level guidance first. If it proves useful, move
+# it out of `demo_utils.py` into a more durable home such as shared task/core
+# guidance, DatasetMiddleware-appended modeling guidance, or a dedicated skill.
+# The intent is to avoid freezing notebook-specific scaffolding into the wrong
+# layer before we know whether this heuristic generalizes across tasks.
+ONTOLOGY_BRIDGING_TIPS: Final[str] = """
+## Ontology Bridging Guidance
+
+- Do not leave reused domain classes isolated from the instance data when the
+  source text gives you enough information to connect them.
+- When the source describes both an individual and a class hierarchy it belongs
+  to, add enough explicit `rdf:type` and/or `rdfs:subClassOf` assertions that a
+  basic RDFS reasoner can connect the individual to the broader hierarchy.
+- Prefer one coherent bridge from the instance layer to the reused taxonomy
+  over parallel disconnected local and reused class structures.
+- If you reuse an external or domain-specific class hierarchy, ensure that at
+  least one asserted path connects the instance facts in your graph to that
+  hierarchy.
+- When several bridge patterns are possible, prefer the simplest one that keeps
+  the resulting graph faithful to the source and useful under basic RDFS
+  entailment.
+"""
+
 WHITELIST_TIPS: Final[str] = """
 ## Vocabulary Constraint Guidance
 
@@ -298,6 +321,9 @@ def evaluate_actual_graph(
         "extra": extra_triples,
         "union": union_triples,
     }
+    for graph in graphs.values():
+        graph.bind("exterms", "https://example.com/ontology#")
+        graph.bind("ex", "urn:ex:")
 
     expected_count = len(expected_graph)
     extracted_count = len(extracted_graph) - best_practices_count
