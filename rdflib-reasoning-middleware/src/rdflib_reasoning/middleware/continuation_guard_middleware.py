@@ -1,4 +1,6 @@
 import logging
+import re
+from ast import literal_eval
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final, cast, override
@@ -79,6 +81,23 @@ _TOOL_TRANSCRIPT_REMINDER: Final[str] = (
 _REPEATED_SERIALIZE_REJECTION_MARKER: Final[str] = (
     "The dataset has not changed since the previous `serialize_dataset` call in this format."
 )
+_SERIALIZE_REUSE_INTENT_MARKERS: Final[tuple[str, ...]] = (
+    "previous successful serialization",
+    "return the previous successful serialization",
+    "reuse the previous successful serialization",
+)
+_SERIALIZE_FINAL_ANSWER_TOKENS: Final[tuple[str, ...]] = (
+    "turtle",
+    "trig",
+    "n3",
+    "nt",
+    "serialization",
+    "representation",
+)
+_SERIALIZE_RESULT_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"format=(?P<format>'[^']+'|\"[^\"]+\")\s+content=(?P<content>'(?:\\.|[^'])*'|\"(?:\\.|[^\"])*\")\s+default_graph_triple_count=",
+    re.DOTALL,
+)
 
 # Circuit breaker: repeated tool calls in finalize-only (e.g. stuck on serialize_dataset)
 # would otherwise loop until LangGraph hits recursion_limit.
@@ -113,6 +132,72 @@ def _is_repeated_serialize_rejection(message: BaseMessage) -> bool:
 
 def _has_any_tool_call(message: AIMessage) -> bool:
     return bool(message.tool_calls or message.invalid_tool_calls)
+
+
+def _looks_like_serialization_reuse_intent(content: str) -> bool:
+    normalized = content.casefold()
+    return any(marker in normalized for marker in _SERIALIZE_REUSE_INTENT_MARKERS)
+
+
+def _looks_like_serialization_final_answer_preamble(content: str) -> bool:
+    normalized = content.casefold()
+    return (
+        "return" in normalized
+        and "final answer" in normalized
+        and any(token in normalized for token in _SERIALIZE_FINAL_ANSWER_TOKENS)
+    )
+
+
+def _extract_serialization_result_from_tool_message(
+    message: BaseMessage,
+) -> tuple[str, str] | None:
+    if not (
+        isinstance(message, ToolMessage)
+        and getattr(message, "status", None) == "success"
+        and getattr(message, "name", None) == "serialize_dataset"
+    ):
+        return None
+    match = _SERIALIZE_RESULT_PATTERN.search(str(message.content))
+    if match is None:
+        return None
+    try:
+        format_name = literal_eval(match.group("format"))
+        serialized_content = literal_eval(match.group("content"))
+    except SyntaxError, ValueError:
+        return None
+    if not isinstance(format_name, str) or not isinstance(serialized_content, str):
+        return None
+    return format_name, serialized_content
+
+
+def _completed_answer_from_serialization_result(format_name: str, content: str) -> str:
+    stripped = content.rstrip("\n")
+    return f"```text/{format_name}\n{stripped}\n```"
+
+
+def _last_successful_serialization_answer(
+    messages: Sequence[BaseMessage],
+) -> str | None:
+    for message in reversed(messages):
+        extracted = _extract_serialization_result_from_tool_message(message)
+        if extracted is None:
+            continue
+        format_name, serialized_content = extracted
+        return _completed_answer_from_serialization_result(
+            format_name, serialized_content
+        )
+    return None
+
+
+def _latest_message_is_successful_serialize_tool_result(
+    messages: Sequence[BaseMessage], message: BaseMessage
+) -> bool:
+    prior_message = _latest_surviving_message_before(messages, message)
+    return (
+        isinstance(prior_message, ToolMessage)
+        and getattr(prior_message, "status", None) == "success"
+        and getattr(prior_message, "name", None) == "serialize_dataset"
+    )
 
 
 def _repair_reminder_for_mode(mode: ContinuationMode) -> tuple[str, str]:
@@ -537,6 +622,18 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
                     "jump_to": "end",
                     "finalize_only_forbidden_tool_rounds": 0,
                 }
+            if _looks_like_serialization_reuse_intent(content):
+                recovered_answer = _last_successful_serialization_answer(messages)
+                if recovered_answer is not None:
+                    logger.debug(
+                        "Recovered final answer from the last successful serialize_dataset tool result in finalize-only mode"
+                    )
+                    return {
+                        "messages": [AIMessage(content=recovered_answer)],
+                        "continuation_mode": "stop_now",
+                        "jump_to": "end",
+                        "finalize_only_forbidden_tool_rounds": 0,
+                    }
             logger.debug(
                 "Detected non-final assistant output in finalize-only mode; re-prompting with final-answer-only reminder"
             )
@@ -544,6 +641,23 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
                 update={"messages": [HumanMessage(content=_FINALIZE_REMINDER)]},
                 goto="model",
             )
+
+        if _looks_like_serialization_final_answer_preamble(
+            content
+        ) and _latest_message_is_successful_serialize_tool_result(
+            messages, last_ai_message
+        ):
+            recovered_answer = _last_successful_serialization_answer(messages)
+            if recovered_answer is not None:
+                logger.debug(
+                    "Recovered final answer from the immediately preceding successful serialize_dataset tool result"
+                )
+                return {
+                    "messages": [AIMessage(content=recovered_answer)],
+                    "continuation_mode": "stop_now",
+                    "jump_to": "end",
+                    "finalize_only_forbidden_tool_rounds": 0,
+                }
 
         if looks_like_completed_answer(content):
             return None

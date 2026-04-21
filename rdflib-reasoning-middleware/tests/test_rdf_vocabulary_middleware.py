@@ -1,6 +1,7 @@
+from json import loads as json_loads
 from types import SimpleNamespace
 
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import SystemMessage, ToolMessage
 from rdflib import FOAF, OWL, PROV, RDF, RDFS, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import DC
 from rdflib_reasoning.middleware import (
@@ -14,6 +15,7 @@ from rdflib_reasoning.middleware.namespaces.spec_cache import UserSpec
 from rdflib_reasoning.middleware.rdf_vocabulary_middleware import (
     VocabularyListResponse,
 )
+from rdflib_reasoning.middleware.vocabulary.search_model import TermSearchResponse
 
 
 def _bundled_context() -> VocabularyContext:
@@ -37,6 +39,23 @@ def _middleware(
         RDFVocabularyMiddlewareConfig(
             vocabulary_context=vocabulary_context or _bundled_context()
         )
+    )
+
+
+def _mark_list_vocabularies_called(middleware: RDFVocabularyMiddleware) -> None:
+    list_tool = next(
+        tool for tool in middleware.tools if tool.name == "list_vocabularies"
+    )
+    list_request = SimpleNamespace(
+        tool=list_tool,
+        tool_call={
+            "id": "call-list",
+            "name": "list_vocabularies",
+            "args": {},
+        },
+    )
+    middleware.wrap_tool_call(
+        list_request, lambda req: req.tool.invoke(req.tool_call["args"])
     )
 
 
@@ -76,6 +95,64 @@ def test_list_terms_supports_offset() -> None:
     assert {term.uri for term in first_page}.isdisjoint(
         {term.uri for term in second_page}
     )
+
+
+def test_search_terms_returns_ranked_candidates() -> None:
+    middleware = _middleware()
+
+    response = middleware.search_terms(
+        "maker",
+        vocabularies=(str(FOAF),),
+        term_types=("property",),
+        limit=5,
+    )
+
+    assert len(response.hits) > 0
+    assert response.hits[0].uri == URIRef(str(FOAF.maker))
+    assert "exact label match" in response.hits[0].why_matched
+
+
+def test_search_terms_tool_invoke_returns_structured_response() -> None:
+    middleware = _middleware()
+    search_tool = next(tool for tool in middleware.tools if tool.name == "search_terms")
+
+    result = search_tool.invoke(
+        {"query": "maker", "vocabularies": [str(FOAF)], "term_types": ["property"]}
+    )
+
+    assert isinstance(result, str)
+    parsed = json_loads(result)
+    assert parsed["query"] == "maker"
+    assert len(parsed["hits"]) > 0
+    assert parsed["hits"][0]["uri"] == f"<{FOAF.maker}>"
+
+
+def test_search_terms_domain_api_returns_structured_response() -> None:
+    middleware = _middleware()
+    response = middleware.search_terms(
+        "maker",
+        vocabularies=(str(FOAF),),
+        term_types=("property",),
+        limit=5,
+    )
+
+    assert isinstance(response, TermSearchResponse)
+    assert len(response.hits) > 0
+    assert response.hits[0].uri == URIRef(str(FOAF.maker))
+
+
+def test_list_vocabularies_tool_invoke_returns_json_content() -> None:
+    middleware = _middleware()
+    list_tool = next(
+        tool for tool in middleware.tools if tool.name == "list_vocabularies"
+    )
+
+    result = list_tool.invoke({})
+
+    assert isinstance(result, str)
+    parsed = json_loads(result)
+    assert isinstance(parsed["vocabularies"], list)
+    assert any(item["namespace"] == f"<{RDF}>" for item in parsed["vocabularies"])
 
 
 def test_inspect_term_returns_compact_summary_with_optional_source_rdf() -> None:
@@ -153,12 +230,19 @@ def test_list_vocabularies_uses_user_supplied_description() -> None:
 def test_vocabulary_tool_schema_and_descriptions_are_agent_facing() -> None:
     middleware = _middleware()
     tools = {tool.name: tool for tool in middleware.tools}
+    search_terms_schema = tools["search_terms"].get_input_schema().model_json_schema()
     list_terms_schema = tools["list_terms"].get_input_schema().model_json_schema()
     inspect_term_schema = tools["inspect_term"].get_input_schema().model_json_schema()
     response_schema = VocabularyListResponse.model_json_schema()
 
+    assert "meaning you want to express" in tools["search_terms"].description
+    assert "MUST NOT repeat the same" in tools["search_terms"].description
     assert "offset" in tools["list_terms"].description
     assert "compact normalized summary" in tools["inspect_term"].description
+    assert len(search_terms_schema["properties"]["query"]["description"]) > 0
+    assert "vocabularies" in search_terms_schema["properties"]
+    assert "term_types" in search_terms_schema["properties"]
+    assert "limit" in search_terms_schema["properties"]
     assert "MUST NOT repeat the same" in tools["list_terms"].description
     assert "MUST NOT repeat the same" in tools["inspect_term"].description
     assert len(list_terms_schema["properties"]["vocabulary"]["examples"]) >= 2
@@ -180,8 +264,123 @@ def test_vocabulary_tool_schema_and_descriptions_are_agent_facing() -> None:
     )
 
 
+def test_vocabulary_system_prompt_prefers_search_terms() -> None:
+    middleware = _middleware()
+
+    prompt = middleware._build_vocabulary_system_prompt()
+
+    assert "`search_terms`" in prompt
+    assert "If you know the meaning you want to express" in prompt
+    assert (
+        "Prefer `search_terms` when you know the meaning you want to express" in prompt
+    )
+    assert "small `term_count`" in prompt
+    assert "Indexed Vocabularies Available Here" not in prompt
+    assert "FOAF (" not in prompt
+
+
+def test_wrap_model_call_requires_list_vocabularies_first_until_it_has_run() -> None:
+    middleware = _middleware()
+    captured: dict[str, object] = {}
+
+    class FakeRequest:
+        def __init__(self, system_message: SystemMessage) -> None:
+            self.system_message = system_message
+
+        def override(self, *, system_message: object) -> "FakeRequest":
+            assert isinstance(system_message, SystemMessage)
+            return FakeRequest(system_message)
+
+    request = FakeRequest(SystemMessage(content="Base system prompt"))
+
+    def handler(req: FakeRequest) -> str:
+        captured["system_message"] = req.system_message
+        return "ok"
+
+    middleware.wrap_model_call(request, handler)
+
+    system_message = str(captured["system_message"])
+    assert (
+        "Your next vocabulary action MUST be a `list_vocabularies` tool call"
+        in system_message
+    )
+
+    list_tool = next(
+        tool for tool in middleware.tools if tool.name == "list_vocabularies"
+    )
+    list_request = SimpleNamespace(
+        tool=list_tool,
+        tool_call={
+            "id": "call-list",
+            "name": "list_vocabularies",
+            "args": {},
+        },
+    )
+    middleware.wrap_tool_call(
+        list_request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+
+    captured.clear()
+    middleware.wrap_model_call(request, handler)
+    system_message = str(captured["system_message"])
+    assert (
+        "Your next vocabulary action MUST be a `list_vocabularies` tool call"
+        not in system_message
+    )
+
+
+def test_wrap_tool_call_rejects_other_vocabulary_tools_before_list_vocabularies() -> (
+    None
+):
+    middleware = _middleware()
+    search_tool = next(tool for tool in middleware.tools if tool.name == "search_terms")
+    request = SimpleNamespace(
+        tool=search_tool,
+        tool_call={
+            "id": "call-1",
+            "name": "search_terms",
+            "args": {"query": "maker", "limit": 5},
+        },
+    )
+
+    result = middleware.wrap_tool_call(
+        request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+
+    assert isinstance(result, ToolMessage)
+    assert result.status == "error"
+    assert "required before any other vocabulary tool" in str(result.content)
+
+
+def test_wrap_tool_call_allows_non_vocabulary_tools_before_list_vocabularies() -> None:
+    middleware = _middleware()
+    request = SimpleNamespace(
+        tool=None,
+        tool_call={
+            "id": "call-1",
+            "name": "write_todos",
+            "args": {"todos": [{"content": "plan", "status": "in_progress"}]},
+        },
+    )
+
+    result = middleware.wrap_tool_call(
+        request,
+        lambda req: ToolMessage(
+            content="ok",
+            name=req.tool_call["name"],
+            tool_call_id=req.tool_call["id"],
+            status="success",
+        ),
+    )
+
+    assert isinstance(result, ToolMessage)
+    assert result.status == "success"
+    assert str(result.content) == "ok"
+
+
 def test_wrap_tool_call_rejects_repeated_identical_inspect_term_query() -> None:
     middleware = _middleware()
+    _mark_list_vocabularies_called(middleware)
     inspect_tool = next(
         tool for tool in middleware.tools if tool.name == "inspect_term"
     )
@@ -209,6 +408,7 @@ def test_wrap_tool_call_rejects_repeated_identical_inspect_term_query() -> None:
 
 def test_wrap_tool_call_allows_changed_inspect_term_query() -> None:
     middleware = _middleware()
+    _mark_list_vocabularies_called(middleware)
     inspect_tool = next(
         tool for tool in middleware.tools if tool.name == "inspect_term"
     )
@@ -241,6 +441,7 @@ def test_wrap_tool_call_allows_changed_inspect_term_query() -> None:
 
 def test_wrap_tool_call_rejects_repeated_identical_list_terms_query() -> None:
     middleware = _middleware()
+    _mark_list_vocabularies_called(middleware)
     list_tool = next(tool for tool in middleware.tools if tool.name == "list_terms")
     request = SimpleNamespace(
         tool=list_tool,
@@ -264,8 +465,79 @@ def test_wrap_tool_call_rejects_repeated_identical_list_terms_query() -> None:
     assert "repeated `list_terms` query was rejected" in str(second.content)
 
 
+def test_wrap_tool_call_rejects_repeated_identical_search_terms_query() -> None:
+    middleware = _middleware()
+    _mark_list_vocabularies_called(middleware)
+    search_tool = next(tool for tool in middleware.tools if tool.name == "search_terms")
+    request = SimpleNamespace(
+        tool=search_tool,
+        tool_call={
+            "id": "call-1",
+            "name": "search_terms",
+            "args": {"query": "maker", "vocabularies": [str(FOAF)], "limit": 5},
+        },
+    )
+
+    first = middleware.wrap_tool_call(
+        request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+    second = middleware.wrap_tool_call(
+        request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+
+    assert second != first
+    assert isinstance(second, ToolMessage)
+    assert second.status == "error"
+    assert "repeated `search_terms` query was rejected" in str(second.content)
+
+
+def test_wrap_tool_call_rejects_non_consecutive_repeated_search_terms_query() -> None:
+    middleware = _middleware()
+    _mark_list_vocabularies_called(middleware)
+    search_tool = next(tool for tool in middleware.tools if tool.name == "search_terms")
+    first_request = SimpleNamespace(
+        tool=search_tool,
+        tool_call={
+            "id": "call-1",
+            "name": "search_terms",
+            "args": {"query": "classified as", "limit": 5},
+        },
+    )
+    second_request = SimpleNamespace(
+        tool=search_tool,
+        tool_call={
+            "id": "call-2",
+            "name": "search_terms",
+            "args": {"query": "falls under", "limit": 5},
+        },
+    )
+    repeated_first_request = SimpleNamespace(
+        tool=search_tool,
+        tool_call={
+            "id": "call-3",
+            "name": "search_terms",
+            "args": {"query": "classified as", "limit": 5},
+        },
+    )
+
+    middleware.wrap_tool_call(
+        first_request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+    middleware.wrap_tool_call(
+        second_request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+    repeated = middleware.wrap_tool_call(
+        repeated_first_request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+
+    assert isinstance(repeated, ToolMessage)
+    assert repeated.status == "error"
+    assert "repeated `search_terms` query was rejected" in str(repeated.content)
+
+
 def test_wrap_tool_call_allows_paginated_list_terms_query() -> None:
     middleware = _middleware()
+    _mark_list_vocabularies_called(middleware)
     list_tool = next(tool for tool in middleware.tools if tool.name == "list_terms")
     first_request = SimpleNamespace(
         tool=list_tool,
@@ -314,6 +586,7 @@ def test_list_vocabularies_filters_to_injected_whitelist() -> None:
 
 def test_wrap_tool_call_rejects_disallowed_vocabulary_namespace() -> None:
     middleware = _middleware(_restricted_context())
+    _mark_list_vocabularies_called(middleware)
     list_tool = next(tool for tool in middleware.tools if tool.name == "list_terms")
     request = SimpleNamespace(
         tool=list_tool,
@@ -335,6 +608,7 @@ def test_wrap_tool_call_rejects_disallowed_vocabulary_namespace() -> None:
 
 def test_wrap_tool_call_returns_whitelist_nearest_matches_for_bad_term() -> None:
     middleware = _middleware(_restricted_context())
+    _mark_list_vocabularies_called(middleware)
     inspect_tool = next(
         tool for tool in middleware.tools if tool.name == "inspect_term"
     )
@@ -363,6 +637,7 @@ def test_wrap_tool_call_reports_allowed_but_unindexed_term_gracefully() -> None:
             declarations=(VocabularyDeclaration(prefix="ex", namespace=ex),)
         ).build_context()
     )
+    _mark_list_vocabularies_called(middleware)
     inspect_tool = next(
         tool for tool in middleware.tools if tool.name == "inspect_term"
     )
@@ -382,6 +657,101 @@ def test_wrap_tool_call_reports_allowed_but_unindexed_term_gracefully() -> None:
     assert isinstance(result, ToolMessage)
     assert result.status == "error"
     assert "not available in the indexed vocabularies" in str(result.content)
+
+
+def test_wrap_tool_call_reports_nearest_indexed_candidates_for_unindexed_term() -> None:
+    ex = Namespace("https://example.com/ontology#")
+    graph = Graph(identifier=ex)
+    graph.add((URIRef(str(ex)), RDF.type, OWL.Ontology))
+    graph.add((URIRef(f"{ex}Primate"), RDF.type, RDFS.Class))
+    graph.add((URIRef(f"{ex}Primate"), RDFS.isDefinedBy, URIRef(str(ex))))
+    graph.add((URIRef(f"{ex}Primate"), RDFS.label, Literal("Primate")))
+
+    middleware = _middleware(
+        VocabularyConfiguration(
+            declarations=(
+                VocabularyDeclaration(
+                    prefix="ex",
+                    namespace=ex,
+                    user_spec=UserSpec(
+                        graph=graph,
+                        vocabulary=URIRef(str(ex)),
+                        label="Example Ontology",
+                        description="Example user-supplied ontology.",
+                    ),
+                ),
+            )
+        ).build_context()
+    )
+    _mark_list_vocabularies_called(middleware)
+    inspect_tool = next(
+        tool for tool in middleware.tools if tool.name == "inspect_term"
+    )
+    request = SimpleNamespace(
+        tool=inspect_tool,
+        tool_call={
+            "id": "call-1",
+            "name": "inspect_term",
+            "args": {"term": f"{ex}Primates", "include_source_rdf": True},
+        },
+    )
+
+    result = middleware.wrap_tool_call(
+        request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+
+    assert isinstance(result, ToolMessage)
+    assert result.status == "error"
+    assert "Suggested indexed alternatives:" in str(result.content)
+    assert f"`{ex}Primate`" in str(result.content)
+
+
+def test_wrap_tool_call_uses_user_indexed_vocab_for_unindexed_term_suggestions() -> (
+    None
+):
+    ex = Namespace("https://example.com/vocab#")
+    graph = Graph(identifier=ex)
+    graph.add((URIRef(str(ex)), RDF.type, OWL.Ontology))
+    graph.add((URIRef(f"{ex}Process"), RDF.type, RDFS.Class))
+    graph.add((URIRef(f"{ex}Process"), RDFS.isDefinedBy, URIRef(str(ex))))
+    graph.add((URIRef(f"{ex}Process"), RDFS.label, Literal("Process")))
+
+    middleware = _middleware(
+        VocabularyConfiguration(
+            declarations=(
+                VocabularyDeclaration(
+                    prefix="ex",
+                    namespace=ex,
+                    user_spec=UserSpec(
+                        graph=graph,
+                        vocabulary=URIRef(str(ex)),
+                        label="Example Vocabulary",
+                        description="Contains user-indexed terms only.",
+                    ),
+                ),
+            )
+        ).build_context()
+    )
+    _mark_list_vocabularies_called(middleware)
+    inspect_tool = next(
+        tool for tool in middleware.tools if tool.name == "inspect_term"
+    )
+    request = SimpleNamespace(
+        tool=inspect_tool,
+        tool_call={
+            "id": "call-1",
+            "name": "inspect_term",
+            "args": {"term": f"{ex}Processes"},
+        },
+    )
+
+    result = middleware.wrap_tool_call(
+        request, lambda req: req.tool.invoke(req.tool_call["args"])
+    )
+
+    assert isinstance(result, ToolMessage)
+    assert result.status == "error"
+    assert f"`{ex}Process`" in str(result.content)
 
 
 def test_undeclared_foaf_is_not_visible_from_list_vocabularies() -> None:
