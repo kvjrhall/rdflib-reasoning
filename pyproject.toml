@@ -26,7 +26,7 @@ dev = [
   "nbformat",
   "pip-audit",
   "pre-commit",
-  "pytest",
+  "pytest>=9.0.3",
   "pytest-cov",
   "rdflib-reasoning-axioms[dev]",
   "rdflib-reasoning-engine[dev]",

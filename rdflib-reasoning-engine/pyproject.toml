@@ -12,7 +12,8 @@ requires-python = ">=3.14"
 dependencies = ["pydantic", "rdflib", "rdflib-reasoning-axioms"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest>=9.0.3"]
+notebook = ["ipython"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rdflib_reasoning"]
