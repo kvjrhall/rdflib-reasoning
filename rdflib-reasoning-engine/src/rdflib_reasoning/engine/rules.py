@@ -137,7 +137,7 @@ class Rule(ProofModel):
     )
     body: tuple[RuleCondition, ...] = Field(
         ...,
-        min_length=1,
+        min_length=0,
         description="Conjunctive body conditions required for the rule to match.",
     )
     head: tuple[RuleConsequent, ...] = Field(
@@ -148,4 +148,11 @@ class Rule(ProofModel):
     salience: int = Field(
         default=0,
         description="Optional agenda priority used during conflict resolution.",
+    )
+    silent: bool = Field(
+        default=False,
+        description=(
+            "Whether conclusions from this rule are silent for materialization and "
+            "user-facing proof reconstruction visibility."
+        ),
     )

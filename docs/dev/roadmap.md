@@ -131,6 +131,13 @@ of that target while the remaining items stay explicitly deferred.
    - Add optional `ContinuationGuardMiddleware` for single-run, completion-oriented Research Agent harnesses so unfinished recovery narration and plan-only exits can be re-prompted without coupling that behavior to model-specific prompt middleware.
    - Architecture: [Continuation guard middleware](architecture.md#continuation-guard-middleware)
    - Decision: [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md)
+1. Silent-rule visibility and bootstrap-axiom execution
+   - Introduce immutable rule-level silence semantics where `silent` controls both materialization visibility and reconstructed proof visibility.
+   - Require silent derivations to remain present in engine-native derivation logs using visibility metadata, while user-facing proof reconstruction excludes silent records.
+   - Execute zero-precondition bootstrap rules once per engine-context initialization before warmup over existing graph content; reopening a context MAY re-run bootstrap idempotently.
+   - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)
+   - Architecture: [Truth Maintenance System (TMS)](architecture.md#truth-maintenance-system-tms)
+   - Decision: [DR-021 Silent Rules and Bootstrap Axiom Execution](decision-records/DR-021%20Silent%20Rules%20and%20Bootstrap%20Axiom%20Execution.md)
 
 ### 5.2. Exit criteria
 
@@ -149,6 +156,8 @@ of that target while the remaining items stay explicitly deferred.
 - The completed `0.3.0` indexed vocabulary set includes at minimum the core
   Semantic Web vocabularies (RDF, RDFS, OWL, SKOS, PROV).
 - Optional continuation-guard middleware is available for single-run harnesses without being implied for multi-round conversational agents.
+- Silent-rule visibility semantics are implemented so silent derivations remain logged while reconstructed user-facing proofs exclude silent records.
+- Zero-precondition bootstrap rules execute once per engine-context initialization before warmup over existing graph content, with idempotent behavior across reopen/recreate.
 
 ## 6. Release `0.4.0`: Retrieval and experiment expansion
 

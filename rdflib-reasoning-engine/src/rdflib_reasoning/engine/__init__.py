@@ -6,13 +6,16 @@ from .api import (
     LiteralAsSubjectWarning,
     LiteralPredicateError,
     LiteralPredicateWarning,
+    RDFTermConstraintError,
     RETEEngine,
     RETEEngineFactory,
 )
+from .builtins import DEFAULT_PREDICATE_BUILTINS, NotLiteralPredicate
 from .derivation import (
     DerivationLogger,
     DerivationProofReconstructor,
     ExplanationReconstructor,
+    InMemoryDerivationLogger,
 )
 from .proof import (
     AuthorityReference,
@@ -29,6 +32,7 @@ from .proof import (
     TripleFact,
     VariableBinding,
 )
+from .proof_rendering import ProofRenderer, render_proof_markdown, render_proof_mermaid
 from .rules import (
     Builtins,
     CallbackConsequent,
@@ -49,17 +53,21 @@ from .rulesets import RDFS_RULES
 
 __all__ = [
     "Builtins",
+    "DEFAULT_PREDICATE_BUILTINS",
     "CallbackConsequent",
     "CallbackHook",
     "AuthorityReference",
     "ContradictionClaim",
     "ContextData",
     "DerivationLogger",
+    "NotLiteralPredicate",
     "DerivationProofReconstructor",
+    "InMemoryDerivationLogger",
     "DerivationRecord",
     "DirectProof",
     "ExplanationReconstructor",
     "FatalRuleError",
+    "RDFTermConstraintError",
     "BlankNodePredicateError",
     "BlankNodePredicateWarning",
     "LiteralAsSubjectError",
@@ -88,4 +96,7 @@ __all__ = [
     "TriplePattern",
     "TripleFact",
     "VariableBinding",
+    "ProofRenderer",
+    "render_proof_markdown",
+    "render_proof_mermaid",
 ]

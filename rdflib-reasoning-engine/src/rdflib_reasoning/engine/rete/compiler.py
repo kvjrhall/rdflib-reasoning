@@ -57,6 +57,7 @@ class CompiledRule(BaseModel):
 
     rule_id: RuleId
     salience: int = 0
+    silent: bool = False
     triple_conditions: tuple[CompiledTripleCondition, ...] = Field(
         default_factory=tuple
     )
@@ -230,6 +231,7 @@ class RuleCompiler:
         return CompiledRule(
             rule_id=rule.id,
             salience=rule.salience,
+            silent=rule.silent,
             triple_conditions=ordered_triples,
             predicate_conditions=predicate_conditions,
             productions=productions,

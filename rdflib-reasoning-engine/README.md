@@ -71,6 +71,7 @@ This matrix tracks functional engine features independent of standards coverage.
 | Derivation / trace logging | Implemented | Engine-native `DerivationRecord` values are emitted for new logical conclusions produced by fired rules |
 | JTMS-compatible support bookkeeping | Implemented | `WorkingMemory`, `DependencyGraph`, and `Justification` records track stated facts and multi-parent support for derived facts; recursive retraction remains future work |
 | Explanation reconstruction | In progress | Proof models and reconstruction protocol exist, but derivation records are not yet rebuilt into concrete `DirectProof` paths |
+| Proof rendering (markdown and Mermaid) | Implemented | Presentation-focused rendering over canonical `DirectProof` data includes namespace-aware shortening and notebook display adapters via optional extras |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
 | Specialized transitive relation index | Not started | Intended optimization path for `rdfs:subClassOf` and `rdfs:subPropertyOf` first; broader general transitive-property support remains a later design question |
 

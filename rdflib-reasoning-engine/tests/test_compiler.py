@@ -82,6 +82,7 @@ def test_rule_compiler_normalizes_bindings_and_consequents() -> None:
 
     assert compiled.rule_id == rule.id
     assert compiled.salience == 7
+    assert compiled.silent is False
     assert compiled.variables == ("p", "x", "y")
     assert len(compiled.triple_conditions) == 2
     assert compiled.predicate_conditions[0].required_variables == ("y",)
@@ -90,6 +91,32 @@ def test_rule_compiler_normalizes_bindings_and_consequents() -> None:
         Variable("x"),
         URIRef("urn:test:marker"),
     )
+
+
+def test_rule_compiler_propagates_silent_and_supports_empty_body() -> None:
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="bootstrap-silent"),
+        description=RuleDescription(label="Bootstrap silent rule"),
+        body=(),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=URIRef("urn:test:s"),
+                    predicate=RDF.type,
+                    object=RDFS.Resource,
+                )
+            ),
+        ),
+        silent=True,
+    )
+
+    compiled = RuleCompiler.compile_rule(rule)
+
+    assert compiled.silent is True
+    assert compiled.triple_conditions == ()
+    assert compiled.predicate_conditions == ()
+    assert compiled.variables == ()
+    assert len(compiled.productions) == 1
 
 
 def test_rule_compiler_rejects_predicate_with_unbound_variable() -> None:
@@ -155,6 +182,7 @@ def test_action_instance_and_partial_match_capture_normalized_runtime_state() ->
         depth=match.depth,
         productions=compiled.productions,
         callbacks=compiled.callbacks,
+        silent=compiled.silent,
     )
 
     assert action.kind == "mixed"

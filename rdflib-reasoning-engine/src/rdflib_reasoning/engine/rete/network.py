@@ -413,6 +413,7 @@ class NetworkMatcher:
                 salience=terminal.rule.salience,
                 productions=terminal.rule.productions,
                 callbacks=terminal.rule.callbacks,
+                silent=terminal.rule.silent,
             )
             for match in matches
         )
