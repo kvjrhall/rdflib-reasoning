@@ -26,7 +26,7 @@
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete\_store.py                             |       86 |       15 |     83% |85, 92-93, 98, 102, 130, 142, 149, 160, 177, 181, 185, 189, 193, 197 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rules.py                                   |       49 |        4 |     92% |11-12, 24, 32 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/\_\_init\_\_.py                   |        2 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/rdfs.py                           |       15 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/rdfs.py                           |       16 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/\_\_init\_\_.py                    |        9 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/\_message\_heuristics.py           |       96 |        9 |     91% |67-68, 75, 79-80, 88, 104, 120, 172 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/continuation\_guard\_middleware.py |      305 |       32 |     90% |112, 116, 122, 162, 166-167, 169, 189, 276-283, 370-374, 385-391, 417-419, 433, 452, 528, 536, 544, 554, 559, 613, 667, 680 |
@@ -49,7 +49,7 @@
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_index.py        |      165 |        2 |     99% |   283-284 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_model.py        |       15 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary\_configuration.py       |       75 |        5 |     93% |20, 22, 25, 53, 119 |
-| **TOTAL**                                                                                       | **3843** |  **393** | **90%** |           |
+| **TOTAL**                                                                                       | **3844** |  **393** | **90%** |           |
 
 
 ## Setup coverage badge
