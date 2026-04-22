@@ -15,6 +15,9 @@ from langchain_core.messages import (
 from langgraph.types import Command
 from rdflib_reasoning.middleware._message_heuristics import find_tool_transcript_issue
 from rdflib_reasoning.middleware.continuation_guard_middleware import (
+    _INVALID_TOOL_CALL_REMINDER,
+    _REPEATED_REJECTED_TOOL_REMINDER,
+    _REPEATED_REJECTED_TOOL_REMINDER_PREFIX,
     ContinuationGuardMiddleware,
 )
 
@@ -155,6 +158,36 @@ _ERROR_TOOL_CALL_MESSAGE = AIMessage(
         }
     ],
 )
+_GENERIC_TOOL_ERROR = ToolMessage(
+    content="Static tool result already answered that exact question.",
+    name="inspect_term",
+    tool_call_id="tool-reject-1",
+    status="error",
+)
+_GENERIC_REPEATED_TOOL_CALL = AIMessage(
+    id="ai-repeat-inspect",
+    content="Let me inspect the term again.",
+    tool_calls=[
+        {
+            "name": "inspect_term",
+            "args": {"term": "<urn:test:Term>", "include_source_rdf": True},
+            "id": "tool-reject-2",
+            "type": "tool_call",
+        }
+    ],
+)
+_GENERIC_ORIGINAL_TOOL_CALL = AIMessage(
+    id="ai-original-inspect",
+    content="Let me inspect the term.",
+    tool_calls=[
+        {
+            "name": "inspect_term",
+            "args": {"term": "<urn:test:Term>", "include_source_rdf": True},
+            "id": "tool-reject-1",
+            "type": "tool_call",
+        }
+    ],
+)
 
 
 def test_after_model_reprompts_on_unfinished_recovery_after_tool_error() -> None:
@@ -200,6 +233,221 @@ def test_after_model_does_not_interrupt_normal_final_content() -> None:
     result = middleware.after_model(state, runtime=None)
 
     assert result is None
+
+
+def test_after_model_reprompts_on_invalid_tool_call_payload() -> None:
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "messages": [
+            ToolMessage(
+                content="Previous vocabulary lookup succeeded.",
+                tool_call_id="call-search",
+                status="success",
+            ),
+            AIMessage(
+                id="ai-invalid-add",
+                content="I will now call add_triples with the completed batch.",
+                invalid_tool_calls=[
+                    {
+                        "id": "invalid-add-1",
+                        "name": "add_triples",
+                        "args": '{"triples":[{"subject":"urn:test:s","predicate":"http://www.w3.org/2000/01/rdf-schema#label","object":""Bad""}]}',
+                        "error": "JSONDecodeError",
+                        "type": "invalid_tool_call",
+                    }
+                ],
+            ),
+        ]
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert isinstance(result, Command)
+    assert result.goto == "model"
+    assert len(result.update["messages"]) == 1
+    assert isinstance(result.update["messages"][0], RemoveMessage)
+    assert (
+        result.update["pending_tool_transcript_system_reminder"]
+        == _INVALID_TOOL_CALL_REMINDER
+    )
+
+
+def test_after_model_reprompts_on_repeated_identical_tool_retry_after_error() -> None:
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "messages": [
+            _GENERIC_ORIGINAL_TOOL_CALL,
+            _GENERIC_TOOL_ERROR,
+            _GENERIC_REPEATED_TOOL_CALL,
+        ]
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert isinstance(result, Command)
+    assert result.goto == "model"
+    assert len(result.update["messages"]) == 1
+    assert isinstance(result.update["messages"][0], RemoveMessage)
+    assert (
+        result.update["pending_tool_transcript_system_reminder"]
+        == _REPEATED_REJECTED_TOOL_REMINDER
+    )
+    assert result.update["normal_mode_rejected_tool_signature"] is not None
+    assert result.update["normal_mode_rejected_tool_name"] == "inspect_term"
+    assert result.update["normal_mode_rejected_tool_rounds"] == 1
+
+
+def test_after_model_stops_after_third_repeated_identical_tool_retry_in_normal_mode() -> (
+    None
+):
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "messages": [
+            _GENERIC_ORIGINAL_TOOL_CALL,
+            _GENERIC_TOOL_ERROR,
+            _GENERIC_REPEATED_TOOL_CALL,
+        ],
+        "normal_mode_rejected_tool_signature": '{"args": "{\\"include_source_rdf\\": true, \\"term\\": \\"<urn:test:Term>\\"}", "name": "inspect_term"}',
+        "normal_mode_rejected_tool_name": "inspect_term",
+        "normal_mode_rejected_tool_rounds": 2,
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert isinstance(result, dict)
+    assert result["continuation_mode"] == "stop_now"
+    assert result["jump_to"] == "end"
+    assert isinstance(result["messages"][0], RemoveMessage)
+    assert result["normal_mode_rejected_tool_signature"] is None
+    assert result["normal_mode_rejected_tool_name"] is None
+    assert result["normal_mode_rejected_tool_rounds"] == 0
+
+
+def test_after_model_increments_rounds_on_second_repeated_identical_tool_retry() -> (
+    None
+):
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "messages": [
+            _GENERIC_ORIGINAL_TOOL_CALL,
+            _GENERIC_TOOL_ERROR,
+            HumanMessage(content=_REPEATED_REJECTED_TOOL_REMINDER_PREFIX),
+            _GENERIC_REPEATED_TOOL_CALL,
+        ],
+        "normal_mode_rejected_tool_signature": '{"args": "{\\"include_source_rdf\\": true, \\"term\\": \\"<urn:test:Term>\\"}", "name": "inspect_term"}',
+        "normal_mode_rejected_tool_name": "inspect_term",
+        "normal_mode_rejected_tool_rounds": 1,
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert isinstance(result, Command)
+    assert result.goto == "model"
+    assert len(result.update["messages"]) == 1
+    assert isinstance(result.update["messages"][0], RemoveMessage)
+    assert result.update["normal_mode_rejected_tool_rounds"] == 2
+
+
+def test_after_model_resets_rejected_tool_tracker_when_tool_signature_changes() -> None:
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "messages": [
+            _GENERIC_ORIGINAL_TOOL_CALL,
+            _GENERIC_TOOL_ERROR,
+            AIMessage(
+                id="ai-different-tool",
+                content="Try a different term instead.",
+                tool_calls=[
+                    {
+                        "name": "inspect_term",
+                        "args": {"term": "<urn:test:Other>"},
+                        "id": "tool-reject-3",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+        ],
+        "normal_mode_rejected_tool_signature": '{"args": "{\\"include_source_rdf\\": true, \\"term\\": \\"<urn:test:Term>\\"}", "name": "inspect_term"}',
+        "normal_mode_rejected_tool_name": "inspect_term",
+        "normal_mode_rejected_tool_rounds": 1,
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert result == {
+        "normal_mode_rejected_tool_signature": None,
+        "normal_mode_rejected_tool_name": None,
+        "normal_mode_rejected_tool_rounds": 0,
+    }
+
+
+def test_after_model_resets_rejected_tool_tracker_after_successful_tool_result() -> (
+    None
+):
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "messages": [
+            ToolMessage(
+                content="Inspection succeeded.",
+                name="inspect_term",
+                tool_call_id="tool-success-1",
+                status="success",
+            ),
+            AIMessage(content="The term is suitable; I can continue."),
+        ],
+        "normal_mode_rejected_tool_signature": "tracked-signature",
+        "normal_mode_rejected_tool_name": "inspect_term",
+        "normal_mode_rejected_tool_rounds": 2,
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert result == {
+        "normal_mode_rejected_tool_signature": None,
+        "normal_mode_rejected_tool_name": None,
+        "normal_mode_rejected_tool_rounds": 0,
+    }
+
+
+def test_after_model_ignores_multi_tool_turn_for_rejected_tool_circuit_breaker() -> (
+    None
+):
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "messages": [
+            _GENERIC_ORIGINAL_TOOL_CALL,
+            _GENERIC_TOOL_ERROR,
+            AIMessage(
+                id="ai-multi-tool",
+                content="Try two tool calls.",
+                tool_calls=[
+                    {
+                        "name": "inspect_term",
+                        "args": {"term": "<urn:test:Term>", "include_source_rdf": True},
+                        "id": "tool-reject-4",
+                        "type": "tool_call",
+                    },
+                    {
+                        "name": "inspect_term",
+                        "args": {"term": "<urn:test:Other>"},
+                        "id": "tool-reject-5",
+                        "type": "tool_call",
+                    },
+                ],
+            ),
+        ],
+        "normal_mode_rejected_tool_signature": "tracked-signature",
+        "normal_mode_rejected_tool_name": "inspect_term",
+        "normal_mode_rejected_tool_rounds": 1,
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert result == {
+        "normal_mode_rejected_tool_signature": None,
+        "normal_mode_rejected_tool_name": None,
+        "normal_mode_rejected_tool_rounds": 0,
+    }
 
 
 def test_before_model_injects_provider_safe_finalize_message_in_finalize_only_mode() -> (
@@ -432,7 +680,7 @@ def test_after_model_does_not_reprompt_when_tool_calls_already_present() -> None
     assert result is None
 
 
-def test_after_model_does_not_reprompt_when_invalid_tool_calls_are_present() -> None:
+def test_after_model_reprompts_when_invalid_tool_calls_are_present() -> None:
     middleware = ContinuationGuardMiddleware()
     state = {
         "messages": [
@@ -453,7 +701,13 @@ def test_after_model_does_not_reprompt_when_invalid_tool_calls_are_present() -> 
 
     result = middleware.after_model(state, runtime=None)
 
-    assert result is None
+    assert isinstance(result, Command)
+    assert result.goto == "model"
+    reminder = result.update["messages"][0]
+    assert isinstance(reminder, HumanMessage)
+    assert "previous tool call was malformed and did not execute" in str(
+        reminder.content
+    )
 
 
 def test_after_model_only_injects_recovery_reminder_once() -> None:
@@ -756,14 +1010,23 @@ def test_after_model_reprompts_when_non_serialize_tool_call_appears_in_finalize_
     assert "Return the completed final answer now" in str(reminder.content)
 
 
-def test_after_model_removes_forbidden_tool_call_without_human_message_when_prior_message_is_tool() -> (
+def test_after_model_recovers_last_successful_serialization_when_forbidden_tool_call_appears_in_finalize_only_mode() -> (
     None
 ):
     middleware = ContinuationGuardMiddleware()
     state = {
         "continuation_mode": "finalize_only",
         "messages": [
-            _SERIALIZE_TOOL_CALL_MESSAGE,
+            ToolMessage(
+                content=(
+                    "format='turtle' content='@prefix ex: <urn:ex:> .\\n\\nex:John a ex:Person .\\n' "
+                    "default_graph_triple_count=1 is_empty=False "
+                    "message='Serialized the current default graph containing 1 triples.'"
+                ),
+                name="serialize_dataset",
+                tool_call_id="tool-serialize-success",
+                status="success",
+            ),
             _REPEATED_SERIALIZE_TOOL_MESSAGE,
             AIMessage(
                 id="ai-list-after-tool",
@@ -782,11 +1045,66 @@ def test_after_model_removes_forbidden_tool_call_without_human_message_when_prio
 
     result = middleware.after_model(state, runtime=None)
 
-    assert isinstance(result, Command)
-    assert result.goto == "model"
-    assert len(result.update["messages"]) == 1
-    assert isinstance(result.update["messages"][0], RemoveMessage)
-    assert result.update["messages"][0].id == "ai-list-after-tool"
+    assert isinstance(result, dict)
+    assert result["continuation_mode"] == "stop_now"
+    assert result["jump_to"] == "end"
+    assert result["finalize_only_forbidden_tool_rounds"] == 0
+    assert len(result["messages"]) == 2
+    assert isinstance(result["messages"][0], RemoveMessage)
+    assert result["messages"][0].id == "ai-list-after-tool"
+    recovered = result["messages"][1]
+    assert isinstance(recovered, AIMessage)
+    assert "```text/turtle" in str(recovered.content)
+    assert "ex:John a ex:Person ." in str(recovered.content)
+
+
+def test_after_model_recovers_last_successful_serialization_when_invalid_tool_call_appears_in_finalize_only_mode() -> (
+    None
+):
+    middleware = ContinuationGuardMiddleware()
+    state = {
+        "continuation_mode": "finalize_only",
+        "messages": [
+            ToolMessage(
+                content=(
+                    "format='turtle' content='@prefix ex: <urn:ex:> .\\n\\nex:John a ex:Person .\\n' "
+                    "default_graph_triple_count=1 is_empty=False "
+                    "message='Serialized the current default graph containing 1 triples.'"
+                ),
+                name="serialize_dataset",
+                tool_call_id="tool-serialize-success",
+                status="success",
+            ),
+            _REPEATED_SERIALIZE_TOOL_MESSAGE,
+            AIMessage(
+                id="ai-invalid-write-file-after-tool",
+                content="I will write the Turtle to a file now.",
+                invalid_tool_calls=[
+                    {
+                        "name": "write_file",
+                        "args": '{"file_path": "/tmp/out.ttl"',
+                        "id": "tool-write-file",
+                        "type": "invalid_tool_call",
+                        "error": "JSONDecodeError",
+                    }
+                ],
+            ),
+        ],
+    }
+
+    result = middleware.after_model(state, runtime=None)
+
+    assert isinstance(result, dict)
+    assert result["continuation_mode"] == "stop_now"
+    assert result["jump_to"] == "end"
+    assert result["finalize_only_forbidden_tool_rounds"] == 0
+    assert len(result["messages"]) == 2
+    assert isinstance(result["messages"][0], RemoveMessage)
+    assert result["messages"][0].id == "ai-invalid-write-file-after-tool"
+    recovered = result["messages"][1]
+    assert isinstance(recovered, AIMessage)
+    assert "```text/turtle" in str(recovered.content)
+    assert "ex:John a ex:Person ." in str(recovered.content)
 
 
 def test_before_model_repairs_unresolved_tool_call_transcript_before_provider_call(

@@ -21,6 +21,16 @@ class ContinuationGuardState(AgentState):
     continuation_mode: NotRequired[Annotated[ContinuationMode, PrivateStateAttr]]
     finalize_only_forbidden_tool_rounds: NotRequired[Annotated[int, PrivateStateAttr]]
     """Count of consecutive finalize-only model turns that still emitted tool calls."""
+    normal_mode_rejected_tool_signature: NotRequired[
+        Annotated[str | None, PrivateStateAttr]
+    ]
+    """Exact signature of the repeated rejected tool call currently being tracked."""
+
+    normal_mode_rejected_tool_name: NotRequired[Annotated[str | None, PrivateStateAttr]]
+    """Tool name paired with ``normal_mode_rejected_tool_signature`` for logging/debugging."""
+
+    normal_mode_rejected_tool_rounds: NotRequired[Annotated[int, PrivateStateAttr]]
+    """Count of consecutive normal-mode retries for the same already-rejected tool call."""
 
     pending_tool_transcript_system_reminder: NotRequired[
         Annotated[str | None, _PENDING_TOOL_TRANSCRIPT_CHANNEL, PrivateStateAttr]

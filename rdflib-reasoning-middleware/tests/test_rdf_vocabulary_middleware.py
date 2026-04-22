@@ -1,4 +1,6 @@
+from importlib.util import module_from_spec, spec_from_file_location
 from json import loads as json_loads
+from pathlib import Path
 from types import SimpleNamespace
 
 from langchain_core.messages import SystemMessage, ToolMessage
@@ -16,6 +18,18 @@ from rdflib_reasoning.middleware.rdf_vocabulary_middleware import (
     VocabularyListResponse,
 )
 from rdflib_reasoning.middleware.vocabulary.search_model import TermSearchResponse
+
+
+def _load_demo_utils() -> object:
+    spec = spec_from_file_location(
+        "demo_utils",
+        Path(__file__).resolve().parents[2] / "notebooks" / "demo_utils.py",
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _bundled_context() -> VocabularyContext:
@@ -236,9 +250,13 @@ def test_vocabulary_tool_schema_and_descriptions_are_agent_facing() -> None:
     response_schema = VocabularyListResponse.model_json_schema()
 
     assert "meaning you want to express" in tools["search_terms"].description
+    assert "draft graph shape" in tools["search_terms"].description
+    assert "switch to `list_terms`" in tools["search_terms"].description
     assert "MUST NOT repeat the same" in tools["search_terms"].description
     assert "offset" in tools["list_terms"].description
+    assert "bounded familiarization pass" in tools["list_terms"].description
     assert "compact normalized summary" in tools["inspect_term"].description
+    assert "Do not use repeated" in tools["inspect_term"].description
     assert len(search_terms_schema["properties"]["query"]["description"]) > 0
     assert "vocabularies" in search_terms_schema["properties"]
     assert "term_types" in search_terms_schema["properties"]
@@ -264,19 +282,43 @@ def test_vocabulary_tool_schema_and_descriptions_are_agent_facing() -> None:
     )
 
 
-def test_vocabulary_system_prompt_prefers_search_terms() -> None:
+def test_vocabulary_system_prompt_teaches_familiarization_transition() -> None:
     middleware = _middleware()
 
     prompt = middleware._build_vocabulary_system_prompt()
 
+    assert "draft graph shape" in prompt
     assert "`search_terms`" in prompt
     assert "If you know the meaning you want to express" in prompt
     assert (
         "Prefer `search_terms` when you know the meaning you want to express" in prompt
     )
+    assert "pause term-by-term lookup" in prompt
+    assert "scan that vocabulary" in prompt
     assert "small `term_count`" in prompt
+    assert "minting overlapping local terms" in prompt
+    assert "skip directly from `list_vocabularies`" in prompt
+    assert "Do not mint local classes or properties that overlap" in prompt
     assert "Indexed Vocabularies Available Here" not in prompt
     assert "FOAF (" not in prompt
+
+
+def test_demo_utils_vocabulary_tips_and_stopping_criteria_mirror_familiarization() -> (
+    None
+):
+    demo_utils = _load_demo_utils()
+
+    vocabulary_tips = demo_utils.VOCABULARY_TIPS
+    stopping_criteria = demo_utils.STOPPING_CRITERIA
+
+    assert "draft graph shape" in vocabulary_tips
+    assert "familiarize yourself with that ontology" in vocabulary_tips
+    assert "bounded familiarization pass" in vocabulary_tips
+    assert "one or two plausible hits by themselves" in vocabulary_tips
+    assert (
+        "small relevant ontology has not yet been given one bounded familiarization"
+        in stopping_criteria
+    )
 
 
 def test_wrap_model_call_requires_list_vocabularies_first_until_it_has_run() -> None:
