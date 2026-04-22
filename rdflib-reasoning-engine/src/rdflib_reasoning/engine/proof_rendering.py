@@ -27,7 +27,7 @@ from .rules import (
     TripleCondition,
     TripleConsequent,
 )
-from .rulesets import RDFS_RULES
+from .rulesets import PRODUCTION_RDFS_RULES
 
 
 @dataclass(frozen=True)
@@ -144,7 +144,7 @@ class ProofRenderer:
         if node.rule_id is None:
             return None
         if node.rule_id.ruleset == "rdfs":
-            for rule in RDFS_RULES:
+            for rule in PRODUCTION_RDFS_RULES:
                 if rule.id.rule_id == node.rule_id.rule_id:
                     return rule
         return None

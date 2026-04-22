@@ -5,7 +5,7 @@ from rdflib import RDF, RDFS, BNode, Literal, URIRef
 from rdflib.term import Node, Variable
 from rdflib_reasoning.axiom.common import Triple
 from rdflib_reasoning.engine import (
-    RDFS_RULES,
+    PRODUCTION_RDFS_RULES,
     BlankNodePredicateError,
     BlankNodePredicateWarning,
     LiteralAsSubjectError,
@@ -98,7 +98,7 @@ def test_literal_subject_inferred_includes_rule_diagnostics() -> None:
 
 def test_rdfs4b_skips_literal_objects_without_literal_as_subject_error() -> None:
     """rdfs4b must not emit (literal rdf:type rdfs:Resource)—illegal RDF 1.1 triples."""
-    factory = RETEEngineFactory(rules=RDFS_RULES)
+    factory = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES)
     engine = factory.new_engine(URIRef("urn:test:ctx"))
     s = URIRef("urn:ex:Person")
     label_triple: Triple = (s, RDFS.label, Literal("Person"))

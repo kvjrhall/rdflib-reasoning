@@ -49,7 +49,7 @@ from .rules import (
     TripleConsequent,
     TriplePattern,
 )
-from .rulesets import RDFS_RULES
+from .rulesets import CONFORMANT_RDFS_RULES, PRODUCTION_RDFS_RULES
 
 __all__ = [
     "Builtins",
@@ -78,7 +78,8 @@ __all__ = [
     "PredicateCondition",
     "PredicateHook",
     "ProofLeaf",
-    "RDFS_RULES",
+    "PRODUCTION_RDFS_RULES",
+    "CONFORMANT_RDFS_RULES",
     "RETEEngine",
     "RETEEngineFactory",
     "Rule",

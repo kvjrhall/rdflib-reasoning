@@ -45,6 +45,41 @@ This repository distinguishes between two agent types. Canonical definitions are
 API and developer documentation can be generated locally with `make docs` and served from the
 generated HTML output with `make docs-serve`.
 
+## Quickstart
+
+If you want to see the repository's RDFS inference capabilities quickly, start with these checked-in notebooks:
+
+- [notebooks/demo-rdfs-inference.ipynb](./notebooks/demo-rdfs-inference.ipynb): shortest end-to-end walkthrough of RDFLib-backed RDFS materialization plus a proof view showing which rule applications justify one inferred triple
+- [notebooks/demo-proof-reconstructor.ipynb](./notebooks/demo-proof-reconstructor.ipynb): proof-focused companion notebook covering Mermaid rendering, markdown rendering, and raw `DirectProof` inspection
+- [notebooks/README.md](./notebooks/README.md): notebook index with suggested reading order for demos and experiments
+
+If you prefer a minimal code-first example before opening a notebook, the basic RDFS inference path looks like this:
+
+```python
+from rdflib import Dataset, Namespace
+from rdflib.namespace import RDF, RDFS
+from rdflib.plugins.stores.memory import Memory
+from rdflib_reasoning.engine import PRODUCTION_RDFS_RULES, RETEEngineFactory
+from rdflib_reasoning.engine.rete_store import RETEStore
+
+EX = Namespace("urn:example:")
+
+store = RETEStore(Memory(), RETEEngineFactory(rules=PRODUCTION_RDFS_RULES))
+dataset = Dataset(store=store)
+graph = dataset.default_graph
+
+alice = EX.alice
+person = EX.Person
+mammal = EX.Mammal
+animal = EX.Animal
+
+graph.add((alice, RDF.type, person))
+graph.add((person, RDFS.subClassOf, mammal))
+graph.add((mammal, RDFS.subClassOf, animal))
+
+assert (alice, RDF.type, animal) in graph
+```
+
 ## Component Overview
 
 Research on agents takes place in [Analysis Notebooks](./notebooks/), uses the [LangChain ecosystem](https://www.langchain.com/), and depends on packages defined in this repository. Those packages build on [RDFLib](https://github.com/RDFLib/rdflib) for semantic-web support and on [Pydantic](https://docs.pydantic.dev/latest/) for Research Agent-friendly schemas.
@@ -140,6 +175,7 @@ The root `Makefile` wraps those commands with `install`, `install-dev`, `install
 ### Add or Review Research Notebooks
 
 If you want to contribute notebooks to this repository, or inspect the notebooks that already exist, install the repository locally with the `research` extra and work from the [notebooks](./notebooks/) directory. The notebooks are part of the repository's research record rather than a separate published package.
+For the current demo/tutorial entry points, see [notebooks/README.md](./notebooks/README.md).
 
 ### Develop Against These Packages Elsewhere
 

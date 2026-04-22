@@ -1,5 +1,6 @@
 from rdflib_reasoning.engine import (
-    RDFS_RULES,
+    CONFORMANT_RDFS_RULES,
+    PRODUCTION_RDFS_RULES,
     CallbackConsequent,
     DerivationLogger,
     DirectProof,
@@ -41,4 +42,5 @@ def test_public_rule_ir_and_rulesets_are_exposed() -> None:
     assert PredicateCondition.__name__ == "PredicateCondition"
     assert TripleConsequent.__name__ == "TripleConsequent"
     assert CallbackConsequent.__name__ == "CallbackConsequent"
-    assert len(RDFS_RULES) >= 1
+    assert len(PRODUCTION_RDFS_RULES) >= 1
+    assert len(CONFORMANT_RDFS_RULES) >= 1
