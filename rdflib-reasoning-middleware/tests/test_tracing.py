@@ -1,10 +1,16 @@
+import json
 from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from rdflib_reasoning.middleware import TraceRecorder, TraceSink, TurnTracer
-from rdflib_reasoning.middleware.tracing import TraceEvent
+from rdflib_reasoning.middleware.tracing import (
+    TURN_TRACE_TRANSCRIPT_FORMAT,
+    TURN_TRACE_TRANSCRIPT_VERSION,
+    TraceEvent,
+    turn_traces_to_json_document,
+)
 
 
 def test_trace_sink_snapshot_and_clear() -> None:
@@ -467,6 +473,36 @@ def test_turn_tracer_matches_repeated_tool_names_by_tool_call_id() -> None:
     assert turns[0].tool_invocations[1].result == {"updated": 1}
 
 
+def test_turn_traces_to_json_document_serializes_turns() -> None:
+    run_id = uuid4()
+    turns = TurnTracer().snapshot(
+        (
+            TraceEvent(
+                kind="chat_model_start", run_id=run_id, payload={"input_summary": ()}
+            ),
+            TraceEvent(
+                kind="llm_end",
+                run_id=run_id,
+                payload={
+                    "content": "Hello.",
+                    "tool_calls": (),
+                    "invalid_tool_calls": (),
+                    "response_metadata": {"finish_reason": "stop"},
+                },
+            ),
+        )
+    )
+
+    doc = turn_traces_to_json_document(turns)
+
+    assert doc["format"] == TURN_TRACE_TRANSCRIPT_FORMAT
+    assert doc["version"] == TURN_TRACE_TRANSCRIPT_VERSION
+    assert len(doc["turns"]) == 1
+    assert doc["turns"][0]["run_id"] == str(run_id)
+    assert doc["turns"][0]["final_content"] == "Hello."
+    assert json.loads(json.dumps(doc)) == doc
+
+
 def test_live_notebook_trace_attach_and_stop(monkeypatch) -> None:
     pytest.importorskip("IPython")
     from rdflib_reasoning.middleware.tracing_notebook import LiveNotebookTrace
@@ -520,6 +556,70 @@ def test_live_notebook_trace_attach_and_stop(monkeypatch) -> None:
     trace.stop()
 
     assert handle.updates
+
+
+def test_live_notebook_trace_dump_writes_transcript(monkeypatch, tmp_path) -> None:
+    pytest.importorskip("IPython")
+    from rdflib_reasoning.middleware.tracing_notebook import LiveNotebookTrace
+
+    class _Handle:
+        def __init__(self) -> None:
+            self.updates: list[object] = []
+
+        def update(self, value: object) -> None:
+            self.updates.append(value)
+
+    handle = _Handle()
+
+    monkeypatch.setattr(
+        "rdflib_reasoning.middleware.tracing_notebook.display",
+        lambda value, display_id: handle,
+    )
+    monkeypatch.setattr(
+        "rdflib_reasoning.middleware.tracing_notebook.Markdown",
+        lambda text: text,
+    )
+
+    trace = LiveNotebookTrace(refresh_interval_seconds=0.01)
+    run_id = uuid4()
+    trace.recorder.on_chat_model_start(
+        {"name": "test-model"},
+        [[HumanMessage(content="Hello from dump test.")]],
+        run_id=run_id,
+    )
+    trace.recorder.on_llm_end(
+        SimpleNamespace(
+            generations=[
+                [
+                    SimpleNamespace(
+                        text="Hi.",
+                        message=SimpleNamespace(
+                            content="Hi.",
+                            tool_calls=(),
+                            invalid_tool_calls=(),
+                            response_metadata={"finish_reason": "stop"},
+                        ),
+                    )
+                ]
+            ]
+        ),
+        run_id=run_id,
+    )
+
+    out_path = tmp_path / "trace.json"
+    written = trace.dump(out_path)
+
+    assert written == str(out_path)
+    doc = json.loads(out_path.read_text(encoding="utf-8"))
+    assert doc["format"] == TURN_TRACE_TRANSCRIPT_FORMAT
+    assert doc["version"] == TURN_TRACE_TRANSCRIPT_VERSION
+    assert len(doc["turns"]) == 1
+    assert doc["turns"][0]["run_id"] == str(run_id)
+    assert doc["turns"][0]["final_content"] == "Hi."
+
+    inline = trace.dump(None)
+    assert TURN_TRACE_TRANSCRIPT_FORMAT in inline
+    assert str(run_id) in inline
 
 
 def test_notebook_trace_renderer_shows_requested_and_invalid_tool_calls() -> None:
