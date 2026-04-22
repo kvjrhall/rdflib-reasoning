@@ -3,6 +3,8 @@ import re
 from ast import literal_eval
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
+from json import dumps as json_dumps
+from json import loads as json_loads
 from typing import Any, Final, cast, override
 
 from deepagents.middleware._utils import append_to_system_message
@@ -78,6 +80,22 @@ _TOOL_TRANSCRIPT_REMINDER: Final[str] = (
     "Either emit one corrected tool call now or, if the task is complete, provide "
     "the completed final answer immediately."
 )
+_REPEATED_REJECTED_TOOL_REMINDER_PREFIX: Final[str] = (
+    "[rdflib_reasoning-tool-retry] The previous tool call already failed with guidance."
+)
+_REPEATED_REJECTED_TOOL_REMINDER: Final[str] = (
+    f"{_REPEATED_REJECTED_TOOL_REMINDER_PREFIX} Do not repeat the same tool call "
+    "unchanged. Either emit one corrected tool call now or, if the task is complete, "
+    "provide the completed final answer immediately."
+)
+_INVALID_TOOL_CALL_REMINDER_PREFIX: Final[str] = (
+    "[rdflib_reasoning-invalid-tool-call] The previous tool call was malformed and did not execute."
+)
+_INVALID_TOOL_CALL_REMINDER: Final[str] = (
+    f"{_INVALID_TOOL_CALL_REMINDER_PREFIX} Emit one corrected tool call now. "
+    "Do not restate the plan in prose. Ensure the tool arguments are valid JSON and "
+    "fully specified before retrying."
+)
 _REPEATED_SERIALIZE_REJECTION_MARKER: Final[str] = (
     "The dataset has not changed since the previous `serialize_dataset` call in this format."
 )
@@ -102,6 +120,7 @@ _SERIALIZE_RESULT_PATTERN: Final[re.Pattern[str]] = re.compile(
 # Circuit breaker: repeated tool calls in finalize-only (e.g. stuck on serialize_dataset)
 # would otherwise loop until LangGraph hits recursion_limit.
 _MAX_FINALIZE_ONLY_FORBIDDEN_TOOL_ROUNDS: Final[int] = 5
+_MAX_NORMAL_MODE_REJECTED_TOOL_ROUNDS: Final[int] = 3
 
 
 def _has_recent_error_tool_message(messages: Sequence[BaseMessage]) -> bool:
@@ -213,6 +232,84 @@ def _latest_surviving_message_before(
         if candidate is message:
             continue
         return candidate
+    return None
+
+
+def _latest_tool_message_before(
+    messages: Sequence[BaseMessage], message: BaseMessage
+) -> ToolMessage | None:
+    for candidate in reversed(messages):
+        if candidate is message:
+            continue
+        if isinstance(candidate, ToolMessage):
+            return candidate
+    return None
+
+
+def _first_requested_tool_name(message: AIMessage) -> str | None:
+    if message.tool_calls:
+        first_tool_call = message.tool_calls[0]
+        if isinstance(first_tool_call, dict):
+            name = first_tool_call.get("name")
+            if isinstance(name, str):
+                return name
+    if message.invalid_tool_calls:
+        first_invalid_tool_call = message.invalid_tool_calls[0]
+        if isinstance(first_invalid_tool_call, dict):
+            invalid_name = first_invalid_tool_call.get("name")
+            if isinstance(invalid_name, str):
+                return invalid_name
+    return None
+
+
+def _normalize_tool_call_args(raw_args: Any) -> str | None:
+    if raw_args is None:
+        return None
+    if isinstance(raw_args, str):
+        try:
+            parsed_args = json_loads(raw_args)
+        except ValueError:
+            return raw_args
+        return json_dumps(parsed_args, sort_keys=True, default=str)
+    return json_dumps(raw_args, sort_keys=True, default=str)
+
+
+def _tool_call_signature_from_dict(tool_call: object) -> tuple[str, str] | None:
+    if not isinstance(tool_call, dict):
+        return None
+    name = tool_call.get("name")
+    if not isinstance(name, str):
+        return None
+    raw_args = tool_call.get("args")
+    if raw_args is None:
+        raw_args = tool_call.get("arguments")
+    normalized_args = _normalize_tool_call_args(raw_args)
+    signature_payload: dict[str, Any] = {"name": name}
+    if normalized_args is not None:
+        signature_payload["args"] = normalized_args
+    return name, json_dumps(signature_payload, sort_keys=True, default=str)
+
+
+def _single_tool_call_signature(message: AIMessage) -> tuple[str, str] | None:
+    if message.invalid_tool_calls or len(message.tool_calls) != 1:
+        return None
+    return _tool_call_signature_from_dict(message.tool_calls[0])
+
+
+def _tool_call_signature_by_id_before(
+    messages: Sequence[BaseMessage],
+    *,
+    tool_call_id: str,
+    before_message: BaseMessage,
+) -> tuple[str, str] | None:
+    for candidate in reversed(messages):
+        if candidate is before_message:
+            continue
+        if not isinstance(candidate, AIMessage):
+            continue
+        for tool_call in candidate.tool_calls:
+            if isinstance(tool_call, dict) and str(tool_call.get("id")) == tool_call_id:
+                return _tool_call_signature_from_dict(tool_call)
     return None
 
 
@@ -419,6 +516,207 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
             return merged
         return out
 
+    @staticmethod
+    def _merge_clear_normal_mode_rejected_tool_state(
+        state: ContinuationGuardState,
+        mode: ContinuationMode,
+        out: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        """Reset normal-mode repeated rejected-tool tracking outside normal mode."""
+        if mode == "normal":
+            return out
+        signature_any = state.get("normal_mode_rejected_tool_signature")
+        name_any = state.get("normal_mode_rejected_tool_name")
+        rounds_any = state.get("normal_mode_rejected_tool_rounds", 0)
+        if (
+            signature_any is not None
+            or name_any is not None
+            or (isinstance(rounds_any, int) and rounds_any > 0)
+        ):
+            merged = dict(out) if out else {}
+            merged["normal_mode_rejected_tool_signature"] = None
+            merged["normal_mode_rejected_tool_name"] = None
+            merged["normal_mode_rejected_tool_rounds"] = 0
+            return merged
+        return out
+
+    @classmethod
+    def _merge_clear_inactive_guard_state(
+        cls,
+        state: ContinuationGuardState,
+        mode: ContinuationMode,
+        out: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        out = cls._merge_clear_finalize_only_tool_rounds(state, mode, out)
+        return cls._merge_clear_normal_mode_rejected_tool_state(state, mode, out)
+
+    @staticmethod
+    def _with_normal_mode_rejected_tool_state(
+        state: ContinuationGuardState,
+        out: dict[str, Any] | None,
+        *,
+        signature: str | None,
+        name: str | None,
+        rounds: int,
+    ) -> dict[str, Any] | None:
+        current_signature = state.get("normal_mode_rejected_tool_signature")
+        current_name = state.get("normal_mode_rejected_tool_name")
+        current_rounds_any = state.get("normal_mode_rejected_tool_rounds", 0)
+        current_rounds = (
+            int(current_rounds_any) if isinstance(current_rounds_any, int) else 0
+        )
+        if (
+            current_signature == signature
+            and current_name == name
+            and current_rounds == rounds
+        ):
+            return out
+        merged = dict(out) if out else {}
+        merged["normal_mode_rejected_tool_signature"] = signature
+        merged["normal_mode_rejected_tool_name"] = name
+        merged["normal_mode_rejected_tool_rounds"] = rounds
+        return merged
+
+    def _normal_mode_repeated_rejected_tool_response(
+        self,
+        state: ContinuationGuardState,
+        messages: Sequence[AnyMessage],
+        last_ai_message: AIMessage,
+    ) -> Command[Any] | dict[str, Any] | None:
+        current = _single_tool_call_signature(last_ai_message)
+        if current is None:
+            return self._with_normal_mode_rejected_tool_state(
+                state, None, signature=None, name=None, rounds=0
+            )
+
+        latest_tool_message = _latest_tool_message_before(messages, last_ai_message)
+        if latest_tool_message is None or getattr(
+            latest_tool_message, "status", None
+        ) != ("error"):
+            return self._with_normal_mode_rejected_tool_state(
+                state, None, signature=None, name=None, rounds=0
+            )
+
+        rejected_tool_call_id = getattr(latest_tool_message, "tool_call_id", None)
+        if not isinstance(rejected_tool_call_id, str):
+            return self._with_normal_mode_rejected_tool_state(
+                state, None, signature=None, name=None, rounds=0
+            )
+
+        rejected = _tool_call_signature_by_id_before(
+            messages,
+            tool_call_id=rejected_tool_call_id,
+            before_message=latest_tool_message,
+        )
+        if rejected is None or rejected[1] != current[1]:
+            return self._with_normal_mode_rejected_tool_state(
+                state, None, signature=None, name=None, rounds=0
+            )
+
+        prior_signature = state.get("normal_mode_rejected_tool_signature")
+        prior_rounds_any = state.get("normal_mode_rejected_tool_rounds", 0)
+        prior_rounds = int(prior_rounds_any) if isinstance(prior_rounds_any, int) else 0
+        rounds = prior_rounds + 1 if prior_signature == current[1] else 1
+
+        updates: list[BaseMessage] = []
+        if isinstance(last_ai_message.id, str):
+            updates.append(RemoveMessage(id=last_ai_message.id))
+        prior_message = _latest_surviving_message_before(messages, last_ai_message)
+
+        reminder_already_present = has_recent_guard_reminder(
+            messages, _REPEATED_REJECTED_TOOL_REMINDER_PREFIX
+        )
+        if rounds < _MAX_NORMAL_MODE_REJECTED_TOOL_ROUNDS:
+            logger.debug(
+                "Rejecting repeated normal-mode tool retry for tool=%s rounds=%s; removing assistant tool-call turn and re-prompting with retry-specific guidance",
+                current[0],
+                rounds,
+            )
+            base_update: dict[str, Any] = {"messages": updates}
+            if isinstance(prior_message, ToolMessage):
+                logger.debug(
+                    "Deferring normal-mode retry reminder to system prompt because the repaired transcript would otherwise end with tool -> user"
+                )
+                if not reminder_already_present:
+                    base_update[_PENDING_TOOL_TRANSCRIPT_REMINDER_KEY] = (
+                        _REPEATED_REJECTED_TOOL_REMINDER
+                    )
+            elif not reminder_already_present:
+                updates.append(HumanMessage(content=_REPEATED_REJECTED_TOOL_REMINDER))
+            update = self._with_normal_mode_rejected_tool_state(
+                state,
+                base_update,
+                signature=current[1],
+                name=current[0],
+                rounds=rounds,
+            )
+            return Command(update=cast(dict[str, Any], update), goto="model")
+
+        logger.warning(
+            "Stopping run after %s consecutive retries of the same rejected normal-mode tool call for tool=%s",
+            rounds,
+            current[0],
+        )
+        update = self._with_normal_mode_rejected_tool_state(
+            state,
+            {
+                "messages": updates,
+                "continuation_mode": "stop_now",
+                "jump_to": "end",
+            },
+            signature=None,
+            name=None,
+            rounds=0,
+        )
+        return cast(dict[str, Any], update)
+
+    def _invalid_tool_call_response(
+        self,
+        state: ContinuationGuardState,
+        messages: Sequence[AnyMessage],
+        last_ai_message: AIMessage,
+    ) -> Command[Any] | None:
+        if not last_ai_message.invalid_tool_calls:
+            return None
+
+        updates: list[BaseMessage] = []
+        if isinstance(last_ai_message.id, str):
+            updates.append(RemoveMessage(id=last_ai_message.id))
+
+        prior_message = _latest_surviving_message_before(messages, last_ai_message)
+        reminder_already_present = has_recent_guard_reminder(
+            messages, _INVALID_TOOL_CALL_REMINDER_PREFIX
+        )
+
+        logger.debug(
+            "Detected invalid tool call payload; removing malformed assistant turn and re-prompting for one corrected tool call"
+        )
+        base_update: dict[str, Any] = {"messages": updates}
+        if isinstance(prior_message, ToolMessage):
+            logger.debug(
+                "Deferring invalid-tool-call reminder to system prompt because the repaired transcript would otherwise end with tool -> user"
+            )
+            if not reminder_already_present:
+                base_update[_PENDING_TOOL_TRANSCRIPT_REMINDER_KEY] = (
+                    _INVALID_TOOL_CALL_REMINDER
+                )
+        elif not reminder_already_present:
+            updates.append(HumanMessage(content=_INVALID_TOOL_CALL_REMINDER))
+
+        return Command(
+            update=cast(
+                dict[str, Any],
+                self._with_normal_mode_rejected_tool_state(
+                    state,
+                    base_update,
+                    signature=None,
+                    name=None,
+                    rounds=0,
+                ),
+            ),
+            goto="model",
+        )
+
     @override
     @hook_config(can_jump_to=["end"])
     def before_model(  # type: ignore[override]  # before_model's type hints are dated
@@ -430,7 +728,7 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
             return {"jump_to": "end"}
         messages = state.get("messages")
         if not isinstance(messages, list):
-            return self._merge_clear_finalize_only_tool_rounds(state, mode, None)
+            return self._merge_clear_inactive_guard_state(state, mode, None)
         repair = _repair_tool_transcript_messages(messages, mode)
         updates_out: dict[str, Any] = {}
         if repair.removed_message_ids:
@@ -453,9 +751,9 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
         if repair.system_reminder is not None:
             updates_out[_PENDING_TOOL_TRANSCRIPT_REMINDER_KEY] = repair.system_reminder
         if updates_out:
-            return self._merge_clear_finalize_only_tool_rounds(state, mode, updates_out)
+            return self._merge_clear_inactive_guard_state(state, mode, updates_out)
         if mode != "finalize_only":
-            return self._merge_clear_finalize_only_tool_rounds(state, mode, None)
+            return self._merge_clear_inactive_guard_state(state, mode, None)
         if (
             messages
             and isinstance(messages[-1], HumanMessage)
@@ -559,6 +857,34 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
             return None
         if mode == "finalize_only":
             if _has_any_tool_call(last_ai_message):
+                recovered_answer = _last_successful_serialization_answer(messages)
+                forbidden_tool_name = _first_requested_tool_name(last_ai_message)
+                if recovered_answer is not None:
+                    logger.debug(
+                        "Recovering final answer from the last successful serialize_dataset result in finalize-only mode instead of honoring forbidden tool call tool=%s",
+                        forbidden_tool_name or "unknown",
+                    )
+                    finalize_updates: list[BaseMessage] = []
+                    if isinstance(last_ai_message.id, str):
+                        finalize_updates.append(RemoveMessage(id=last_ai_message.id))
+                    finalize_updates.append(AIMessage(content=recovered_answer))
+                    return {
+                        **cast(
+                            dict[str, Any],
+                            self._with_normal_mode_rejected_tool_state(
+                                state,
+                                {
+                                    "messages": finalize_updates,
+                                    "continuation_mode": "stop_now",
+                                    "jump_to": "end",
+                                    "finalize_only_forbidden_tool_rounds": 0,
+                                },
+                                signature=None,
+                                name=None,
+                                rounds=0,
+                            ),
+                        )
+                    }
                 rounds_any = state.get("finalize_only_forbidden_tool_rounds", 0)
                 rounds = int(rounds_any) if isinstance(rounds_any, int) else 0
                 rounds += 1
@@ -595,13 +921,34 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
                 else:
                     updates.append(HumanMessage(content=_FINALIZE_REMINDER))
                 return Command(
-                    update={
-                        "messages": updates,
-                        "finalize_only_forbidden_tool_rounds": rounds,
-                    },
+                    update=cast(
+                        dict[str, Any],
+                        self._with_normal_mode_rejected_tool_state(
+                            state,
+                            {
+                                "messages": updates,
+                                "finalize_only_forbidden_tool_rounds": rounds,
+                            },
+                            signature=None,
+                            name=None,
+                            rounds=0,
+                        ),
+                    ),
                     goto="model",
                 )
-        if last_ai_message.tool_calls or last_ai_message.invalid_tool_calls:
+        if last_ai_message.invalid_tool_calls:
+            invalid_retry = self._invalid_tool_call_response(
+                state, messages, last_ai_message
+            )
+            if invalid_retry is not None:
+                return invalid_retry
+        if last_ai_message.tool_calls:
+            if mode == "normal":
+                repeated_retry = self._normal_mode_repeated_rejected_tool_response(
+                    state, messages, last_ai_message
+                )
+                if repeated_retry is not None:
+                    return repeated_retry
             return None
 
         content = (
@@ -610,7 +957,9 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
             else str(last_ai_message.content)
         )
         if not content:
-            return None
+            return self._with_normal_mode_rejected_tool_state(
+                state, None, signature=None, name=None, rounds=0
+            )
 
         if mode == "finalize_only":
             if looks_like_completed_answer(content):
@@ -629,16 +978,36 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
                         "Recovered final answer from the last successful serialize_dataset tool result in finalize-only mode"
                     )
                     return {
-                        "messages": [AIMessage(content=recovered_answer)],
-                        "continuation_mode": "stop_now",
-                        "jump_to": "end",
-                        "finalize_only_forbidden_tool_rounds": 0,
+                        **cast(
+                            dict[str, Any],
+                            self._with_normal_mode_rejected_tool_state(
+                                state,
+                                {
+                                    "messages": [AIMessage(content=recovered_answer)],
+                                    "continuation_mode": "stop_now",
+                                    "jump_to": "end",
+                                    "finalize_only_forbidden_tool_rounds": 0,
+                                },
+                                signature=None,
+                                name=None,
+                                rounds=0,
+                            ),
+                        )
                     }
             logger.debug(
                 "Detected non-final assistant output in finalize-only mode; re-prompting with final-answer-only reminder"
             )
             return Command(
-                update={"messages": [HumanMessage(content=_FINALIZE_REMINDER)]},
+                update=cast(
+                    dict[str, Any],
+                    self._with_normal_mode_rejected_tool_state(
+                        state,
+                        {"messages": [HumanMessage(content=_FINALIZE_REMINDER)]},
+                        signature=None,
+                        name=None,
+                        rounds=0,
+                    ),
+                ),
                 goto="model",
             )
 
@@ -653,48 +1022,96 @@ class ContinuationGuardMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
                     "Recovered final answer from the immediately preceding successful serialize_dataset tool result"
                 )
                 return {
-                    "messages": [AIMessage(content=recovered_answer)],
-                    "continuation_mode": "stop_now",
-                    "jump_to": "end",
-                    "finalize_only_forbidden_tool_rounds": 0,
+                    **cast(
+                        dict[str, Any],
+                        self._with_normal_mode_rejected_tool_state(
+                            state,
+                            {
+                                "messages": [AIMessage(content=recovered_answer)],
+                                "continuation_mode": "stop_now",
+                                "jump_to": "end",
+                                "finalize_only_forbidden_tool_rounds": 0,
+                            },
+                            signature=None,
+                            name=None,
+                            rounds=0,
+                        ),
+                    )
                 }
 
         if looks_like_completed_answer(content):
-            return None
+            return self._with_normal_mode_rejected_tool_state(
+                state, None, signature=None, name=None, rounds=0
+            )
 
         if looks_like_recovery_intent(content):
             if not _has_recent_error_tool_message(messages):
-                return None
+                return self._with_normal_mode_rejected_tool_state(
+                    state, None, signature=None, name=None, rounds=0
+                )
             if has_recent_guard_reminder(messages, _RECOVERY_REMINDER_PREFIX):
-                return None
+                return self._with_normal_mode_rejected_tool_state(
+                    state, None, signature=None, name=None, rounds=0
+                )
             logger.debug(
                 "Detected unfinished recovery narration after tool rejection; re-prompting model"
             )
             return Command(
-                update={"messages": [HumanMessage(content=_RECOVERY_REMINDER)]},
+                update=cast(
+                    dict[str, Any],
+                    self._with_normal_mode_rejected_tool_state(
+                        state,
+                        {"messages": [HumanMessage(content=_RECOVERY_REMINDER)]},
+                        signature=None,
+                        name=None,
+                        rounds=0,
+                    ),
+                ),
                 goto="model",
             )
 
         if looks_like_plan_intent(content):
             if has_recent_guard_reminder(messages, _FINALIZE_REMINDER_PREFIX):
-                return None
+                return self._with_normal_mode_rejected_tool_state(
+                    state, None, signature=None, name=None, rounds=0
+                )
             if has_recent_guard_reminder(messages, _PLAN_REMINDER_PREFIX):
                 logger.debug(
                     "Detected repeated unfinished planning output after a prior continuation reminder; escalating to final-answer-only reminder"
                 )
                 return Command(
-                    update={"messages": [HumanMessage(content=_FINALIZE_REMINDER)]},
+                    update=cast(
+                        dict[str, Any],
+                        self._with_normal_mode_rejected_tool_state(
+                            state,
+                            {"messages": [HumanMessage(content=_FINALIZE_REMINDER)]},
+                            signature=None,
+                            name=None,
+                            rounds=0,
+                        ),
+                    ),
                     goto="model",
                 )
             logger.debug(
                 "Detected unfinished planning output without tool calls; re-prompting model"
             )
             return Command(
-                update={"messages": [HumanMessage(content=_PLAN_REMINDER)]},
+                update=cast(
+                    dict[str, Any],
+                    self._with_normal_mode_rejected_tool_state(
+                        state,
+                        {"messages": [HumanMessage(content=_PLAN_REMINDER)]},
+                        signature=None,
+                        name=None,
+                        rounds=0,
+                    ),
+                ),
                 goto="model",
             )
 
-        return None
+        return self._with_normal_mode_rejected_tool_state(
+            state, None, signature=None, name=None, rounds=0
+        )
 
 
 __all__ = ["ContinuationGuardMiddleware"]

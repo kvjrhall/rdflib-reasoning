@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langchain_core.tools import tool
+from langgraph.errors import GraphRecursionError
 from rdflib import Namespace
 from rdflib_reasoning.middleware import (
     DatasetMiddleware,
@@ -94,6 +96,61 @@ def _ai_messages(chunks: list[dict[str, Any]]) -> list[AIMessage]:
                 message for message in chunk_messages if isinstance(message, AIMessage)
             )
     return messages
+
+
+def _values_chunks(
+    agent: Any,
+    *,
+    messages: list[BaseMessage | dict[str, str]],
+    recursion_limit: int = 20,
+) -> list[dict[str, Any]]:
+    chunks: list[dict[str, Any]] = []
+    for chunk in agent.stream(
+        {"messages": list(messages)},
+        config={"recursion_limit": recursion_limit},
+        stream_mode="values",
+    ):
+        if isinstance(chunk, dict):
+            chunks.append(chunk)
+    return chunks
+
+
+def _values_chunks_allowing_recursion_limit(
+    agent: Any,
+    *,
+    messages: list[BaseMessage | dict[str, str]],
+    recursion_limit: int = 20,
+) -> tuple[list[dict[str, Any]], GraphRecursionError | None]:
+    chunks: list[dict[str, Any]] = []
+    try:
+        for chunk in agent.stream(
+            {"messages": list(messages)},
+            config={"recursion_limit": recursion_limit},
+            stream_mode="values",
+        ):
+            if isinstance(chunk, dict):
+                chunks.append(chunk)
+    except GraphRecursionError as exc:
+        return chunks, exc
+    return chunks, None
+
+
+def _has_user_after_tool_in_messages(messages: list[Any]) -> bool:
+    for index, message in enumerate(messages[:-1]):
+        if isinstance(message, ToolMessage) and isinstance(
+            messages[index + 1], HumanMessage
+        ):
+            return True
+    return False
+
+
+@tool
+def _fake_write_file(file_path: str, content: str) -> str:
+    """Test-only fake file writer that must never execute in finalize-only recovery."""
+    del file_path, content
+    raise AssertionError(
+        "write_file should not execute once finalize-only can recover the last successful serialization"
+    )
 
 
 @pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
@@ -211,6 +268,81 @@ def test_graph_guards_allow_plan_reprompt_then_valid_tool_call(
         isinstance(message, ToolMessage) and message.name == "list_triples"
         for message in tool_messages
     )
+
+
+@pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
+def test_graph_recovers_from_invalid_add_triples_payload_in_empty_dataset(
+    factory_name: str, graph_factory: GraphFactory
+) -> None:
+    del factory_name
+    model = ToolFriendlyFakeMessagesListChatModel(
+        responses=[
+            AIMessage(
+                id="ai-invalid-add",
+                content=(
+                    "I will now call add_triples with the class definition and then "
+                    "continue modeling."
+                ),
+                invalid_tool_calls=[
+                    {
+                        "id": "invalid-add-1",
+                        "name": "add_triples",
+                        "args": (
+                            '{"triples":[{"subject":"<urn:test:s>",'
+                            '"predicate":"<http://www.w3.org/2000/01/rdf-schema#label>",'
+                            '"object":""Broken""}]}'
+                        ),
+                        "error": "JSONDecodeError",
+                        "type": "invalid_tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-valid-add",
+                content="Calling add_triples with corrected JSON now.",
+                tool_calls=[
+                    {
+                        "name": "add_triples",
+                        "args": {
+                            "triples": [
+                                {
+                                    "subject": "<urn:test:s>",
+                                    "predicate": "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+                                    "object": "<http://www.w3.org/2000/01/rdf-schema#Class>",
+                                }
+                            ]
+                        },
+                        "id": "call-add-valid",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                content=(
+                    "```text/turtle\n"
+                    "@prefix ex: <urn:test:> .\n"
+                    "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
+                    "ex:s a rdfs:Class .\n"
+                    "```"
+                )
+            ),
+        ]
+    )
+    agent = graph_factory(model=model, middleware=_combined_guard_middleware())
+
+    chunks = collect_update_chunks(
+        agent,
+        messages=[{"role": "user", "content": "Represent the source text as RDF."}],
+        recursion_limit=30,
+    )
+
+    tool_messages = _tool_messages(chunks)
+    assert any(message.name == "add_triples" for message in tool_messages)
+    ai_messages = _ai_messages(chunks)
+    assert any(len(message.invalid_tool_calls) > 0 for message in ai_messages), (
+        "Expected the malformed add_triples attempt to surface in the run transcript."
+    )
+    assert any("```text/turtle" in str(message.content) for message in ai_messages)
 
 
 @pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
@@ -414,6 +546,111 @@ def test_graph_reuses_last_successful_serialization_after_repeated_serialize_rej
     )
     assert any("```text/turtle" in str(message.content) for message in ai_messages), (
         "Expected the run to surface the last successful Turtle serialization as the final answer."
+    )
+
+
+@pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
+def test_graph_short_circuits_finalize_only_before_forbidden_write_file_executes(
+    factory_name: str, graph_factory: GraphFactory
+) -> None:
+    """Regression: finalize-only should recover Turtle before a write_file loop can start."""
+    del factory_name
+    model = ToolFriendlyFakeMessagesListChatModel(
+        responses=[
+            AIMessage(
+                id="ai-add",
+                content="Adding triples now.",
+                tool_calls=[
+                    {
+                        "name": "add_triples",
+                        "args": {
+                            "triples": [
+                                {
+                                    "subject": "<urn:test:s>",
+                                    "predicate": "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+                                    "object": "<http://www.w3.org/2000/01/rdf-schema#Class>",
+                                }
+                            ]
+                        },
+                        "id": "call-add",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-serialize-1",
+                content="Serialize the dataset.",
+                tool_calls=[
+                    {
+                        "name": "serialize_dataset",
+                        "args": {"format": "turtle"},
+                        "id": "call-serialize-1",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-serialize-2",
+                content="Serialize the dataset again.",
+                tool_calls=[
+                    {
+                        "name": "serialize_dataset",
+                        "args": {"format": "turtle"},
+                        "id": "call-serialize-2",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(
+                id="ai-write-file",
+                content="I will write the serialized Turtle to a file now.",
+                tool_calls=[
+                    {
+                        "name": "write_file",
+                        "args": {
+                            "file_path": "/large_tool_results/demo/output.ttl",
+                            "content": (
+                                "@prefix ex: <urn:test:> .\n"
+                                "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
+                                "ex:s a rdfs:Class .\n"
+                            ),
+                        },
+                        "id": "call-write-file",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(id="ai-should-not-be-called", content="SHOULD_NOT_BE_CALLED"),
+        ]
+    )
+    agent = graph_factory(
+        model=model,
+        middleware=_combined_guard_middleware(),
+        tools=[_fake_write_file],
+    )
+
+    chunks = collect_update_chunks(
+        agent,
+        messages=[{"role": "user", "content": "Represent the source text as RDF."}],
+        recursion_limit=40,
+    )
+
+    tool_messages = _tool_messages(chunks)
+    assert any(
+        message.name == "serialize_dataset"
+        and getattr(message, "status", None) == "error"
+        and "The dataset has not changed since the previous `serialize_dataset` call in this format."
+        in str(message.content)
+        for message in tool_messages
+    )
+    assert not any(message.name == "write_file" for message in tool_messages)
+
+    ai_messages = _ai_messages(chunks)
+    assert any("```text/turtle" in str(message.content) for message in ai_messages), (
+        "Expected finalize-only to recover the last successful Turtle serialization."
+    )
+    assert not any(
+        "SHOULD_NOT_BE_CALLED" in str(message.content) for message in ai_messages
     )
 
 
@@ -628,6 +865,150 @@ def test_deep_agent_graph_stops_infinite_finalize_only_serialize_loop() -> None:
     # terminate via stop_now (not GraphRecursionError) before hitting recursion_limit.
     assert len(chunks) < 120
 
+    assert any(
+        (
+            isinstance(chunk.get("ContinuationGuardMiddleware.after_model"), dict)
+            and chunk["ContinuationGuardMiddleware.after_model"].get(
+                "continuation_mode"
+            )
+            == "stop_now"
+        )
+        or (
+            isinstance(chunk.get("ContinuationGuardMiddleware.before_model"), dict)
+            and chunk["ContinuationGuardMiddleware.before_model"].get("jump_to")
+            == "end"
+        )
+        for chunk in chunks
+    )
+
+
+@pytest.mark.parametrize(("factory_name", "graph_factory"), GRAPH_FACTORIES)
+def test_graph_reprompt_after_rejected_tool_retry_keeps_provider_safe_message_order(
+    factory_name: str, graph_factory: GraphFactory
+) -> None:
+    """Regression: normal-mode retry guidance must not create tool -> user ordering."""
+    model = ToolFriendlyFakeMessagesListChatModel(
+        responses=[
+            AIMessage(
+                id="ai-repeat-search",
+                content="Retry the same search.",
+                tool_calls=[
+                    {
+                        "name": "search_terms",
+                        "args": {
+                            "query": "person",
+                            "vocabularies": [
+                                "http://www.w3.org/ns/prov#",
+                                "http://xmlns.com/foaf/0.1/",
+                            ],
+                        },
+                        "id": "call-repeat-search",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(content="I will inspect one of the returned candidates instead."),
+        ]
+    )
+    agent = graph_factory(model=model, middleware=[ContinuationGuardMiddleware()])
+
+    chunks, recursion_exc = _values_chunks_allowing_recursion_limit(
+        agent,
+        messages=[
+            HumanMessage(content="Please continue from the tool failure."),
+            AIMessage(
+                id="ai-original-search",
+                content="Search for person candidates.",
+                tool_calls=[
+                    {
+                        "name": "search_terms",
+                        "args": {
+                            "query": "person",
+                            "vocabularies": [
+                                "http://www.w3.org/ns/prov#",
+                                "http://xmlns.com/foaf/0.1/",
+                            ],
+                        },
+                        "id": "call-original-search",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            ToolMessage(
+                content=(
+                    "Misuse: repeated `search_terms` query was rejected. "
+                    "Do not retry it unchanged."
+                ),
+                name="search_terms",
+                tool_call_id="call-original-search",
+                status="error",
+            ),
+        ],
+        recursion_limit=10,
+    )
+
+    assert chunks
+    # Deep Agents may continue beyond this tiny fake-model script because additional
+    # framework middleware still nudges the run; provider-safe ordering must hold either way.
+    if factory_name == "deep_agent":
+        assert recursion_exc is not None or chunks
+    else:
+        assert recursion_exc is None
+    assert not any(
+        _has_user_after_tool_in_messages(chunk.get("messages", [])) for chunk in chunks
+    )
+
+
+def test_deep_agent_graph_stops_infinite_normal_mode_rejected_tool_retry_loop() -> None:
+    """Regression: repeated identical retries after a tool error must stop in normal mode."""
+    model = ToolFriendlyFakeMessagesListChatModel(
+        responses=[
+            AIMessage(
+                id=f"ai-static-retry-{i}",
+                content=f"Retry the same static lookup ({i}).",
+                tool_calls=[
+                    {
+                        "name": "static_lookup",
+                        "args": {"term": "Mammal", "include_source_rdf": True},
+                        "id": f"call-static-retry-{i}",
+                        "type": "tool_call",
+                    }
+                ],
+            )
+            for i in range(6)
+        ]
+    )
+    agent = create_deep_agent_graph(
+        model=model, middleware=[ContinuationGuardMiddleware()]
+    )
+
+    chunks = collect_update_chunks(
+        agent,
+        messages=[
+            HumanMessage(content="Please continue from the previous tool failure."),
+            AIMessage(
+                id="ai-static-original",
+                content="Inspect the term.",
+                tool_calls=[
+                    {
+                        "name": "static_lookup",
+                        "args": {"term": "Mammal", "include_source_rdf": True},
+                        "id": "call-static-original",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            ToolMessage(
+                content="Static lookup already answered that exact question.",
+                name="static_lookup",
+                tool_call_id="call-static-original",
+                status="error",
+            ),
+        ],
+        recursion_limit=20,
+    )
+
+    assert len(chunks) < 40
     assert any(
         (
             isinstance(chunk.get("ContinuationGuardMiddleware.after_model"), dict)

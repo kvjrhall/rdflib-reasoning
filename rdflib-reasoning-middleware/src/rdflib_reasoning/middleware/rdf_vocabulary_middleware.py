@@ -58,27 +58,63 @@ After you have begun your task, use the vocabulary tools only to help choose
 established RDF terms when you are uncertain whether a standard term fits your
 intended meaning.
 
+Working method:
+- First identify the main classes, individuals, and relations you expect to
+  model. Treat that as a draft graph shape.
+- Use vocabulary tools to test whether that draft shape overlaps with one
+  indexed ontology or with a small set of indexed vocabularies.
+- If several important concepts appear to cluster in the same small indexed
+  vocabulary, pause term-by-term lookup and use `list_terms` once to
+  familiarize yourself with that ontology as a modeling resource.
+- Use that familiarization pass to decide whether the ontology already supplies
+  a significant fraction of your intended graph shape, then revise your draft
+  shape before you continue modeling.
+
 Default workflow:
 - If you already know a core RDF/RDFS/OWL term is appropriate, use it and continue.
 - Call `list_vocabularies` once before using any other vocabulary tool so you
   know what indexed vocabularies are available.
 - If you know the meaning you want to express but do not yet know the right term, use `search_terms`.
-- If you know which vocabulary you want, use `list_terms` to scan candidate terms.
+- If you know which vocabulary you want, or repeated hits suggest one small
+  vocabulary may cover several target concepts, use `list_terms` for one
+  bounded familiarization pass.
 - If you already have a candidate term in mind, use `inspect_term`.
 
 Decision policy:
 - Prefer one quick inspection over extended self-discussion.
-- Prefer `search_terms` when you know the meaning you want to express but do not yet know the likely vocabulary or term label.
-- Prefer `list_terms` when one available vocabulary appears central to the task and has a small `term_count`.
-- If `list_vocabularies` shows a vocabulary with a small `term_count` that appears central to the task, you SHOULD call `list_terms` once for the relevant term type before issuing multiple narrow searches.
-- After 1-2 successful `search_terms` hits in the same small vocabulary, pause and decide whether a quick `list_terms` scan would reveal nearby terms you still need before continuing modeling.
+- Prefer `search_terms` when you know the meaning you want to express but do
+  not yet know the likely vocabulary or term label.
+- Prefer `list_terms` when one available vocabulary appears central to the task
+  and has a small `term_count`.
+- If `list_vocabularies` shows a vocabulary with a small `term_count` that appears highly relevant to the source, you SHOULD call `list_terms` once before issuing several narrow searches or minting overlapping local terms.
+- If several relevant hits point to the same small vocabulary, do not treat
+  them as isolated wins. Pause term-by-term lookup and scan that vocabulary
+  once before deciding whether to mint overlapping local terms.
+- After 1-2 successful `search_terms` hits in the same small vocabulary, pause
+  and decide whether a quick `list_terms` scan would reveal nearby terms or
+  ontology structure you still need before continuing modeling.
+- After one bounded ontology scan or 1-2 targeted checks in the same modeling
+  area, decide whether you already have enough vocabulary information to
+  continue modeling.
+- Do not stop vocabulary exploration merely because one or two plausible terms
+  were found when a small relevant indexed vocabulary has not yet been given a
+  bounded familiarization pass.
 - Do not keep re-checking the same term once `inspect_term` has answered your question.
 - Do not repeat the same `search_terms` call unchanged; refine the query or filters if you still need different candidates.
 - Do not repeat the same `inspect_term` call unchanged
 - Do not repeat the same `list_terms` call unchanged; change the
   vocabulary, filter, offset, or limit if you still need different candidates.
-- If `search_terms` or `list_terms` gives you a relevant candidate, move to `inspect_term` or
-  continue modeling instead of widening the search reflexively.
+- If `search_terms` or `list_terms` gives you a relevant candidate, move to
+  `inspect_term`, revise your draft graph shape, or continue modeling instead
+  of widening the search reflexively.
+- If repeated searches keep returning plausible candidates, stop expanding the
+  search space. Choose one acceptable term or, after one bounded scan of a
+  small relevant ontology, mint a local one if needed, then continue modeling.
+- Do not skip directly from `list_vocabularies` to minting overlapping local
+  classes or properties when a small highly relevant indexed vocabulary is
+  available and could be scanned quickly.
+- Do not mint local classes or properties that overlap a small relevant indexed
+  vocabulary until you have completed one bounded scan of that vocabulary.
 - If inspection does not quickly reveal a fitting standard term, mint a local term
   only when it is genuinely needed for a faithful representation, document it,
   and continue.
@@ -86,6 +122,11 @@ Decision policy:
   structure or helper relations that the source does not require.
 - Do not assume a term's meaning from its local name alone when you are unsure.
 - Do not pause to inspect vocabulary terms that you already know well enough to use correctly.
+- Do not expand to additional vocabularies unless the current choices remain
+  insufficient for representing the source faithfully.
+- Do not begin inspecting unrelated properties from another vocabulary unless
+  the source text clearly calls for them or they are needed to complete the
+  current modeling step.
 - You MAY use the following core terms without inspection when they are clearly appropriate:
   `rdf:type`, `rdfs:label`, `rdfs:comment`.
 - Before the first use of another standard term, you SHOULD use `inspect_term`
@@ -129,8 +170,11 @@ LIST_TERMS_TOOL_DESCRIPTION: Final[
 Use this when you know the vocabulary but want to scan available classes,
 properties, individuals, or datatypes before choosing one.
 
-This is especially useful when one vocabulary appears central to the task and
-has few enough terms to scan quickly.
+This is especially useful when one vocabulary appears central to the task, has
+few enough terms to scan quickly, and may already supply a significant fraction
+of your intended graph shape.
+Treat this as a bounded familiarization pass to improve modeling decisions, not
+as an exhaustive cataloging step.
 
 The vocabulary index is static for this run. You MUST NOT repeat the same
 `list_terms` call unchanged and expect a different result. If you still need
@@ -154,9 +198,13 @@ SEARCH_TERMS_TOOL_DESCRIPTION: Final[
 Use this when you know the meaning you want to express but do not yet know the
 right indexed term or even the right vocabulary.
 
-This is best for finding a term you can already describe in words. If one
+This is best for probing overlap between your draft graph shape and the indexed
+vocabularies when you can already describe a target concept in words. If one
 relevant vocabulary is already known and has few terms, `list_terms` may be
 faster and more complete than issuing several narrow searches.
+If repeated searches in the same area keep returning plausible candidates from
+one small vocabulary, you SHOULD switch to `list_terms` for one bounded scan of
+that vocabulary rather than continuing isolated searches.
 
 This search is lexical and deterministic over the static indexed vocabulary set
 for this run. You MUST NOT repeat the same `search_terms` call unchanged and
@@ -188,6 +236,10 @@ The vocabulary index is static for this run. You MUST NOT repeat the same
 `inspect_term` call unchanged and expect new information. After one inspection,
 either use the term, inspect a different candidate, or mint a local term if no
 indexed term fits.
+
+Treat this as a confirmatory tool for one candidate term or a small number of
+modeling-significant terms after familiarization. Do not use repeated
+`inspect_term` calls to reconstruct an ontology term by term.
 
 Arguments:
 - `term`: indexed term IRI to inspect

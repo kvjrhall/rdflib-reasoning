@@ -105,6 +105,9 @@ DATASET_TIPS: Final[str] = """
 VOCABULARY_TIPS: Final[str] = """
 ## Controlled Vocabulary Guidance
 
+- Before committing to local ontology terms, sketch a draft graph shape for the
+  source: identify the main classes, individuals, and relations you expect to
+  represent.
 - Before minting new terms, think carefully about whether established RDF,
   RDFS, OWL, SKOS, PROV, or other task-appropriate vocabularies already express
   the intended meaning.
@@ -113,7 +116,17 @@ VOCABULARY_TIPS: Final[str] = """
   well enough to apply correctly.
 - You MAY use `rdf:type`, `rdfs:label`, and `rdfs:comment` without extra
   deliberation when they are clearly appropriate.
-- Prefer one quick vocabulary check over extended ontology exploration.
+- Use known vocabularies to test whether that draft shape overlaps with an
+  existing ontology before you mint overlapping local terms.
+- Prefer one bounded familiarization pass over extended ontology exploration.
+- If one relevant vocabulary appears small enough to scan quickly, prefer one
+  bounded scan over many isolated term checks.
+- If several important concepts appear to align with the same known vocabulary,
+  pause isolated term selection and familiarize yourself with that ontology as a
+  whole before committing to local minting.
+- Use that familiarization step to see whether the ontology already supplies a
+  significant fraction of your intended graph shape, then revise your draft
+  shape accordingly.
 - Before first using another standard term that is semantically important to
   your modeling choice, slow down enough to confirm that it fits your intended
   meaning.
@@ -121,8 +134,19 @@ VOCABULARY_TIPS: Final[str] = """
     modeling-significant rather than mere bookkeeping.
 - Once a vocabulary tool or prior reasoning step has already answered whether a
   candidate term fits, do not keep re-checking that same term.
+- Do not treat each candidate term independently when several relevant hits
+  point to the same ontology.
 - If a scan already returned plausible candidates, move to choosing among them
-  rather than repeatedly widening the search.
+  or revising your draft shape rather than repeatedly widening the search.
+- Do not treat one or two plausible hits by themselves as enough to settle
+  vocabulary choice when a small relevant ontology has not yet been given one
+  bounded familiarization pass.
+- Once a bounded familiarization pass or a small number of targeted checks have
+  given you enough vocabulary information to represent the major explicit claims
+  faithfully, stop exploring and start modeling.
+- If a small relevant vocabulary is visible and likely to supply multiple
+  important terms for the task, do not skip directly from `list_vocabularies`
+  to minting overlapping local terms. Scan that vocabulary once first.
 - Do not assume the meaning of an existing term from its local name alone.
 - Reuse an established term only when its intended semantics fit the source
   material and your intended assertion.
@@ -135,6 +159,8 @@ VOCABULARY_TIPS: Final[str] = """
   as if it were an individual.
 - When modeling document-derived facts, choose the narrowest established term
   that is still clearly justified by the source.
+- Do not keep exploring additional vocabularies or unrelated properties unless
+  doing so is likely to change the RDF triples you intend to assert.
 """
 
 # TODO: Trial this as notebook-level guidance first. If it proves useful, move
@@ -143,21 +169,21 @@ VOCABULARY_TIPS: Final[str] = """
 # The intent is to avoid freezing notebook-specific scaffolding into the wrong
 # layer before we know whether this heuristic generalizes across tasks.
 ONTOLOGY_BRIDGING_TIPS: Final[str] = """
-## Ontology Bridging Guidance
+## Reused Vocabulary Integration Guidance
 
-- Do not leave reused domain classes isolated from the instance data when the
-  source text gives you enough information to connect them.
-- When the source describes both an individual and a class hierarchy it belongs
-  to, add enough explicit `rdf:type` and/or `rdfs:subClassOf` assertions that a
-  basic RDFS reasoner can connect the individual to the broader hierarchy.
-- Prefer one coherent bridge from the instance layer to the reused taxonomy
-  over parallel disconnected local and reused class structures.
-- If you reuse an external or domain-specific class hierarchy, ensure that at
-  least one asserted path connects the instance facts in your graph to that
-  hierarchy.
-- When several bridge patterns are possible, prefer the simplest one that keeps
-  the resulting graph faithful to the source and useful under basic RDFS
-  entailment.
+- Do not leave reused classes or properties disconnected from the source facts
+  when the source text gives you enough information to connect them.
+- When the source describes individuals, categories, or relationships that can
+  connect to reused vocabulary terms, add enough explicit `rdf:type`,
+  `rdfs:subClassOf`, or other appropriate assertions to keep the resulting
+  graph coherent under basic RDF/RDFS reading.
+- Prefer one coherent integration pattern over parallel disconnected local and
+  reused structures that say nearly the same thing.
+- If several faithful integration patterns are possible, choose the simplest
+  one that keeps the resulting graph useful and understandable.
+- If a bounded relevant scan has already shown you how you will connect the
+  source facts, proceed to RDF construction rather than continuing to compare
+  alternatives.
 """
 
 WHITELIST_TIPS: Final[str] = """
@@ -190,6 +216,12 @@ substantially true:
 
 You do not need to keep searching for additional triples once your current RDF
 graph is faithful, coherent, and responsive to the task.
+You do not need to keep exploring vocabularies once the remaining unresolved
+vocabulary choices are unlikely to materially change the RDF graph you intend
+to present.
+If a small relevant ontology has not yet been given one bounded familiarization
+pass, do not treat vocabulary choice as settled merely because a few plausible
+terms were found.
 
 When done:
 - Stop calling tools.
