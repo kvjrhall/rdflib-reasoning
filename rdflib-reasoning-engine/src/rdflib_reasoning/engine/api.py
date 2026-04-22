@@ -396,8 +396,10 @@ class RETEEngine:
         self.materialized_triples.update(pending)
         return self._saturate_from_working_memory()
 
-    def _saturate_from_working_memory(self) -> set[Triple]:
-        """Run agenda iterations to fixed point and return non-silent conclusions."""
+    def _saturate_from_working_memory(
+        self, *, materialize: bool = True, bootstrap_phase: bool = False
+    ) -> set[Triple]:
+        """Run agenda iterations to fixed point and return visible conclusions."""
         newly_materialized: set[Triple] = set()
         context = self.context_data.get("context")
 
@@ -415,6 +417,8 @@ class RETEEngine:
             iteration_new: set[Triple] = set()
             iteration_materialized: set[Triple] = set()
             for action in agenda:
+                if action.bootstrap and not bootstrap_phase:
+                    continue
                 action_loggable: list[Triple] = []
                 for production in action.productions:
                     pattern = (
@@ -447,7 +451,8 @@ class RETEEngine:
                     if is_new_fact:
                         iteration_new.add(triple)
                     should_materialize = (
-                        not action.silent
+                        materialize
+                        and not action.silent
                         and triple not in self.materialized_triples
                         and triple not in iteration_materialized
                     )
@@ -487,6 +492,7 @@ class RETEEngine:
                     and self.derivation_logger is not None
                     and len(action_loggable) > 0
                 ):
+                    effective_silent = action.silent or bootstrap_phase
                     self.derivation_logger.record(
                         DerivationRecord(
                             context=context,
@@ -504,7 +510,8 @@ class RETEEngine:
                                 for name, value in sorted(action.bindings.items())
                             ],
                             depth=action.depth,
-                            silent=action.silent,
+                            silent=effective_silent,
+                            bootstrap=bootstrap_phase,
                         )
                     )
 
@@ -519,18 +526,22 @@ class RETEEngine:
     def retract_triples(self, triple: Triple) -> None:
         raise NotImplementedError("RETEEngine.retract_triple is not implemented")
 
-    def _run_bootstrap_rules(self) -> set[Triple]:
-        """Execute zero-precondition rules once for this engine context."""
+    def _run_bootstrap_rules(self) -> None:
+        """Execute zero-precondition rules once for this engine context.
+
+        Bootstrap is an engine-internal initialization phase. Its derived
+        closure seeds working memory and derivation logs, but it does not
+        expose produced triples as materialized warmup output.
+        """
         if self._bootstrap_completed:
-            return set()
+            return
         self._bootstrap_completed = True
-        return self._saturate_from_working_memory()
+        self._saturate_from_working_memory(materialize=False, bootstrap_phase=True)
 
     def warmup(self, existing_triples: Iterable[Triple]) -> set[Triple]:
         """Warm the engine from existing triples and return engine-managed deductions."""
-        bootstrap_inferences = self._run_bootstrap_rules()
-        warmup_inferences = self.add_triples(existing_triples)
-        return warmup_inferences.union(bootstrap_inferences)
+        self._run_bootstrap_rules()
+        return self.add_triples(existing_triples)
 
 
 class RETEEngineFactory:

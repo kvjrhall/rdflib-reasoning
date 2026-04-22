@@ -414,6 +414,7 @@ class NetworkMatcher:
                 productions=terminal.rule.productions,
                 callbacks=terminal.rule.callbacks,
                 silent=terminal.rule.silent,
+                bootstrap=terminal.rule.bootstrap,
             )
             for match in matches
         )

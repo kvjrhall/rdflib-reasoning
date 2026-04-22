@@ -9,6 +9,7 @@ from ..rules import (
     TripleConsequent,
     TriplePattern,
 )
+from .rdfs_axioms import CONFORMANT_RDFS_AXIOMS, PRODUCTION_RDFS_AXIOMS
 
 _RDF11_SEMANTICS = URIRef("https://www.w3.org/TR/rdf11-mt/#RDFS_Interpretations")
 
@@ -35,13 +36,26 @@ def _rule_description(rule_name: str, description: str) -> RuleDescription:
     )
 
 
-#: Production-oriented RDFS profile for typical RDFLib use.
-#:
-#: This ruleset keeps selected rules silent to avoid materializing high-volume,
-#: low-value closure triples while still deriving those triples internally for
-#: downstream rule chaining. For full materialization-oriented conformance
-#: testing, see :data:`CONFORMANT_RDFS_RULES`.
-PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
+_RDFS2_BODY = (
+    TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
+    TripleCondition(
+        pattern=TriplePattern(subject=_P, predicate=RDFS.domain, object=_C)
+    ),
+)
+_RDFS2_HEAD = (
+    TripleConsequent(pattern=TriplePattern(subject=_X, predicate=RDF.type, object=_C)),
+)
+
+_RDFS3_BODY = (
+    TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
+    TripleCondition(pattern=TriplePattern(subject=_P, predicate=RDFS.range, object=_C)),
+    PredicateCondition(predicate="not_literal", arguments=(_Y,)),
+)
+_RDFS3_HEAD = (
+    TripleConsequent(pattern=TriplePattern(subject=_Y, predicate=RDF.type, object=_C)),
+)
+
+_PRODUCTION_RDFS_NON_AXIOM_RULES: tuple[Rule, ...] = (
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs1"),
         description=_rule_description(
@@ -63,56 +77,35 @@ PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs2"),
         description=_rule_description(
-            "Domain inference",
-            "Propagate rdf:type to the subject of a property using its domain.",
+            "Domain inference (visible non-schema terms)",
+            "Production profile variant of rdfs2 that materializes domain typing "
+            "for non-schema terms while leaving selected RDF/RDFS vocabulary "
+            "closure internal to the engine.",
         ),
         body=(
-            TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
-            TripleCondition(
-                pattern=TriplePattern(subject=_P, predicate=RDFS.domain, object=_C)
+            *_RDFS2_BODY,
+            PredicateCondition(
+                predicate="different_terms", arguments=(_C, RDFS.Resource)
             ),
         ),
-        head=(
-            TripleConsequent(
-                pattern=TriplePattern(subject=_X, predicate=RDF.type, object=_C)
-            ),
-        ),
+        head=_RDFS2_HEAD,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs3"),
         description=_rule_description(
-            "Range inference",
-            "Propagate rdf:type to the object of a property using its range.",
+            "Range inference (visible non-schema terms)",
+            "Production profile variant of rdfs3 that materializes range typing "
+            "for non-schema terms while leaving selected RDF/RDFS vocabulary "
+            "closure internal to the engine.",
         ),
         body=(
-            TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
-            TripleCondition(
-                pattern=TriplePattern(subject=_P, predicate=RDFS.range, object=_C)
+            *_RDFS3_BODY,
+            PredicateCondition(
+                predicate="term_not_in",
+                arguments=(_Y, RDFS.Class, RDFS.Resource),
             ),
         ),
-        head=(
-            TripleConsequent(
-                pattern=TriplePattern(subject=_Y, predicate=RDF.type, object=_C)
-            ),
-        ),
-    ),
-    Rule(
-        id=RuleId(ruleset="rdfs", rule_id="rdfs4a"),
-        description=_rule_description(
-            "Subject resource typing",
-            "Infer that the subject of every triple is an rdfs:Resource.",
-        ),
-        body=(
-            TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
-        ),
-        head=(
-            TripleConsequent(
-                pattern=TriplePattern(
-                    subject=_X, predicate=RDF.type, object=RDFS.Resource
-                )
-            ),
-        ),
-        silent=True,
+        head=_RDFS3_HEAD,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs5"),
@@ -141,48 +134,6 @@ PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
         ),
     ),
     Rule(
-        id=RuleId(ruleset="rdfs", rule_id="rdfs4b"),
-        description=_rule_description(
-            "Object resource typing",
-            "Infer that the object of every triple is an rdfs:Resource when the "
-            "object is an IRI or blank node (well-formed RDF 1.1; literals skipped).",
-        ),
-        body=(
-            TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
-            PredicateCondition(predicate="not_literal", arguments=(_Y,)),
-        ),
-        head=(
-            TripleConsequent(
-                pattern=TriplePattern(
-                    subject=_Y, predicate=RDF.type, object=RDFS.Resource
-                )
-            ),
-        ),
-        silent=True,
-    ),
-    Rule(
-        id=RuleId(ruleset="rdfs", rule_id="rdfs6"),
-        description=_rule_description(
-            "Property reflexivity",
-            "Infer that every rdf:Property is an rdfs:subPropertyOf itself.",
-        ),
-        body=(
-            TripleCondition(
-                pattern=TriplePattern(
-                    subject=_P, predicate=RDF.type, object=RDF.Property
-                )
-            ),
-        ),
-        head=(
-            TripleConsequent(
-                pattern=TriplePattern(
-                    subject=_P, predicate=RDFS.subPropertyOf, object=_P
-                )
-            ),
-        ),
-        silent=True,
-    ),
-    Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs7"),
         description=_rule_description(
             "Subproperty inheritance",
@@ -204,26 +155,6 @@ PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
         ),
     ),
     Rule(
-        id=RuleId(ruleset="rdfs", rule_id="rdfs8"),
-        description=_rule_description(
-            "Class resource inclusion",
-            "Infer that every rdfs:Class is an rdfs:subClassOf rdfs:Resource.",
-        ),
-        body=(
-            TripleCondition(
-                pattern=TriplePattern(subject=_C, predicate=RDF.type, object=RDFS.Class)
-            ),
-        ),
-        head=(
-            TripleConsequent(
-                pattern=TriplePattern(
-                    subject=_C, predicate=RDFS.subClassOf, object=RDFS.Resource
-                )
-            ),
-        ),
-        silent=True,
-    ),
-    Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs9"),
         description=_rule_description(
             "Subclass typing propagation",
@@ -243,24 +174,6 @@ PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
                 pattern=TriplePattern(subject=_A, predicate=RDF.type, object=_Y)
             ),
         ),
-    ),
-    Rule(
-        id=RuleId(ruleset="rdfs", rule_id="rdfs10"),
-        description=_rule_description(
-            "Class reflexivity",
-            "Infer that every rdfs:Class is an rdfs:subClassOf itself.",
-        ),
-        body=(
-            TripleCondition(
-                pattern=TriplePattern(subject=_C, predicate=RDF.type, object=RDFS.Class)
-            ),
-        ),
-        head=(
-            TripleConsequent(
-                pattern=TriplePattern(subject=_C, predicate=RDFS.subClassOf, object=_C)
-            ),
-        ),
-        silent=True,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs11"),
@@ -305,6 +218,206 @@ PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
             ),
         ),
     ),
+)
+
+PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
+    *PRODUCTION_RDFS_AXIOMS,
+    *_PRODUCTION_RDFS_NON_AXIOM_RULES,
+)
+
+
+def _build_conformant_rdfs_rules() -> tuple[Rule, ...]:
+    conformant_rules: list[Rule] = list(CONFORMANT_RDFS_AXIOMS)
+    for rule in _PRODUCTION_RDFS_NON_AXIOM_RULES:
+        match rule.id.rule_id:
+            case "rdfs2":
+                continue
+            case "rdfs3":
+                continue
+            case "rdfs7":
+                continue
+            case "rdfs9":
+                continue
+            case _:
+                conformant_rules.append(rule.model_copy(update=dict(silent=False)))
+    return tuple(conformant_rules)
+
+
+#: Conformance-oriented RDFS profile with inference rules materialized.
+#:
+#: This profile reuses :data:`CONFORMANT_RDFS_AXIOMS`, restores the omitted
+#: canonical rules, and forces non-axiom inference rules ``silent=False`` so
+#: axiomatic triples and ordinary RDFS entailments are both visible in graph
+#: materialization-based conformance tests.
+#:
+#: The profile is still not generalized-RDF complete because predicate guards
+#: such as ``not_literal`` (including on ``rdfs3`` range conclusions) and
+#: ``different_terms`` are retained.
+CONFORMANT_RDFS_RULES: tuple[Rule, ...] = (
+    *_build_conformant_rdfs_rules(),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs2"),
+        description=_rule_description(
+            "Domain inference",
+            "Propagate rdf:type to the subject of a property using its domain.",
+        ),
+        body=(
+            TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
+            TripleCondition(
+                pattern=TriplePattern(subject=_P, predicate=RDFS.domain, object=_C)
+            ),
+        ),
+        head=_RDFS2_HEAD,
+    ),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs3"),
+        description=_rule_description(
+            "Range inference",
+            "Propagate rdf:type to the object of a property using its range. "
+            "Literal objects are skipped so conclusions remain RDF 1.1 concrete "
+            "triples (no literal subjects).",
+        ),
+        body=_RDFS3_BODY,
+        head=_RDFS3_HEAD,
+    ),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs4a"),
+        description=_rule_description(
+            "Subject resource typing",
+            "Infer that the subject of every triple is an rdfs:Resource.",
+        ),
+        body=(
+            TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=_X, predicate=RDF.type, object=RDFS.Resource
+                )
+            ),
+        ),
+    ),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs4b"),
+        description=_rule_description(
+            "Object resource typing",
+            "Infer that the object of every triple is an rdfs:Resource when the "
+            "object is an IRI or blank node (well-formed RDF 1.1; literals skipped).",
+        ),
+        body=(
+            TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
+            # This is NOT strictly conformant if one allows generalized RDF. We do not.
+            PredicateCondition(predicate="not_literal", arguments=(_Y,)),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=_Y, predicate=RDF.type, object=RDFS.Resource
+                )
+            ),
+        ),
+    ),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs6"),
+        description=_rule_description(
+            "Property reflexivity",
+            "Infer that every rdf:Property is an rdfs:subPropertyOf itself.",
+        ),
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(
+                    subject=_P, predicate=RDF.type, object=RDF.Property
+                )
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=_P, predicate=RDFS.subPropertyOf, object=_P
+                )
+            ),
+        ),
+    ),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs7"),
+        description=_rule_description(
+            "Subproperty inheritance",
+            "Propagate property assertions across rdfs:subPropertyOf links.",
+        ),
+        body=(
+            TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
+            TripleCondition(
+                pattern=TriplePattern(
+                    subject=_P, predicate=RDFS.subPropertyOf, object=_Q
+                )
+            ),
+            # This is what differentiates this rule from production variant
+            # PredicateCondition(predicate="different_terms", arguments=(_P, _Q)),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=_X, predicate=_Q, object=_Y)
+            ),
+        ),
+    ),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs8"),
+        description=_rule_description(
+            "Class resource inclusion",
+            "Infer that every rdfs:Class is an rdfs:subClassOf rdfs:Resource.",
+        ),
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=_C, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=_C, predicate=RDFS.subClassOf, object=RDFS.Resource
+                )
+            ),
+        ),
+    ),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs9"),
+        description=_rule_description(
+            "Subclass typing propagation",
+            "Propagate rdf:type across rdfs:subClassOf.",
+        ),
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=_X, predicate=RDFS.subClassOf, object=_Y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=_A, predicate=RDF.type, object=_X)
+            ),
+            # This is what differentiates this rule from production variant
+            # PredicateCondition(predicate="different_terms", arguments=(_X, _Y)),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=_A, predicate=RDF.type, object=_Y)
+            ),
+        ),
+    ),
+    Rule(
+        id=RuleId(ruleset="rdfs", rule_id="rdfs10"),
+        description=_rule_description(
+            "Class reflexivity",
+            "Infer that every rdfs:Class is an rdfs:subClassOf itself.",
+        ),
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=_C, predicate=RDF.type, object=RDFS.Class)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=_C, predicate=RDFS.subClassOf, object=_C)
+            ),
+        ),
+    ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs13"),
         description=_rule_description(
@@ -325,17 +438,5 @@ PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
                 )
             ),
         ),
-        silent=True,
     ),
-)
-
-#: Conformance-oriented RDFS profile with all rules materialized.
-#:
-#: This profile derives the same rule inventory as
-#: :data:`PRODUCTION_RDFS_RULES` but forces ``silent=False`` for every rule so
-#: entailments are visible in graph materialization-based conformance tests.
-#: The profile is still not generalized-RDF complete because predicate guards
-#: such as ``not_literal`` and ``different_terms`` are retained.
-CONFORMANT_RDFS_RULES: tuple[Rule, ...] = tuple(
-    [r.model_copy(update=dict(silent=False)) for r in PRODUCTION_RDFS_RULES]
 )

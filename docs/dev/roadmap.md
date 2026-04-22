@@ -132,12 +132,14 @@ of that target while the remaining items stay explicitly deferred.
    - Architecture: [Continuation guard middleware](architecture.md#continuation-guard-middleware)
    - Decision: [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md)
 1. Silent-rule visibility and bootstrap-axiom execution
-   - Introduce immutable rule-level silence semantics where `silent` controls both materialization visibility and reconstructed proof visibility.
+   - Introduce immutable rule-level silence semantics where `Rule.silent` defines default normal-operation visibility while `DerivationRecord.silent` carries effective per-firing visibility.
    - Require silent derivations to remain present in engine-native derivation logs using visibility metadata, while user-facing proof reconstruction excludes silent records.
+   - Track bootstrap-phase firings explicitly in derivation logs so bootstrap overrides do not overload rule-level `silent`.
    - Execute zero-precondition bootstrap rules once per engine-context initialization before warmup over existing graph content; reopening a context MAY re-run bootstrap idempotently.
+   - Keep triples produced solely by bootstrap and bootstrap-only closure internal to the engine so empty-graph startup does not materialize background vocabulary closure.
    - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)
    - Architecture: [Truth Maintenance System (TMS)](architecture.md#truth-maintenance-system-tms)
-   - Decision: [DR-021 Silent Rules and Bootstrap Axiom Execution](decision-records/DR-021%20Silent%20Rules%20and%20Bootstrap%20Axiom%20Execution.md)
+   - Decision: [DR-022 Bootstrap-Phase Effective Visibility and Derivation Metadata](decision-records/DR-022%20Bootstrap-Phase%20Effective%20Visibility%20and%20Derivation%20Metadata.md)
 
 ### 5.2. Exit criteria
 
@@ -157,7 +159,7 @@ of that target while the remaining items stay explicitly deferred.
   Semantic Web vocabularies (RDF, RDFS, OWL, SKOS, PROV).
 - Optional continuation-guard middleware is available for single-run harnesses without being implied for multi-round conversational agents.
 - Silent-rule visibility semantics are implemented so silent derivations remain logged while reconstructed user-facing proofs exclude silent records.
-- Zero-precondition bootstrap rules execute once per engine-context initialization before warmup over existing graph content, with idempotent behavior across reopen/recreate.
+- Zero-precondition bootstrap rules execute once per engine-context initialization before warmup over existing graph content, with idempotent behavior across reopen/recreate and without materializing bootstrap-only closure back into the graph.
 
 ## 6. Release `0.4.0`: Retrieval and experiment expansion
 

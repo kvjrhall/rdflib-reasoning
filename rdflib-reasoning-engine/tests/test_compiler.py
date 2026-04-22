@@ -113,6 +113,7 @@ def test_rule_compiler_propagates_silent_and_supports_empty_body() -> None:
     compiled = RuleCompiler.compile_rule(rule)
 
     assert compiled.silent is True
+    assert compiled.bootstrap is True
     assert compiled.triple_conditions == ()
     assert compiled.predicate_conditions == ()
     assert compiled.variables == ()

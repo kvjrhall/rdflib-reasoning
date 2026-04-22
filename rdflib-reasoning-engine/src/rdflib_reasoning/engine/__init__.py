@@ -32,7 +32,12 @@ from .proof import (
     TripleFact,
     VariableBinding,
 )
-from .proof_rendering import ProofRenderer, render_proof_markdown, render_proof_mermaid
+from .proof_rendering import (
+    ProofRenderer,
+    build_rule_lookup,
+    render_proof_markdown,
+    render_proof_mermaid,
+)
 from .rules import (
     Builtins,
     CallbackConsequent,
@@ -49,7 +54,13 @@ from .rules import (
     TripleConsequent,
     TriplePattern,
 )
-from .rulesets import CONFORMANT_RDFS_RULES, PRODUCTION_RDFS_RULES
+from .rulesets import (
+    CONFORMANT_RDFS_AXIOMS,
+    CONFORMANT_RDFS_RULES,
+    PRODUCTION_RDF_AXIOMS,
+    PRODUCTION_RDFS_AXIOMS,
+    PRODUCTION_RDFS_RULES,
+)
 
 __all__ = [
     "Builtins",
@@ -78,8 +89,12 @@ __all__ = [
     "PredicateCondition",
     "PredicateHook",
     "ProofLeaf",
+    "PRODUCTION_RDF_AXIOMS",
+    "PRODUCTION_RDFS_AXIOMS",
+    "CONFORMANT_RDFS_AXIOMS",
     "PRODUCTION_RDFS_RULES",
     "CONFORMANT_RDFS_RULES",
+    "build_rule_lookup",
     "RETEEngine",
     "RETEEngineFactory",
     "Rule",
