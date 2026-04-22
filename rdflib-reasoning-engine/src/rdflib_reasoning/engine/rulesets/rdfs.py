@@ -2,7 +2,13 @@ from rdflib.namespace import RDF, RDFS
 from rdflib.term import URIRef, Variable
 
 from ..proof import AuthorityReference, RuleDescription, RuleId
-from ..rules import Rule, TripleCondition, TripleConsequent, TriplePattern
+from ..rules import (
+    PredicateCondition,
+    Rule,
+    TripleCondition,
+    TripleConsequent,
+    TriplePattern,
+)
 
 _RDF11_SEMANTICS = URIRef("https://www.w3.org/TR/rdf11-mt/#RDFS_Interpretations")
 
@@ -46,6 +52,7 @@ RDFS_RULES: tuple[Rule, ...] = (
                 )
             ),
         ),
+        silent=True,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs2"),
@@ -99,6 +106,7 @@ RDFS_RULES: tuple[Rule, ...] = (
                 )
             ),
         ),
+        silent=True,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs5"),
@@ -130,10 +138,12 @@ RDFS_RULES: tuple[Rule, ...] = (
         id=RuleId(ruleset="rdfs", rule_id="rdfs4b"),
         description=_rule_description(
             "Object resource typing",
-            "Infer that the object of every triple is an rdfs:Resource.",
+            "Infer that the object of every triple is an rdfs:Resource when the "
+            "object is an IRI or blank node (well-formed RDF 1.1; literals skipped).",
         ),
         body=(
             TripleCondition(pattern=TriplePattern(subject=_X, predicate=_P, object=_Y)),
+            PredicateCondition(predicate="not_literal", arguments=(_Y,)),
         ),
         head=(
             TripleConsequent(
@@ -142,6 +152,7 @@ RDFS_RULES: tuple[Rule, ...] = (
                 )
             ),
         ),
+        silent=True,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs6"),
@@ -163,6 +174,7 @@ RDFS_RULES: tuple[Rule, ...] = (
                 )
             ),
         ),
+        silent=True,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs7"),
@@ -177,6 +189,7 @@ RDFS_RULES: tuple[Rule, ...] = (
                     subject=_P, predicate=RDFS.subPropertyOf, object=_Q
                 )
             ),
+            PredicateCondition(predicate="different_terms", arguments=(_P, _Q)),
         ),
         head=(
             TripleConsequent(
@@ -202,6 +215,7 @@ RDFS_RULES: tuple[Rule, ...] = (
                 )
             ),
         ),
+        silent=True,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs9"),
@@ -216,6 +230,7 @@ RDFS_RULES: tuple[Rule, ...] = (
             TripleCondition(
                 pattern=TriplePattern(subject=_A, predicate=RDF.type, object=_X)
             ),
+            PredicateCondition(predicate="different_terms", arguments=(_X, _Y)),
         ),
         head=(
             TripleConsequent(
@@ -239,6 +254,7 @@ RDFS_RULES: tuple[Rule, ...] = (
                 pattern=TriplePattern(subject=_C, predicate=RDFS.subClassOf, object=_C)
             ),
         ),
+        silent=True,
     ),
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs11"),
@@ -303,5 +319,6 @@ RDFS_RULES: tuple[Rule, ...] = (
                 )
             ),
         ),
+        silent=True,
     ),
 )

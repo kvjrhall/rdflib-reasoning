@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 from typing import Literal, Protocol, cast
 
 from .proof import (
@@ -21,6 +22,17 @@ class DerivationLogger(Protocol):
     """
 
     def record(self, record: DerivationRecord) -> None: ...
+
+
+@dataclass(slots=True)
+class InMemoryDerivationLogger:
+    """Simple in-memory sink for engine-native derivation records."""
+
+    records: list[DerivationRecord] = field(default_factory=list)
+
+    def record(self, record: DerivationRecord) -> None:
+        """Append one derivation record to the in-memory log."""
+        self.records.append(record)
 
 
 class ExplanationReconstructor(Protocol):

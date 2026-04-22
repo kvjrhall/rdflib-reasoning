@@ -260,3 +260,53 @@ def test_rete_store_uses_real_factory_engine_to_materialize_inference() -> None:
     dataset.default_graph.add((human, RDFS.subClassOf, mammal))
 
     assert (alice, RDF.type, mammal) in dataset.default_graph
+
+
+def test_rete_store_warmup_materializes_non_silent_bootstrap_rule() -> None:
+    bootstrap = (URIRef("urn:test:bootstrap"), RDF.type, RDFS.Resource)
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="bootstrap"),
+        description=None,
+        body=(),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=bootstrap[0],
+                    predicate=bootstrap[1],
+                    object=bootstrap[2],
+                )
+            ),
+        ),
+    )
+    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    dataset = Dataset(store=store)
+
+    # Trigger engine creation for the default context through a store event.
+    dataset.default_graph.add((_NS.seed, _NS.p, _NS.o))
+
+    assert bootstrap in dataset.default_graph
+
+
+def test_rete_store_warmup_does_not_materialize_silent_bootstrap_rule() -> None:
+    silent_bootstrap = (URIRef("urn:test:silent-bootstrap"), RDF.type, RDFS.Resource)
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="silent-bootstrap"),
+        description=None,
+        body=(),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=silent_bootstrap[0],
+                    predicate=silent_bootstrap[1],
+                    object=silent_bootstrap[2],
+                )
+            ),
+        ),
+        silent=True,
+    )
+    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    dataset = Dataset(store=store)
+
+    dataset.default_graph.add((_NS.seed2, _NS.p, _NS.o))
+
+    assert silent_bootstrap not in dataset.default_graph

@@ -280,3 +280,28 @@ def test_derivation_proof_reconstructor_uses_leaf_for_unexplained_goal() -> None
     assert proof.verdict == "incomplete"
     assert isinstance(proof.proof, ProofLeaf)
     assert proof.proof.claim == goal
+
+
+def test_derivation_proof_reconstructor_excludes_silent_records() -> None:
+    context = BNode()
+    goal = TripleFact(
+        context=context,
+        triple=(URIRef("urn:test:s"), RDF.type, URIRef("urn:test:C")),
+    )
+    premise = TripleFact(
+        context=context,
+        triple=(URIRef("urn:test:s"), RDF.type, URIRef("urn:test:B")),
+    )
+    silent_record = DerivationRecord(
+        context=context,
+        conclusions=[goal],
+        premises=[premise],
+        rule_id=RuleId(ruleset="test", rule_id="silent"),
+        silent=True,
+    )
+
+    proof = DerivationProofReconstructor().reconstruct(goal, [silent_record])
+
+    assert proof.verdict == "incomplete"
+    assert isinstance(proof.proof, ProofLeaf)
+    assert proof.proof.claim == goal

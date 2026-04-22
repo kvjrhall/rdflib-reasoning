@@ -63,20 +63,44 @@ def test_rule_ir_supports_body_predicates_and_callback_consequents() -> None:
     assert rule.salience == 10
 
 
-def test_rule_validation_rejects_empty_body() -> None:
+def test_rule_validation_allows_empty_body_bootstrap_rule() -> None:
     x = Variable("x")
 
-    with pytest.raises(ValidationError, match="at least 1 item"):
-        Rule(
-            id=RuleId(ruleset="test", rule_id="empty-body"),
-            description=RuleDescription(label="Empty body"),
-            body=(),
-            head=(
-                TripleConsequent(
-                    pattern=TriplePattern(subject=x, predicate=RDF.type, object=x)
-                ),
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="empty-body"),
+        description=RuleDescription(label="Empty body"),
+        body=(),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=x)
             ),
-        )
+        ),
+    )
+
+    assert rule.body == ()
+
+
+def test_rule_ir_supports_silent_flag() -> None:
+    x = Variable("x")
+    y = Variable("y")
+
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="silent-rule"),
+        description=RuleDescription(label="Silent rule"),
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDFS.subClassOf, object=y)
+            ),
+        ),
+        silent=True,
+    )
+
+    assert rule.silent is True
 
 
 def test_rule_validation_rejects_empty_head() -> None:
@@ -127,6 +151,11 @@ def test_rdfs_rule_examples_cover_core_entailment_shapes() -> None:
     rdfs11 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs11")
     assert len(rdfs11.body) == 2
     assert rdfs11.head[0].pattern.predicate == RDFS.subClassOf
+
+    rdfs4b = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs4b")
+    assert len(rdfs4b.body) == 2
+    assert isinstance(rdfs4b.body[1], PredicateCondition)
+    assert rdfs4b.body[1].predicate == "not_literal"
 
     all_reference_uris = {
         str(reference.uri)
