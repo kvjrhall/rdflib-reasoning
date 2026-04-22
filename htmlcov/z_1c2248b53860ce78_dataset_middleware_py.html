@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for rdflib-reasoning-middleware/src/rdflib_reasoning/middleware/dataset_middleware.py: 82%</title>
+    <title>Coverage for rdflib-reasoning-middleware/src/rdflib_reasoning/middleware/dataset_middleware.py: 81%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_9ff733b0.css" type="text/css">
     <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>rdflib-reasoning-middleware&#8201;/&#8201;src&#8201;/&#8201;rdflib_reasoning&#8201;/&#8201;middleware&#8201;/&#8201;dataset_middleware.py</b>:
-            <span class="pc_cov">82%</span>
+            <span class="pc_cov">81%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">400 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">330<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">70<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">323<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">77<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_1c2248b53860ce78_dataset_model_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-04-22 00:33 +0000
+            created at 2026-04-22 00:47 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -680,11 +680,11 @@
     <p class="run run2"><span class="n"><a id="t598" href="#t598">598</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t599" href="#t599">599</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t600" href="#t600">600</a></span><span class="t">        <span class="key">if</span> <span class="nam">continuation_mode</span> <span class="op">==</span> <span class="str">"stop_now"</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t601" href="#t601">601</a></span><span class="t">            <span class="nam">logger</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t602" href="#t602">602</a></span><span class="t">                <span class="str">"continuation_mode=stop_now; delegating to tool handler without dataset "</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t603" href="#t603">603</a></span><span class="t">                <span class="str">"policy Commands that could overwrite orchestration state"</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t604" href="#t604">604</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t605" href="#t605">605</a></span><span class="t">            <span class="key">return</span> <span class="nam">handler</span><span class="op">(</span><span class="nam">request</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t601" href="#t601">601</a></span><span class="t">            <span class="nam">logger</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t602" href="#t602">602</a></span><span class="t">                <span class="str">"continuation_mode=stop_now; delegating to tool handler without dataset "</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t603" href="#t603">603</a></span><span class="t">                <span class="str">"policy Commands that could overwrite orchestration state"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t604" href="#t604">604</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t605" href="#t605">605</a></span><span class="t">            <span class="key">return</span> <span class="nam">handler</span><span class="op">(</span><span class="nam">request</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t606" href="#t606">606</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t607" href="#t607">607</a></span><span class="t">        <span class="key">if</span> <span class="nam">tool_name</span> <span class="op">==</span> <span class="str">"reset_dataset"</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">_should_reject_reset_dataset</span><span class="op">(</span><span class="nam">request</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t608" href="#t608">608</a></span><span class="t">            <span class="nam">logger</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="str">"Rejecting reset_dataset misuse because the dataset is empty"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -978,7 +978,7 @@
     <p class="run run2"><span class="n"><a id="t896" href="#t896">896</a></span><span class="t">        <span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t897" href="#t897">897</a></span><span class="t">            <span class="key">if</span> <span class="nam">graph_size_after</span> <span class="op">&lt;</span> <span class="nam">graph_size_before</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t898" href="#t898">898</a></span><span class="t">                <span class="key">return</span> <span class="str">"normal"</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t899" href="#t899">899</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t899" href="#t899">899</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t900" href="#t900">900</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t901" href="#t901">901</a></span><span class="t">    <span class="key">def</span> <span class="nam">_update_repeated_call_guard</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t902" href="#t902">902</a></span><span class="t">        <span class="nam">self</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -1029,7 +1029,7 @@
     <p class="run"><span class="n"><a id="t947" href="#t947">947</a></span><span class="t">        <span class="key">if</span> <span class="nam">tool_name</span> <span class="op">==</span> <span class="str">"serialize_dataset"</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t948" href="#t948">948</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">_last_serialize_signature</span> <span class="op">=</span> <span class="nam">serialize_signature</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t949" href="#t949">949</a></span><span class="t">            <span class="key">return</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t950" href="#t950">950</a></span><span class="t">        <span class="key">if</span> <span class="nam">tool_name</span> <span class="key">in</span> <span class="op">{</span><span class="str">"remove_triples"</span><span class="op">,</span> <span class="str">"reset_dataset"</span><span class="op">}</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t950" href="#t950">950</a></span><span class="t">        <span class="key">if</span> <span class="nam">tool_name</span> <span class="key">in</span> <span class="op">{</span><span class="str">"remove_triples"</span><span class="op">,</span> <span class="str">"reset_dataset"</span><span class="op">}</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t951" href="#t951">951</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">_last_add_triples_noop_signature</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t952" href="#t952">952</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t953" href="#t953">953</a></span><span class="t">    <span class="key">def</span> <span class="nam">_replace_dataset</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-></span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -1155,11 +1155,11 @@
     <p class="run run2"><span class="n"><a id="t1073" href="#t1073">1073</a></span><span class="t">            <span class="nam">description</span><span class="op">=</span><span class="nam">LIST_TRIPLES_TOOL_DESCRIPTION</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t1074" href="#t1074">1074</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1075" href="#t1075">1075</a></span><span class="t">        <span class="key">def</span> <span class="nam">list_triples_tool</span><span class="op">(</span><span class="op">)</span> <span class="op">-></span> <span class="nam">TripleListResponse</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1076" href="#t1076">1076</a></span><span class="t">            <span class="nam">triples</span> <span class="op">=</span> <span class="nam">tuple</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t1077" href="#t1077">1077</a></span><span class="t">                <span class="nam">N3Triple</span><span class="op">.</span><span class="nam">from_rdflib</span><span class="op">(</span><span class="nam">triple</span><span class="op">)</span> <span class="key">for</span> <span class="nam">triple</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">list_triples</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t1078" href="#t1078">1078</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1079" href="#t1079">1079</a></span><span class="t">            <span class="nam">logger</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="str">"Listing %s triples from the default graph"</span><span class="op">,</span> <span class="nam">len</span><span class="op">(</span><span class="nam">triples</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1080" href="#t1080">1080</a></span><span class="t">            <span class="key">return</span> <span class="nam">TripleListResponse</span><span class="op">(</span><span class="nam">triples</span><span class="op">=</span><span class="nam">triples</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1076" href="#t1076">1076</a></span><span class="t">            <span class="nam">triples</span> <span class="op">=</span> <span class="nam">tuple</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t1077" href="#t1077">1077</a></span><span class="t">                <span class="nam">N3Triple</span><span class="op">.</span><span class="nam">from_rdflib</span><span class="op">(</span><span class="nam">triple</span><span class="op">)</span> <span class="key">for</span> <span class="nam">triple</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">list_triples</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t1078" href="#t1078">1078</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1079" href="#t1079">1079</a></span><span class="t">            <span class="nam">logger</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="str">"Listing %s triples from the default graph"</span><span class="op">,</span> <span class="nam">len</span><span class="op">(</span><span class="nam">triples</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1080" href="#t1080">1080</a></span><span class="t">            <span class="key">return</span> <span class="nam">TripleListResponse</span><span class="op">(</span><span class="nam">triples</span><span class="op">=</span><span class="nam">triples</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1081" href="#t1081">1081</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1082" href="#t1082">1082</a></span><span class="t">        <span class="op">@</span><span class="nam">tool</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t1083" href="#t1083">1083</a></span><span class="t">            <span class="str">"add_triples"</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -1263,7 +1263,7 @@
             <a class="nav" href="z_1c2248b53860ce78_dataset_model_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-04-22 00:33 +0000
+            created at 2026-04-22 00:47 +0000
         </p>
     </div>
 </footer>
