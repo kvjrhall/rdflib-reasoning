@@ -221,8 +221,9 @@ progress.
 | --- | --- | --- |
 | Trace recording callbacks | Implemented | Normalized capture of model and tool lifecycle events for LangChain-based runs |
 | Notebook-rendered tracing of agent activity | Implemented | Optional `IPython`-backed live rendering of model decisions, tool calls, tool results, and final responses |
+| Serialized trace transcript export | Implemented | Versioned JSON-friendly turn-trace transcript export via `turn_traces_to_json_document(...)` and `LiveNotebookTrace.dump(...)` |
 | Continuation guard middleware | Implemented | Optional continuation-control middleware for single-run harnesses with provider-safe re-prompting and deterministic end on valid final Turtle |
-| Non-notebook rich trace renderers | Not started | Future console, HTML, or serialized trace views over the same core trace sink |
+| Additional non-notebook rich trace renderers | Not started | Future console, HTML, or other presentation layers over the same core trace sink |
 
 ### RDF vocabulary middleware
 
@@ -230,7 +231,7 @@ progress.
 | --- | --- | --- |
 | List indexed vocabularies | Implemented | `list_vocabularies` tool: enumerate available vocabulary namespaces with labels and term counts |
 | List vocabulary terms | Implemented | `list_terms` tool: list indexed terms from a vocabulary, filterable by term type and pageable with `offset` / `limit` |
-| Search vocabulary terms | Not started | Planned `search_terms` tool: search indexed terms by intended meaning as the primary discovery path |
+| Search vocabulary terms | Implemented | `search_terms` tool: search indexed terms by intended meaning as the primary discovery path |
 | Inspect term | Implemented | `inspect_term` tool: return a compact normalized description of one indexed term, optionally including native RDF with transitive `rdfs:subClassOf` / `rdfs:subPropertyOf` paths |
 | Whitelist-aware vocabulary filtering | Implemented | `list_vocabularies`, `list_terms`, and `inspect_term` honor the injected `VocabularyContext` policy and index set |
 | Unified vocabulary configuration | Implemented | `VocabularyConfiguration.build_context()` produces the single runtime `VocabularyContext` injected into both middleware components |
