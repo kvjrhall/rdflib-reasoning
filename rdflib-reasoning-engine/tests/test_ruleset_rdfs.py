@@ -10,7 +10,8 @@ from rdflib.graph import ModificationException
 from rdflib.plugins.stores.memory import Memory
 from rdflib_reasoning.axiom.common import Triple
 from rdflib_reasoning.engine import (
-    RDFS_RULES,
+    CONFORMANT_RDFS_RULES,
+    PRODUCTION_RDFS_RULES,
     DerivationLogger,
     DerivationRecord,
     RETEEngineFactory,
@@ -73,7 +74,7 @@ def graph_under_test(
 @pytest.fixture
 def rdfs_dataset() -> TestData[LoggerAndDataset]:
     logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=RDFS_RULES, derivation_logger=logger)
+    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
     store = RETEStore(Memory(), factory)
     dataset = Dataset(store=store)
     yield logger, dataset
@@ -110,14 +111,8 @@ _RDFS_RULE_SPECS: Final[dict[str, str]] = {
     "rdfs13": "https://www.w3.org/TR/rdf11-mt/#dfn-rdfs13",
 }
 
-_IMPLEMENTED_RDFS_RULE_IDS: Final[set[str]] = {rule.id.rule_id for rule in RDFS_RULES}
-_NON_MATERIALIZED_MICRO_RULE_IDS: Final[set[str]] = {
-    "rdfs1",
-    "rdfs4a",
-    "rdfs4b",
-    "rdfs6",
-    "rdfs10",
-    "rdfs13",
+_IMPLEMENTED_RDFS_RULE_IDS: Final[set[str]] = {
+    rule.id.rule_id for rule in CONFORMANT_RDFS_RULES
 }
 
 
@@ -287,7 +282,7 @@ def test_rdfs_entailment_micro(
 ) -> None:
     if test_case.rule_id not in _IMPLEMENTED_RDFS_RULE_IDS:
         pytest.xfail(
-            f"RDFS rule {test_case.rule_id} is not yet implemented in RDFS_RULES"
+            f"RDFS rule {test_case.rule_id} is not yet implemented in CONFORMANT_RDFS_RULES"
         )
 
     logger, dataset = rdfs_dataset
@@ -295,10 +290,7 @@ def test_rdfs_entailment_micro(
         for input in test_case.inputs:
             graph.add(input)
         for output in test_case.outputs:
-            if test_case.rule_id in _NON_MATERIALIZED_MICRO_RULE_IDS:
-                assert output not in graph
-            else:
-                assert output in graph
+            assert output in graph
 
         # There may be multiple derivations for the same entailed triple as the
         # ruleset evolves. Assert that at least one derivation record matches
@@ -322,12 +314,13 @@ def test_rdfs_entailment_micro(
 def test_rdfs_rule_ids_are_known_to_spec_index() -> None:
     """Ensure every RDFS rule id in the engine has a known RDFS Semantics anchor.
 
-    This provides a spec-driven contract between the engine's RDFS_RULES and the
-    RDF 1.1 Semantics RDFS entailment section. External reviewers without a
-    local cache can follow the association using the public W3C URLs.
+    This provides a spec-driven contract between the engine's
+    CONFORMANT_RDFS_RULES and the RDF 1.1 Semantics RDFS entailment section.
+    External reviewers without a local cache can follow the association using
+    the public W3C URLs.
     """
 
-    rule_ids = {rule.id.rule_id for rule in RDFS_RULES}
+    rule_ids = {rule.id.rule_id for rule in CONFORMANT_RDFS_RULES}
 
     # All implemented RDFS rule ids must be present in the spec mapping.
     assert rule_ids <= _RDFS_RULE_SPECS.keys()
@@ -337,7 +330,7 @@ def test_rdfs_transitive_subproperty_chain() -> None:
     """Integration: transitive closure for subPropertyOf chains of length > 2."""
 
     logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=RDFS_RULES, derivation_logger=logger)
+    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
     store = RETEStore(Memory(), factory)
     dataset = Dataset(store=store)
 
@@ -353,7 +346,7 @@ def test_rdfs_transitive_subclass_chain() -> None:
     """Integration: transitive closure for subClassOf chains of length > 2."""
 
     logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=RDFS_RULES, derivation_logger=logger)
+    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
     store = RETEStore(Memory(), factory)
     dataset = Dataset(store=store)
 
@@ -370,7 +363,7 @@ def test_rdfs_subproperty_cycle_terminates() -> None:
     """Integration: subPropertyOf cycles do not cause non-terminating inference."""
 
     logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=RDFS_RULES, derivation_logger=logger)
+    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
     store = RETEStore(Memory(), factory)
     dataset = Dataset(store=store)
 
@@ -387,7 +380,7 @@ def test_rdfs_multiple_domain_entailment() -> None:
     """Integration: multiple rdfs:domain declarations yield multiple type assertions."""
 
     logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=RDFS_RULES, derivation_logger=logger)
+    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
     store = RETEStore(Memory(), factory)
     dataset = Dataset(store=store)
 
@@ -404,7 +397,7 @@ def test_rdfs_multiple_range_entailment() -> None:
     """Integration: multiple rdfs:range declarations yield multiple type assertions."""
 
     logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=RDFS_RULES, derivation_logger=logger)
+    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
     store = RETEStore(Memory(), factory)
     dataset = Dataset(store=store)
 
@@ -421,7 +414,7 @@ def test_rdfs_non_entailment_without_domain_or_range() -> None:
     """Negative test: no domain/range declarations means no type entailments."""
 
     logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=RDFS_RULES, derivation_logger=logger)
+    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
     store = RETEStore(Memory(), factory)
     dataset = Dataset(store=store)
 
@@ -436,7 +429,7 @@ def test_rdfs_axioms_inventory_is_subset_of_closure() -> None:
     """Treat the RDFS axioms fixture as an inventory of axioms on the empty graph."""
 
     logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=RDFS_RULES, derivation_logger=logger)
+    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
     store = RETEStore(Memory(), factory)
     dataset = Dataset(store=store)
 
@@ -446,6 +439,28 @@ def test_rdfs_axioms_inventory_is_subset_of_closure() -> None:
 
         for triple in RDFS_AXIOMS:
             assert triple in graph
+
+
+def test_rdfs_profile_selection_changes_materialization_for_silent_rules() -> None:
+    """Conformant profile materializes triples that remain silent in production."""
+
+    target_triple = (NS.p, RDF.type, RDF.Property)
+    input_triple = (NS.s, NS.p, NS.o)
+
+    production_store = RETEStore(
+        Memory(), RETEEngineFactory(rules=PRODUCTION_RDFS_RULES)
+    )
+    conformant_store = RETEStore(
+        Memory(), RETEEngineFactory(rules=CONFORMANT_RDFS_RULES)
+    )
+    production_graph = Dataset(store=production_store).default_graph
+    conformant_graph = Dataset(store=conformant_store).default_graph
+
+    production_graph.add(input_triple)
+    conformant_graph.add(input_triple)
+
+    assert target_triple not in production_graph
+    assert target_triple in conformant_graph
 
 
 def test_multiple_derivation_paths_are_recoverable() -> None:

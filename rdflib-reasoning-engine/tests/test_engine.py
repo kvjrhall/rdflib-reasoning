@@ -21,7 +21,7 @@ from rdflib_reasoning.engine.rules import (
     TripleConsequent,
     TriplePattern,
 )
-from rdflib_reasoning.engine.rulesets import RDFS_RULES
+from rdflib_reasoning.engine.rulesets import PRODUCTION_RDFS_RULES
 
 _X = Variable("x")
 
@@ -285,12 +285,14 @@ def test_rete_engine_user_may_override_not_literal_predicate() -> None:
             return False
 
     triple = (URIRef("urn:x"), URIRef("urn:p"), URIRef("urn:y"))
-    default_engine = RETEEngineFactory(rules=RDFS_RULES).new_engine(URIRef("urn:ctx"))
+    default_engine = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES).new_engine(
+        URIRef("urn:ctx")
+    )
     default_engine.add_triples([triple])
     assert (triple[2], RDF.type, RDFS.Resource) in default_engine.known_triples
 
     override_engine = RETEEngineFactory(
-        rules=RDFS_RULES,
+        rules=PRODUCTION_RDFS_RULES,
         builtins={"predicates": {"not_literal": AlwaysFalse()}},
     ).new_engine(URIRef("urn:ctx"))
     override_engine.add_triples([triple])

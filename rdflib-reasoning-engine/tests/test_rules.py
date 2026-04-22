@@ -3,7 +3,7 @@ from pydantic import ValidationError
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import Variable
 from rdflib_reasoning.engine import (
-    RDFS_RULES,
+    PRODUCTION_RDFS_RULES,
     CallbackConsequent,
     PredicateCondition,
     Rule,
@@ -120,7 +120,7 @@ def test_rule_validation_rejects_empty_head() -> None:
 
 
 def test_rdfs_rule_examples_cover_core_entailment_shapes() -> None:
-    rule_ids = {rule.id.rule_id for rule in RDFS_RULES}
+    rule_ids = {rule.id.rule_id for rule in PRODUCTION_RDFS_RULES}
 
     assert {
         "rdfs1",
@@ -139,27 +139,27 @@ def test_rdfs_rule_examples_cover_core_entailment_shapes() -> None:
         "rdfs13",
     } <= rule_ids
 
-    rdfs2 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs2")
+    rdfs2 = next(rule for rule in PRODUCTION_RDFS_RULES if rule.id.rule_id == "rdfs2")
     assert len(rdfs2.body) == 2
     assert isinstance(rdfs2.body[0], TripleCondition)
     assert rdfs2.head[0].pattern.predicate == RDF.type
 
-    rdfs7 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs7")
+    rdfs7 = next(rule for rule in PRODUCTION_RDFS_RULES if rule.id.rule_id == "rdfs7")
     assert rdfs7.head[0].pattern.subject == Variable("x")
     assert rdfs7.head[0].pattern.object == Variable("y")
 
-    rdfs11 = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs11")
+    rdfs11 = next(rule for rule in PRODUCTION_RDFS_RULES if rule.id.rule_id == "rdfs11")
     assert len(rdfs11.body) == 2
     assert rdfs11.head[0].pattern.predicate == RDFS.subClassOf
 
-    rdfs4b = next(rule for rule in RDFS_RULES if rule.id.rule_id == "rdfs4b")
+    rdfs4b = next(rule for rule in PRODUCTION_RDFS_RULES if rule.id.rule_id == "rdfs4b")
     assert len(rdfs4b.body) == 2
     assert isinstance(rdfs4b.body[1], PredicateCondition)
     assert rdfs4b.body[1].predicate == "not_literal"
 
     all_reference_uris = {
         str(reference.uri)
-        for rule in RDFS_RULES
+        for rule in PRODUCTION_RDFS_RULES
         if rule.description is not None
         for reference in rule.description.references
     }

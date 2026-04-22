@@ -35,7 +35,13 @@ def _rule_description(rule_name: str, description: str) -> RuleDescription:
     )
 
 
-RDFS_RULES: tuple[Rule, ...] = (
+#: Production-oriented RDFS profile for typical RDFLib use.
+#:
+#: This ruleset keeps selected rules silent to avoid materializing high-volume,
+#: low-value closure triples while still deriving those triples internally for
+#: downstream rule chaining. For full materialization-oriented conformance
+#: testing, see :data:`CONFORMANT_RDFS_RULES`.
+PRODUCTION_RDFS_RULES: tuple[Rule, ...] = (
     Rule(
         id=RuleId(ruleset="rdfs", rule_id="rdfs1"),
         description=_rule_description(
@@ -321,4 +327,15 @@ RDFS_RULES: tuple[Rule, ...] = (
         ),
         silent=True,
     ),
+)
+
+#: Conformance-oriented RDFS profile with all rules materialized.
+#:
+#: This profile derives the same rule inventory as
+#: :data:`PRODUCTION_RDFS_RULES` but forces ``silent=False`` for every rule so
+#: entailments are visible in graph materialization-based conformance tests.
+#: The profile is still not generalized-RDF complete because predicate guards
+#: such as ``not_literal`` and ``different_terms`` are retained.
+CONFORMANT_RDFS_RULES: tuple[Rule, ...] = tuple(
+    [r.model_copy(update=dict(silent=False)) for r in PRODUCTION_RDFS_RULES]
 )
