@@ -6,6 +6,13 @@ Agentic AI should be able to take advantage of basic reasoning in an efficient m
 These regimes can be computed using forward-chaining rules, though practical approaches may also benefit from [special handling for transitive closures](https://jena.apache.org/documentation/inference/index.html#transitive).
 The `rdflib-reasoning-engine` package provides an efficient general purpose forward chaining rule engine (i.e., RETE) that works with RDFLib.
 
+## Tutorials and demos
+
+If you want to see the current RDFS inference surface in action, start with:
+
+- [../notebooks/demo-rdfs-inference.ipynb](../notebooks/demo-rdfs-inference.ipynb): compact end-to-end tutorial for RDFLib-backed RDFS materialization plus a proof view of the rule applications behind one inferred triple
+- [../notebooks/demo-proof-reconstructor.ipynb](../notebooks/demo-proof-reconstructor.ipynb): proof-focused companion notebook covering proof reconstruction, Mermaid rendering, markdown rendering, and raw proof inspection
+
 ## Feature Matrix
 
 Status values:
