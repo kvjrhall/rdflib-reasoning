@@ -596,11 +596,84 @@ def _tool_messages(outputs: Any) -> tuple[ToolMessage, ...]:
     return tuple(messages)
 
 
+TURN_TRACE_TRANSCRIPT_FORMAT = "rdflib_reasoning.turn_trace_transcript"
+TURN_TRACE_TRANSCRIPT_VERSION = 1
+
+
+def normalize_trace_json_value(value: Any) -> Any:
+    """Recursively coerce trace-related values into JSON-serializable data."""
+
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, Mapping):
+        return {
+            str(key): normalize_trace_json_value(item) for key, item in value.items()
+        }
+    if isinstance(value, tuple):
+        return [normalize_trace_json_value(item) for item in value]
+    if isinstance(value, list):
+        return [normalize_trace_json_value(item) for item in value]
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return normalize_trace_json_value(model_dump(mode="json"))
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def turn_trace_to_jsonable(turn: TurnTrace) -> dict[str, Any]:
+    """Return one turn as a plain, JSON-friendly mapping."""
+
+    normalized = normalize_trace_json_value(
+        {
+            "run_id": turn.run_id,
+            "name": turn.name,
+            "parent_run_id": turn.parent_run_id,
+            "tags": turn.tags,
+            "input_summary": turn.input_summary,
+            "agent_output": turn.agent_output,
+            "final_content": turn.final_content,
+            "requested_tool_calls": turn.requested_tool_calls,
+            "invalid_tool_calls": turn.invalid_tool_calls,
+            "tool_invocations": tuple(
+                {
+                    "name": inv.name,
+                    "requested_arguments": inv.requested_arguments,
+                    "tool_call_id": inv.tool_call_id,
+                    "result": inv.result,
+                    "tool_message": inv.tool_message,
+                }
+                for inv in turn.tool_invocations
+            ),
+            "response_metadata": turn.response_metadata,
+        }
+    )
+    if not isinstance(normalized, dict):
+        msg = "turn_trace_to_jsonable expected a dict from normalize_trace_json_value"
+        raise TypeError(msg)
+    return normalized
+
+
+def turn_traces_to_json_document(turns: Iterable[TurnTrace]) -> dict[str, Any]:
+    """Build a versioned transcript document from correlated turns."""
+
+    return {
+        "format": TURN_TRACE_TRANSCRIPT_FORMAT,
+        "version": TURN_TRACE_TRANSCRIPT_VERSION,
+        "turns": [turn_trace_to_jsonable(turn) for turn in turns],
+    }
+
+
 __all__ = [
+    "TURN_TRACE_TRANSCRIPT_FORMAT",
+    "TURN_TRACE_TRANSCRIPT_VERSION",
     "TraceEvent",
     "TraceRecorder",
     "TraceSink",
     "TurnTrace",
     "TurnTraceToolCall",
     "TurnTracer",
+    "normalize_trace_json_value",
+    "turn_trace_to_jsonable",
+    "turn_traces_to_json_document",
 ]

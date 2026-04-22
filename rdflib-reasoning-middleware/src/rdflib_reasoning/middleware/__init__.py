@@ -21,12 +21,17 @@ from .rdf_vocabulary_middleware import (
 )
 from .shared_services import DatasetRuntime, RunTermTelemetry
 from .tracing import (
+    TURN_TRACE_TRANSCRIPT_FORMAT,
+    TURN_TRACE_TRANSCRIPT_VERSION,
     TraceEvent,
     TraceRecorder,
     TraceSink,
     TurnTrace,
     TurnTracer,
     TurnTraceToolCall,
+    normalize_trace_json_value,
+    turn_trace_to_jsonable,
+    turn_traces_to_json_document,
 )
 from .vocabulary_configuration import (
     VocabularyConfiguration,
@@ -35,6 +40,8 @@ from .vocabulary_configuration import (
 )
 
 __all__ = [
+    "TURN_TRACE_TRANSCRIPT_FORMAT",
+    "TURN_TRACE_TRANSCRIPT_VERSION",
     "DatasetMiddleware",
     "DatasetMiddlewareConfig",
     "DatasetRuntime",
@@ -59,6 +66,9 @@ __all__ = [
     "TurnTrace",
     "TurnTraceToolCall",
     "TurnTracer",
+    "normalize_trace_json_value",
+    "turn_trace_to_jsonable",
+    "turn_traces_to_json_document",
     "TripleBatchRequest",
     "TripleListResponse",
     "VocabularyConfiguration",

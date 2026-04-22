@@ -10,11 +10,21 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
     ) from exc
 
 import json
+import os
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from threading import Event, Thread
 from typing import Any, Self
 
-from .tracing import TraceRecorder, TraceSink, TurnTrace, TurnTracer, TurnTraceToolCall
+from .tracing import (
+    TraceRecorder,
+    TraceSink,
+    TurnTrace,
+    TurnTracer,
+    TurnTraceToolCall,
+    normalize_trace_json_value,
+    turn_traces_to_json_document,
+)
 
 
 class NotebookTraceRenderer:
@@ -119,18 +129,7 @@ class NotebookTraceRenderer:
         return json.dumps(normalized, indent=2, sort_keys=True)
 
     def _normalize(self, value: Any) -> Any:
-        if isinstance(value, Mapping):
-            return {str(key): self._normalize(item) for key, item in value.items()}
-        if isinstance(value, tuple):
-            return [self._normalize(item) for item in value]
-        if isinstance(value, list):
-            return [self._normalize(item) for item in value]
-        model_dump = getattr(value, "model_dump", None)
-        if callable(model_dump):
-            return self._normalize(model_dump(mode="json"))
-        if isinstance(value, (str, int, float, bool)) or value is None:
-            return value
-        return str(value)
+        return normalize_trace_json_value(value)
 
     def _render_tool_calls(self, tool_calls: Any) -> list[str]:
         lines = ["#### Requested Tool Calls", ""]
@@ -286,6 +285,27 @@ class LiveNotebookTrace:
     def refresh(self) -> None:
         """Force a notebook refresh immediately."""
         self.renderer.refresh()
+
+    def dump(
+        self,
+        path: str | Path | os.PathLike[str] | None = None,
+        *,
+        indent: int | None = 2,
+    ) -> str:
+        """Persist correlated :class:`~.tracing.TurnTrace` rows as JSON.
+
+        When ``path`` is ``None``, returns the transcript as a string and does
+        not write to disk. Otherwise writes UTF-8 JSON and returns the path as
+        a string.
+        """
+        turns = TurnTracer().snapshot(self.sink.snapshot())
+        document = turn_traces_to_json_document(turns)
+        text = json.dumps(document, indent=indent, sort_keys=True)
+        if path is None:
+            return text
+        out = Path(path)
+        out.write_text(text, encoding="utf-8")
+        return str(out)
 
     def __enter__(self) -> Self:
         self.start()
