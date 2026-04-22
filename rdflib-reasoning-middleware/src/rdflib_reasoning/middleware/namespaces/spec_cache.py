@@ -8,7 +8,16 @@ from typing import Final, Self
 
 from rdflib import DC, FOAF, OWL, RDF, Graph, Literal, Namespace, URIRef
 from rdflib.graph import ReadOnlyGraphAggregate
-from rdflib.namespace import PROV, RDFS, VANN
+from rdflib.namespace import (
+    DCAM,
+    DCMITYPE,
+    DCTERMS,
+    PROV,
+    RDFS,
+    SKOS,
+    VANN,
+    DefinedNamespace,
+)
 from rdflib_reasoning.middleware.namespaces.spec_index import RDFVocabulary
 
 logger = logging.getLogger(__name__)
@@ -54,11 +63,11 @@ _BUNDLED_SPEC_FILENAMES: Final[Mapping[str, str]] = MappingProxyType(
     {
         # str(BRICK): "brick.ttl",
         # str(CSVW): "csvw.ttl",
-        # str(DC): "dc.ttl",
+        # str(DC): "dc.ttl",  # Deprecated in favor of DCMI Terms
+        str(DCAM): "dcam.ttl",
         # str(DCAT): "dcat.ttl",
-        # str(DCMITYPE): "dctype.ttl",
-        # str(DCTERMS): "dcterms.ttl",
-        # str(DCAM): "dcam.ttl",
+        str(DCMITYPE): "dcmitype.ttl",
+        str(DCTERMS): "dcterms.ttl",
         # str(DOAP): "doap.ttl",
         str(FOAF): "foaf.rdf",
         # str(ODRL2): "odrl2.ttl",
@@ -71,7 +80,7 @@ _BUNDLED_SPEC_FILENAMES: Final[Mapping[str, str]] = MappingProxyType(
         str(RDFS): "rdfs.ttl",
         # str(SDO): "sdo.ttl",
         # str(SH): "sh.ttl",
-        # str(SKOS): "skos.ttl",
+        str(SKOS): "skos.rdf",
         # str(SOSA): "sosa.ttl",
         # str(SSN): "ssn.ttl",
         # str(TIME): "time.ttl",
@@ -96,18 +105,29 @@ _DEFAULT_VOCABULARY_LABEL: Final[str] = "An Anonymous User-Supplied RDF Vocabula
 _BUNDLED_VOCABULARY_METADATA: Final[Mapping[str, VocabularyMetadata]] = (
     MappingProxyType(
         {
-            str(RDF): VocabularyMetadata(
-                label="RDF",
+            str(DCAM): VocabularyMetadata(
+                label="DCAM",
+                description="Terms used in the _description_ of DCMI metadata terms.",
+            ),
+            str(DCMITYPE): VocabularyMetadata(
+                label="DCMITYPE",
                 description=(
-                    "Core RDF data model terms for statements, lists, containers, "
-                    "and literal/datatype machinery."
+                    "DCMI Type Vocabulary, which defines classes for basic types of "
+                    "thing that can be described using DCMI metadata terms."
                 ),
             ),
-            str(RDFS): VocabularyMetadata(
-                label="RDFS",
+            str(DCTERMS): VocabularyMetadata(
+                label="DCTERMS",
                 description=(
-                    "Schema-level RDF terms for classes, properties, labels, "
-                    "comments, domain/range, and hierarchy modeling."
+                    "Properties and terms coined outside of the original fifteen-element "
+                    "Dublin Core and published as ISO 15836-2:2019"
+                ),
+            ),
+            str(FOAF): VocabularyMetadata(
+                label="FOAF",
+                description=(
+                    "People, agents, profiles, social connections, and related "
+                    "online identity and metadata terms."
                 ),
             ),
             str(OWL): VocabularyMetadata(
@@ -124,11 +144,26 @@ _BUNDLED_VOCABULARY_METADATA: Final[Mapping[str, VocabularyMetadata]] = (
                     "qualified influence relationships."
                 ),
             ),
-            str(FOAF): VocabularyMetadata(
-                label="FOAF",
+            str(RDF): VocabularyMetadata(
+                label="RDF",
                 description=(
-                    "People, agents, profiles, social connections, and related "
-                    "online identity and metadata terms."
+                    "Core RDF data model terms for statements, lists, containers, "
+                    "and literal/datatype machinery."
+                ),
+            ),
+            str(RDFS): VocabularyMetadata(
+                label="RDFS",
+                description=(
+                    "Schema-level RDF terms for classes, properties, labels, "
+                    "comments, domain/range, and hierarchy modeling."
+                ),
+            ),
+            str(SKOS): VocabularyMetadata(
+                label="SKOS",
+                description=(
+                    "The Simple Knowledge Organization System (SKOS) is a common "
+                    "data model for sharing and linking knowledge organization systems "
+                    "via the Semantic Web."
                 ),
             ),
             str(VANN): VocabularyMetadata(
@@ -197,7 +232,7 @@ class SpecificationCache:
     def __init__(
         self,
         *,
-        bundled_namespaces: Sequence[URIRef | Namespace | str],
+        bundled_namespaces: Sequence[URIRef | Namespace | type[DefinedNamespace] | str],
         user_specs: Sequence[UserSpec] = (),
     ) -> None:
         # self.cache_path = user_cache_path(
@@ -225,7 +260,9 @@ class SpecificationCache:
                 description=user_spec.description,
             )
 
-    def get_spec(self, namespace: URIRef | Namespace | str) -> Graph:
+    def get_spec(
+        self, namespace: URIRef | Namespace | type[DefinedNamespace] | str
+    ) -> Graph:
         key = str(namespace)
         if key in self._specs:
             return self._specs[key]
@@ -248,6 +285,7 @@ class SpecificationCache:
             case _:
                 raise ValueError(f"Unknown file extension: {filename}")
 
+        assert __package__ is not None
         with resources.path(__package__, filename) as bundled_path:
             graph = Graph()
             graph.parse(bundled_path, format=format)
@@ -255,7 +293,9 @@ class SpecificationCache:
 
         return self._specs[key]
 
-    def get_vocabulary(self, namespace: URIRef | Namespace | str) -> RDFVocabulary:
+    def get_vocabulary(
+        self, namespace: URIRef | Namespace | type[DefinedNamespace] | str
+    ) -> RDFVocabulary:
         key = str(namespace)
         if key in self._vocabularies:
             return self._vocabularies[key]
@@ -265,7 +305,7 @@ class SpecificationCache:
         return vocabulary
 
     def get_vocabulary_metadata(
-        self, namespace: URIRef | Namespace | str
+        self, namespace: URIRef | Namespace | type[DefinedNamespace] | str
     ) -> VocabularyMetadata:
         key = str(namespace)
         # Bundled vocabularies have static metadata.
@@ -283,7 +323,9 @@ class SpecificationCache:
         return metadata
 
     @staticmethod
-    def has_bundled_resource(namespace: URIRef | Namespace | str) -> bool:
+    def has_bundled_resource(
+        namespace: URIRef | Namespace | type[DefinedNamespace] | str,
+    ) -> bool:
         return str(namespace) in _BUNDLED_SPEC_FILENAMES
 
     def _build_metadata(

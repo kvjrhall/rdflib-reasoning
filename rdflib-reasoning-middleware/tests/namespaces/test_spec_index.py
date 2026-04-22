@@ -1,4 +1,5 @@
 import logging
+import warnings
 from collections.abc import Generator
 from importlib import resources
 
@@ -8,10 +9,16 @@ from rdflib import PROV, RDF, RDFS, Graph, Literal, Namespace, URIRef
 from rdflib.graph import ReadOnlyGraphAggregate
 from rdflib.namespace import DC, OWL
 from rdflib_reasoning.middleware.namespaces.spec_cache import (
+    _BUNDLED_SPEC_FILENAMES,
+    _BUNDLED_VOCABULARY_METADATA,
     SpecificationCache,
     UserSpec,
 )
 from rdflib_reasoning.middleware.namespaces.spec_index import RDFVocabulary
+from rdflib_reasoning.middleware.namespaces.spec_normalizer import (
+    DefinitionWarning,
+    LabelWarning,
+)
 
 
 @pytest.fixture(scope="session")
@@ -143,3 +150,80 @@ def test_specification_cache_derives_non_bundled_metadata_from_graph() -> None:
 
     assert metadata.label == "Example Metadata Vocabulary"
     assert metadata.description == "Terms for metadata fallback coverage."
+
+
+@pytest.mark.parametrize(
+    ("namespace", "filename"),
+    sorted(_BUNDLED_SPEC_FILENAMES.items()),
+)
+def test_bundled_vocabulary_normalization_emits_no_label_or_definition_warnings(
+    namespace: str, filename: str
+) -> None:
+    cache = SpecificationCache(bundled_namespaces=(namespace,))
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", LabelWarning)
+        warnings.simplefilter("error", DefinitionWarning)
+        vocabulary = cache.get_vocabulary(namespace)
+
+    assert len(vocabulary.all_terms) > 0, filename
+
+
+@pytest.mark.parametrize("namespace", sorted(_BUNDLED_SPEC_FILENAMES))
+def test_bundled_vocabulary_terms_have_explicit_labels_in_source_graph(
+    namespace: str,
+) -> None:
+    cache = SpecificationCache(bundled_namespaces=(namespace,))
+    graph = cache.get_spec(namespace)
+    vocabulary = cache.get_vocabulary(namespace)
+
+    missing_labels = sorted(
+        str(term.uri)
+        for term in vocabulary.all_terms
+        if not isinstance(graph.value(term.uri, RDFS.label), Literal)
+        # NOTE: We give annotation properties a pass when it comes to labels.
+        and (term.uri, RDF.type, OWL.AnnotationProperty) not in graph
+    )
+
+    assert missing_labels == [], (
+        f"{len(missing_labels)} Terms SHOULD have explicit labels in source graph: {missing_labels}"
+    )
+
+
+@pytest.mark.parametrize("namespace", sorted(_BUNDLED_SPEC_FILENAMES))
+def test_bundled_vocabulary_terms_have_no_placeholder_or_lexicalized_metadata(
+    namespace: str,
+) -> None:
+    from rdflib_reasoning.middleware.namespaces.spec_normalizer import (
+        _KNOWN_MISSING_DEFINITIONS,
+    )
+
+    cache = SpecificationCache(bundled_namespaces=(namespace,))
+    vocabulary = cache.get_vocabulary(namespace)
+
+    invalid_terms = sorted(
+        str(term.uri)
+        for term in vocabulary.all_terms
+        if term.uri not in _KNOWN_MISSING_DEFINITIONS
+        and (
+            "<literal_definition_missing>" in term.definition
+            or "<literal_definition_lexical_form>" in term.definition
+            or "<literal_label_lexical_form>" in term.label
+        )
+    )
+
+    assert invalid_terms == [], (
+        f"{len(invalid_terms)} Terms MUST NOT have placeholder definitions: {invalid_terms}"
+    )
+
+
+@pytest.mark.parametrize("namespace", sorted(_BUNDLED_SPEC_FILENAMES))
+def test_bundled_vocabulary_has_curated_vocabulary_metadata(namespace: str) -> None:
+    cache = SpecificationCache(bundled_namespaces=(namespace,))
+    metadata = cache.get_vocabulary_metadata(namespace)
+
+    assert namespace in _BUNDLED_VOCABULARY_METADATA
+    assert metadata.label.strip() != ""
+    assert metadata.description.strip() != ""
+    assert metadata.label != namespace
+    assert metadata.description != namespace

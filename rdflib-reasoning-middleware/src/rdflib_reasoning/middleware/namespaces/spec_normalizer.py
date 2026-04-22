@@ -8,7 +8,7 @@ from types import MappingProxyType
 from typing import Final
 
 from rdflib import OWL, PROV, RDFS, Graph, Literal, Namespace, URIRef
-from rdflib.namespace import DefinedNamespace
+from rdflib.namespace import SKOS, DefinedNamespace
 from rdflib.query import Result, ResultRow
 from rdflib_reasoning.middleware.namespaces.spec_index import (
     RDFVocabulary,
@@ -85,11 +85,14 @@ _PROV_SHARES_DEFINITION_WITH: Final[URIRef] = URIRef(f"{PROV}sharesDefinitionWit
 _AUTHORITY_ALIASES: Final[Mapping[str, frozenset[URIRef]]] = MappingProxyType(
     {
         str(PROV): frozenset({URIRef(str(PROV)), _PROV_O}),
+        str(SKOS): frozenset({URIRef(str(SKOS)), URIRef(str(SKOS).removesuffix("#"))}),
     }
 )
 _DEFINITION_PROPERTIES: Final[Sequence[URIRef]] = (
-    URIRef(f"{PROV}definition"),
-    URIRef(f"{PROV}editorsDefinition"),
+    SKOS.definition,
+    SKOS.scopeNote,
+    PROV.definition,
+    PROV.editorsDefinition,
     RDFS.comment,
 )
 _KNOWN_MISSING_DEFINITIONS: Final[frozenset[URIRef]] = frozenset(
