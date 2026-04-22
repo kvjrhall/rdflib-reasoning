@@ -65,6 +65,7 @@ class ActionInstance(BaseModel):
     productions: tuple[TripleProduction, ...] = ()
     callbacks: tuple[CallbackSchedule, ...] = ()
     silent: bool = False
+    bootstrap: bool = False
 
     @property
     def kind(self) -> Literal["production", "callback", "mixed", "empty"]:

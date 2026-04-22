@@ -320,9 +320,11 @@ def test_rdfs_rule_ids_are_known_to_spec_index() -> None:
     the public W3C URLs.
     """
 
-    rule_ids = {rule.id.rule_id for rule in CONFORMANT_RDFS_RULES}
+    rule_ids = {
+        rule.id.rule_id for rule in CONFORMANT_RDFS_RULES if rule.id.ruleset == "rdfs"
+    }
 
-    # All implemented RDFS rule ids must be present in the spec mapping.
+    # All implemented RDFS entailment pattern ids must be present in the spec mapping.
     assert rule_ids <= _RDFS_RULE_SPECS.keys()
 
 
@@ -444,7 +446,12 @@ def test_rdfs_axioms_inventory_is_subset_of_closure() -> None:
 def test_rdfs_profile_selection_changes_materialization_for_silent_rules() -> None:
     """Conformant profile materializes triples that remain silent in production."""
 
-    target_triple = (NS.p, RDF.type, RDF.Property)
+    # Predicate typing (rdfs1) is silent in production, but rdfs2 can still
+    # materialize ``(predicate rdf:type rdf:Property)`` once ``(rdf:type,
+    # rdfs:domain, rdfs:Resource)`` is axiomatic. Use rdfs6 reflexivity instead:
+    # ``(P rdfs:subPropertyOf P)`` is silent-only in production and materialized
+    # under CONFORMANT_RDFS_RULES.
+    target_triple = (NS.p, RDFS.subPropertyOf, NS.p)
     input_triple = (NS.s, NS.p, NS.o)
 
     production_store = RETEStore(
@@ -461,6 +468,32 @@ def test_rdfs_profile_selection_changes_materialization_for_silent_rules() -> No
 
     assert target_triple not in production_graph
     assert target_triple in conformant_graph
+
+
+def test_rdfs_profile_selection_suppresses_schema_term_range_noise_in_production() -> (
+    None
+):
+    production_store = RETEStore(
+        Memory(), RETEEngineFactory(rules=PRODUCTION_RDFS_RULES)
+    )
+    conformant_store = RETEStore(
+        Memory(), RETEEngineFactory(rules=CONFORMANT_RDFS_RULES)
+    )
+    production_graph = Dataset(store=production_store).default_graph
+    conformant_graph = Dataset(store=conformant_store).default_graph
+
+    production_graph.add((NS.alice, RDF.type, NS.Person))
+    production_graph.add((NS.Person, RDFS.subClassOf, NS.Mammal))
+    production_graph.add((NS.Mammal, RDFS.subClassOf, NS.Animal))
+
+    conformant_graph.add((NS.alice, RDF.type, NS.Person))
+    conformant_graph.add((NS.Person, RDFS.subClassOf, NS.Mammal))
+    conformant_graph.add((NS.Mammal, RDFS.subClassOf, NS.Animal))
+
+    assert (RDFS.Class, RDF.type, RDFS.Class) not in production_graph
+    assert (RDFS.Resource, RDF.type, RDFS.Class) not in production_graph
+    assert (RDFS.Class, RDF.type, RDFS.Class) in conformant_graph
+    assert (RDFS.Resource, RDF.type, RDFS.Class) in conformant_graph
 
 
 def test_multiple_derivation_paths_are_recoverable() -> None:

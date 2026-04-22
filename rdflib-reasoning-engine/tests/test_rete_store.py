@@ -262,7 +262,7 @@ def test_rete_store_uses_real_factory_engine_to_materialize_inference() -> None:
     assert (alice, RDF.type, mammal) in dataset.default_graph
 
 
-def test_rete_store_warmup_materializes_non_silent_bootstrap_rule() -> None:
+def test_rete_store_warmup_does_not_materialize_non_silent_bootstrap_rule() -> None:
     bootstrap = (URIRef("urn:test:bootstrap"), RDF.type, RDFS.Resource)
     rule = Rule(
         id=RuleId(ruleset="test", rule_id="bootstrap"),
@@ -284,7 +284,59 @@ def test_rete_store_warmup_materializes_non_silent_bootstrap_rule() -> None:
     # Trigger engine creation for the default context through a store event.
     dataset.default_graph.add((_NS.seed, _NS.p, _NS.o))
 
-    assert bootstrap in dataset.default_graph
+    assert bootstrap not in dataset.default_graph
+
+
+def test_rete_store_warmup_does_not_materialize_bootstrap_only_nonsilent_closure() -> (
+    None
+):
+    bootstrap = (URIRef("urn:test:bootstrap"), RDFS.domain, RDFS.Class)
+    closure = (RDF.List, RDF.type, RDFS.Resource)
+    bootstrap_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="bootstrap"),
+        description=None,
+        body=(),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=bootstrap[0],
+                    predicate=bootstrap[1],
+                    object=bootstrap[2],
+                )
+            ),
+        ),
+        silent=True,
+    )
+    stimulated_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="stimulated"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(
+                    subject=bootstrap[0],
+                    predicate=bootstrap[1],
+                    object=bootstrap[2],
+                )
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=closure[0],
+                    predicate=closure[1],
+                    object=closure[2],
+                )
+            ),
+        ),
+    )
+    store = RETEStore(
+        Memory(), RETEEngineFactory(rules=[bootstrap_rule, stimulated_rule])
+    )
+    dataset = Dataset(store=store)
+
+    dataset.default_graph.add((_NS.seed_bootstrap, _NS.p, _NS.o))
+
+    assert closure not in dataset.default_graph
 
 
 def test_rete_store_warmup_does_not_materialize_silent_bootstrap_rule() -> None:

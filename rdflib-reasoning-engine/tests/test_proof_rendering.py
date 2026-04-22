@@ -10,6 +10,8 @@ from rdflib_reasoning.engine.proof import (
     TripleFact,
 )
 from rdflib_reasoning.engine.proof_rendering import (
+    ProofRenderer,
+    build_rule_lookup,
     render_proof_markdown,
     render_proof_mermaid,
 )
@@ -18,6 +20,10 @@ from rdflib_reasoning.engine.rules import (
     TripleCondition,
     TripleConsequent,
     TriplePattern,
+)
+from rdflib_reasoning.engine.rulesets import (
+    PRODUCTION_RDF_AXIOMS,
+    PRODUCTION_RDFS_RULES,
 )
 
 
@@ -69,6 +75,64 @@ def _sample_proof() -> DirectProof:
     return DirectProof(
         context=context, goal=conclusion, proof=proof_node, verdict="proved"
     )
+
+
+def test_build_rule_lookup_rejects_duplicate_ruleset_rule_id() -> None:
+    r = PRODUCTION_RDF_AXIOMS[0]
+    dup = r.model_copy(deep=True)
+    with pytest.raises(ValueError, match="Duplicate rule key"):
+        build_rule_lookup((r, dup))
+
+
+def test_render_proof_markdown_resolves_rdf_axiom_with_explicit_rules_tuple() -> None:
+    axiom = PRODUCTION_RDF_AXIOMS[0]
+    context = BNode()
+    conclusion = TripleFact(context=context, triple=(RDF.type, RDF.type, RDF.Property))
+    proof = DirectProof(
+        context=context,
+        goal=conclusion,
+        proof=RuleApplication.from_rule(axiom, conclusions=[conclusion]),
+        verdict="proved",
+    )
+    rendered = render_proof_markdown(proof, rules=PRODUCTION_RDFS_RULES)
+    assert "rdf_axioms:rdf-axiom-rdf-type" in rendered
+    assert "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" in rendered
+
+
+def test_render_proof_markdown_resolves_bundled_axiom_using_default_registry() -> None:
+    axiom = PRODUCTION_RDF_AXIOMS[0]
+    context = BNode()
+    conclusion = TripleFact(context=context, triple=(RDF.type, RDF.type, RDF.Property))
+    proof = DirectProof(
+        context=context,
+        goal=conclusion,
+        proof=RuleApplication.from_rule(axiom, conclusions=[conclusion]),
+        verdict="proved",
+    )
+    rendered = render_proof_markdown(proof)
+    assert "rdf_axioms:rdf-axiom-rdf-type" in rendered
+
+
+def test_render_proof_mermaid_includes_then_for_resolved_axiom_rule() -> None:
+    axiom = PRODUCTION_RDF_AXIOMS[0]
+    context = BNode()
+    conclusion = TripleFact(context=context, triple=(RDF.type, RDF.type, RDF.Property))
+    proof = DirectProof(
+        context=context,
+        goal=conclusion,
+        proof=RuleApplication.from_rule(axiom, conclusions=[conclusion]),
+        verdict="proved",
+    )
+    mermaid = render_proof_mermaid(proof, rules=PRODUCTION_RDFS_RULES)
+    assert "THEN" in mermaid
+    assert "rdf_axioms:rdf-axiom-rdf-type" in mermaid
+
+
+def test_proof_renderer_returns_none_head_when_rule_missing_from_registry() -> None:
+    proof = _sample_proof()
+    renderer = ProofRenderer(rules=())
+    assert isinstance(proof.proof, RuleApplication)
+    assert renderer._resolve_rule(proof.proof) is None
 
 
 def test_render_proof_markdown_includes_step_content() -> None:

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [DR-022 Bootstrap-Phase Effective Visibility and Derivation Metadata](DR-022%20Bootstrap-Phase%20Effective%20Visibility%20and%20Derivation%20Metadata.md)
 
 ## Context
 
@@ -58,3 +58,7 @@ ordering, and release scope planning.
 ## Supersedes
 
 None.
+
+## Superseded By
+
+- [DR-022 Bootstrap-Phase Effective Visibility and Derivation Metadata](DR-022%20Bootstrap-Phase%20Effective%20Visibility%20and%20Derivation%20Metadata.md)

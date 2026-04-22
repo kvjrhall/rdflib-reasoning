@@ -26,6 +26,31 @@ from rdflib_reasoning.engine.rulesets import PRODUCTION_RDFS_RULES
 _X = Variable("x")
 
 
+def test_warmup_with_production_rdfs_loads_finite_axiom_triples_into_working_memory() -> (
+    None
+):
+    factory = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES)
+    engine = factory.new_engine(URIRef("urn:test:axiom-ctx"))
+    engine.warmup(())
+    assert (RDF.type, RDF.type, RDF.Property) in engine.known_triples
+    assert (RDFS.domain, RDFS.domain, RDF.Property) in engine.known_triples
+    assert (RDF.Seq, RDFS.subClassOf, RDFS.Container) in engine.known_triples
+    assert (RDF._1, RDF.type, RDF.Property) not in engine.known_triples
+
+
+def test_conformant_rdfs_rules_materialize_axioms_and_inference() -> None:
+    from rdflib_reasoning.engine.rulesets import CONFORMANT_RDFS_RULES
+
+    axiom = next(r for r in CONFORMANT_RDFS_RULES if r.id.ruleset == "rdf_axioms")
+    assert axiom.silent is False
+    rdfs2 = next(
+        r
+        for r in CONFORMANT_RDFS_RULES
+        if r.id.ruleset == "rdfs" and r.id.rule_id == "rdfs2"
+    )
+    assert rdfs2.silent is False
+
+
 class DummyRule(Rule):
     """Concrete Rule subclass for type-checking purposes."""
 
@@ -245,6 +270,82 @@ def test_rete_engine_add_triples_supports_builtin_predicates() -> None:
     assert inferred == {(URIRef("urn:test:a"), RDFS.subClassOf, URIRef("urn:test:A"))}
 
 
+def test_rete_engine_same_term_predicate_builtin_by_default() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="same-term-default"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            PredicateCondition(predicate="same_term", arguments=(x, x)),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDFS.subClassOf, object=y)
+            ),
+        ),
+    )
+    engine = RETEEngineFactory(rules=[rule]).new_engine(URIRef("urn:test:ctx-default"))
+
+    inferred = engine.add_triples(
+        [(URIRef("urn:test:a"), RDF.type, URIRef("urn:test:A"))]
+    )
+
+    assert inferred == {(URIRef("urn:test:a"), RDFS.subClassOf, URIRef("urn:test:A"))}
+
+
+def test_rete_engine_term_in_predicates_builtin_by_default() -> None:
+    x = Variable("x")
+    y = Variable("y")
+    guard_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="term-in-default"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            PredicateCondition(
+                predicate="term_in", arguments=(y, RDFS.Class, RDFS.Resource)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=y)
+            ),
+        ),
+    )
+    deny_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="term-not-in-default"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            PredicateCondition(
+                predicate="term_not_in", arguments=(y, RDFS.Class, RDFS.Resource)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=y, predicate=RDFS.subClassOf, object=RDFS.Resource
+                )
+            ),
+        ),
+    )
+    engine = RETEEngineFactory(rules=[guard_rule, deny_rule]).new_engine(
+        URIRef("urn:test:ctx-term-in")
+    )
+
+    inferred = engine.add_triples([(URIRef("urn:test:a"), RDF.type, RDFS.Class)])
+
+    assert (RDFS.Class, RDFS.subClassOf, RDFS.Class) in inferred
+    assert (RDFS.Class, RDFS.subClassOf, RDFS.Resource) not in inferred
+
+
 def test_rete_engine_not_literal_predicate_builtin_by_default() -> None:
     x = Variable("x")
     y = Variable("y")
@@ -285,18 +386,29 @@ def test_rete_engine_user_may_override_not_literal_predicate() -> None:
             return False
 
     triple = (URIRef("urn:x"), URIRef("urn:p"), URIRef("urn:y"))
+    range_triple = (triple[1], RDFS.range, URIRef("urn:test:C"))
     default_engine = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES).new_engine(
         URIRef("urn:ctx")
     )
-    default_engine.add_triples([triple])
-    assert (triple[2], RDF.type, RDFS.Resource) in default_engine.known_triples
+    default_engine.add_triples([range_triple, triple])
+    assert (triple[2], RDF.type, range_triple[2]) in default_engine.known_triples
 
     override_engine = RETEEngineFactory(
         rules=PRODUCTION_RDFS_RULES,
         builtins={"predicates": {"not_literal": AlwaysFalse()}},
     ).new_engine(URIRef("urn:ctx"))
-    override_engine.add_triples([triple])
-    assert (triple[2], RDF.type, RDFS.Resource) not in override_engine.known_triples
+    override_engine.add_triples([range_triple, triple])
+    assert (triple[2], RDF.type, range_triple[2]) not in override_engine.known_triples
+
+
+def test_production_rdfs_omits_selected_schema_axioms_from_working_memory() -> None:
+    engine = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES).new_engine(
+        URIRef("urn:ctx")
+    )
+    engine.warmup(())
+
+    assert (RDF.type, RDFS.domain, RDFS.Resource) not in engine.known_triples
+    assert (RDF.type, RDFS.range, RDFS.Class) not in engine.known_triples
 
 
 def test_rete_engine_add_triples_records_derivations_for_new_conclusions() -> None:
@@ -357,6 +469,7 @@ def test_rete_engine_add_triples_records_derivations_for_new_conclusions() -> No
         ("z", mammal),
     ]
     assert record.silent is False
+    assert record.bootstrap is False
 
 
 def test_in_memory_derivation_logger_records_entries() -> None:
@@ -422,6 +535,7 @@ def test_rete_engine_silent_rule_is_not_materialized_but_logged_and_available() 
     assert silent_conclusion in engine.known_triples
     assert len(logger.records) == 1
     assert logger.records[0].silent is True
+    assert logger.records[0].bootstrap is False
     assert [fact.triple for fact in logger.records[0].conclusions] == [
         silent_conclusion
     ]
@@ -528,6 +642,7 @@ def test_non_silent_only_same_output_triple_materializes() -> None:
 
     assert inferred == {conclusion}
     assert any(not record.silent for record in logger.records)
+    assert all(not record.bootstrap for record in logger.records)
 
 
 def test_non_silent_wins_when_silent_and_non_silent_derive_same_triple() -> None:
@@ -581,6 +696,7 @@ def test_non_silent_wins_when_silent_and_non_silent_derive_same_triple() -> None
     assert inferred == {conclusion}
     assert any(record.silent for record in logger.records)
     assert any(not record.silent for record in logger.records)
+    assert all(not record.bootstrap for record in logger.records)
 
 
 def test_rete_engine_warmup_runs_bootstrap_rule_once_per_engine_context() -> None:
@@ -604,8 +720,154 @@ def test_rete_engine_warmup_runs_bootstrap_rule_once_per_engine_context() -> Non
     second = engine.warmup([])
 
     bootstrap_triple = (URIRef("urn:test:bootstrap"), RDF.type, RDFS.Resource)
-    assert first == {bootstrap_triple}
+    assert first == set()
     assert second == set()
+    assert bootstrap_triple in engine.known_triples
+    assert bootstrap_triple not in engine.materialized_triples
+
+
+def test_rete_engine_bootstrap_logs_effective_silence_separately_from_rule_policy() -> (
+    None
+):
+    logger = RecordingLogger()
+    bootstrap_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="bootstrap"),
+        description=None,
+        body=(),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=URIRef("urn:test:bootstrap"),
+                    predicate=RDF.type,
+                    object=RDFS.Resource,
+                )
+            ),
+        ),
+        silent=False,
+    )
+    engine = RETEEngine(
+        context_data={"context": BNode(), "derivation_logger": logger},
+        rules=[bootstrap_rule],
+    )
+
+    engine.warmup([])
+
+    assert len(logger.records) == 1
+    assert logger.records[0].rule_id == bootstrap_rule.id
+    assert logger.records[0].bootstrap is True
+    assert logger.records[0].silent is True
+
+
+def test_rete_engine_bootstrap_suppresses_non_silent_bootstrap_only_closure() -> None:
+    bootstrap_seed = (URIRef("urn:test:seed"), RDFS.domain, RDFS.Class)
+    bootstrap_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="bootstrap"),
+        description=None,
+        body=(),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=bootstrap_seed[0],
+                    predicate=bootstrap_seed[1],
+                    object=bootstrap_seed[2],
+                )
+            ),
+        ),
+        silent=True,
+    )
+    stimulated_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="stimulated"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(
+                    subject=bootstrap_seed[0],
+                    predicate=bootstrap_seed[1],
+                    object=bootstrap_seed[2],
+                )
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=RDF.List,
+                    predicate=RDF.type,
+                    object=RDFS.Resource,
+                )
+            ),
+        ),
+    )
+    engine = RETEEngine(
+        context_data={"context": BNode()},
+        rules=[bootstrap_rule, stimulated_rule],
+    )
+
+    inferred = engine.warmup([])
+    closure_triple = (RDF.List, RDF.type, RDFS.Resource)
+
+    assert inferred == set()
+    assert bootstrap_seed in engine.known_triples
+    assert closure_triple in engine.known_triples
+    assert closure_triple not in engine.materialized_triples
+
+
+def test_rete_engine_bootstrap_marks_stimulated_derivations_as_bootstrap_and_silent() -> (
+    None
+):
+    logger = RecordingLogger()
+    bootstrap_seed = (URIRef("urn:test:seed"), RDFS.domain, RDFS.Class)
+    bootstrap_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="bootstrap"),
+        description=None,
+        body=(),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=bootstrap_seed[0],
+                    predicate=bootstrap_seed[1],
+                    object=bootstrap_seed[2],
+                )
+            ),
+        ),
+        silent=True,
+    )
+    stimulated_rule = Rule(
+        id=RuleId(ruleset="test", rule_id="stimulated"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(
+                    subject=bootstrap_seed[0],
+                    predicate=bootstrap_seed[1],
+                    object=bootstrap_seed[2],
+                )
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(
+                    subject=RDF.List,
+                    predicate=RDF.type,
+                    object=RDFS.Resource,
+                )
+            ),
+        ),
+        silent=False,
+    )
+    engine = RETEEngine(
+        context_data={"context": BNode(), "derivation_logger": logger},
+        rules=[bootstrap_rule, stimulated_rule],
+    )
+
+    engine.warmup([])
+
+    assert len(logger.records) == 2
+    assert all(record.bootstrap for record in logger.records)
+    assert all(record.silent for record in logger.records)
+    assert {record.rule_id.rule_id for record in logger.records} == {
+        "bootstrap",
+        "stimulated",
+    }
 
 
 def test_rete_engine_processes_matches_in_agenda_order() -> None:

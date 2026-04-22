@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterable
+from dataclasses import dataclass, field
 from itertools import count
 from typing import cast
 
@@ -30,11 +31,46 @@ from .rules import (
 from .rulesets import PRODUCTION_RDFS_RULES
 
 
+def build_rule_lookup(rules: Iterable[Rule]) -> dict[tuple[str, str], Rule]:
+    """Map ``(ruleset, rule_id)`` to the :class:`~rdflib_reasoning.engine.rules.Rule`.
+
+    Raises:
+        ValueError: If two rules share the same ``(ruleset, rule_id)`` pair.
+    """
+    out: dict[tuple[str, str], Rule] = {}
+    for rule in rules:
+        key = (rule.id.ruleset, rule.id.rule_id)
+        if key in out:
+            msg = (
+                f"Duplicate rule key {key!r}: "
+                f"{out[key].id!r} conflicts with {rule.id!r}"
+            )
+            raise ValueError(msg)
+        out[key] = rule
+    return out
+
+
 @dataclass(frozen=True)
 class ProofRenderer:
-    """Render canonical proof models as presentation-oriented text."""
+    """Render canonical proof models as presentation-oriented text.
+
+    ``rules`` should be the same rule tuple passed to :class:`~rdflib_reasoning.engine.api.RETEEngine`
+    (or :class:`~rdflib_reasoning.engine.api.RETEEngineFactory`) when the proof
+    was produced, so rule steps resolve to IF/THEN patterns. When omitted,
+    :data:`~rdflib_reasoning.engine.rulesets.PRODUCTION_RDFS_RULES` is used.
+    """
 
     namespace_manager: NamespaceManager | None = None
+    rules: tuple[Rule, ...] | None = None
+    _rule_lookup: dict[tuple[str, str], Rule] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def __post_init__(self) -> None:
+        rules_source = PRODUCTION_RDFS_RULES if self.rules is None else self.rules
+        object.__setattr__(self, "_rule_lookup", build_rule_lookup(rules_source))
 
     def render_markdown(self, proof: DirectProof) -> str:
         lines: list[str] = ["## Direct Proof", ""]
@@ -143,11 +179,9 @@ class ProofRenderer:
     def _resolve_rule(self, node: RuleApplication) -> Rule | None:
         if node.rule_id is None:
             return None
-        if node.rule_id.ruleset == "rdfs":
-            for rule in PRODUCTION_RDFS_RULES:
-                if rule.id.rule_id == node.rule_id.rule_id:
-                    return rule
-        return None
+        return self._rule_lookup.get(
+            (node.rule_id.ruleset, node.rule_id.rule_id),
+        )
 
     def _render_rule_condition(self, condition: RuleCondition) -> str:
         if isinstance(condition, TripleCondition):
@@ -228,14 +262,24 @@ class ProofRenderer:
 
 
 def render_proof_markdown(
-    proof: DirectProof, *, namespace_manager: NamespaceManager | None = None
+    proof: DirectProof,
+    *,
+    namespace_manager: NamespaceManager | None = None,
+    rules: tuple[Rule, ...] | None = None,
 ) -> str:
     """Render a `DirectProof` to markdown text."""
-    return ProofRenderer(namespace_manager=namespace_manager).render_markdown(proof)
+    return ProofRenderer(
+        namespace_manager=namespace_manager, rules=rules
+    ).render_markdown(proof)
 
 
 def render_proof_mermaid(
-    proof: DirectProof, *, namespace_manager: NamespaceManager | None = None
+    proof: DirectProof,
+    *,
+    namespace_manager: NamespaceManager | None = None,
+    rules: tuple[Rule, ...] | None = None,
 ) -> str:
     """Render a `DirectProof` to Mermaid graph syntax."""
-    return ProofRenderer(namespace_manager=namespace_manager).render_mermaid(proof)
+    return ProofRenderer(
+        namespace_manager=namespace_manager, rules=rules
+    ).render_mermaid(proof)

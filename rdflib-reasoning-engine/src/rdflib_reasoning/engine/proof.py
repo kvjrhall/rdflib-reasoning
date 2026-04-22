@@ -152,8 +152,15 @@ class DerivationRecord(ProofModel):
     silent: bool = Field(
         default=False,
         description=(
-            "Whether this derivation is silent for materialization or explanation "
-            "purposes."
+            "Whether this rule firing is effectively silent for materialization "
+            "and explanation purposes."
+        ),
+    )
+    bootstrap: bool = Field(
+        default=False,
+        description=(
+            "Whether this rule firing occurred during the bootstrap phase before "
+            "warmup over existing graph content."
         ),
     )
 

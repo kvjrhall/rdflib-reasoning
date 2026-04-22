@@ -305,3 +305,18 @@ def test_derivation_proof_reconstructor_excludes_silent_records() -> None:
     assert proof.verdict == "incomplete"
     assert isinstance(proof.proof, ProofLeaf)
     assert proof.proof.claim == goal
+
+
+def test_derivation_record_bootstrap_defaults_false() -> None:
+    context = BNode()
+    goal = TripleFact(
+        context=context,
+        triple=(URIRef("urn:test:s"), RDF.type, URIRef("urn:test:C")),
+    )
+    record = DerivationRecord(
+        context=context,
+        conclusions=[goal],
+        rule_id=RuleId(ruleset="test", rule_id="plain"),
+    )
+
+    assert record.bootstrap is False
