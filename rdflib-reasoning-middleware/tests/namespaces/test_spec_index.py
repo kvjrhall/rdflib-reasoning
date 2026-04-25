@@ -8,6 +8,7 @@ import rdflib_reasoning.middleware.namespaces
 from rdflib import PROV, RDF, RDFS, Graph, Literal, Namespace, URIRef
 from rdflib.graph import ReadOnlyGraphAggregate
 from rdflib.namespace import DC, OWL
+from rdflib_reasoning.middleware.namespaces._bundled import ALL_BUNDLED_VOCABULARIES
 from rdflib_reasoning.middleware.namespaces.spec_cache import (
     _BUNDLED_SPEC_FILENAMES,
     _BUNDLED_VOCABULARY_METADATA,
@@ -150,6 +151,26 @@ def test_specification_cache_derives_non_bundled_metadata_from_graph() -> None:
 
     assert metadata.label == "Example Metadata Vocabulary"
     assert metadata.description == "Terms for metadata fallback coverage."
+
+
+def test_bundled_spec_cache_tables_are_derived_from_registry() -> None:
+    assert set(_BUNDLED_SPEC_FILENAMES) == {
+        vocabulary.namespace_uri for vocabulary in ALL_BUNDLED_VOCABULARIES
+    }
+    assert set(_BUNDLED_VOCABULARY_METADATA) == {
+        vocabulary.namespace_uri for vocabulary in ALL_BUNDLED_VOCABULARIES
+    }
+    for vocabulary in ALL_BUNDLED_VOCABULARIES:
+        assert _BUNDLED_SPEC_FILENAMES[vocabulary.namespace_uri] == vocabulary.filename
+        assert (
+            _BUNDLED_VOCABULARY_METADATA[vocabulary.namespace_uri].label
+            == vocabulary.label
+        )
+        assert (
+            _BUNDLED_VOCABULARY_METADATA[vocabulary.namespace_uri].description
+            == vocabulary.description
+        )
+        assert SpecificationCache.has_bundled_resource(vocabulary.namespace) is True
 
 
 @pytest.mark.parametrize(

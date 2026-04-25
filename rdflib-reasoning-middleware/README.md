@@ -83,6 +83,19 @@ vocabulary_context = VocabularyConfiguration.bundled_plus(
     )
 ).build_context()
 
+# Opt in to the extended Dublin Core vocabularies when the task benefits from them.
+vocabulary_context = VocabularyConfiguration.bundled_plus(
+    VocabularyDeclaration(
+        prefix="ex",
+        namespace=EX,
+        user_spec=UserSpec.from_graph(
+            domain_terms,
+            namespace=EX,
+            description="Task-specific terms for this extraction run.",
+        ),
+    )
+).plus_dublin_core().build_context()
+
 agent = create_deep_agent(
     model=llm,
     middleware=[
@@ -235,13 +248,16 @@ progress.
 | Inspect term | Implemented | `inspect_term` tool: return a compact normalized description of one indexed term, optionally including native RDF with transitive `rdfs:subClassOf` / `rdfs:subPropertyOf` paths |
 | Whitelist-aware vocabulary filtering | Implemented | `list_vocabularies`, `list_terms`, and `inspect_term` honor the injected `VocabularyContext` policy and index set |
 | Unified vocabulary configuration | Implemented | `VocabularyConfiguration.build_context()` produces the single runtime `VocabularyContext` injected into both middleware components |
+| Incremental vocabulary extension | Implemented | `VocabularyConfiguration.plus(...)`, `plus_dublin_core()`, and `plus_vann()` return extended immutable configurations |
 | Using VANN annotation metadata | Not started | Planned metadata enrichment: use `vann:preferredNamespacePrefix` / `vann:preferredNamespaceUri` and related VANN annotations to improve vocabulary summaries and namespace presentation without changing policy |
-| Bundled RDF specification | Implemented | Indexed when declared through `VocabularyConfiguration.bundled_plus(...)` |
-| Bundled RDFS specification | Implemented | Indexed when declared through `VocabularyConfiguration.bundled_plus(...)` |
-| Bundled OWL specification | Implemented | Indexed when declared through `VocabularyConfiguration.bundled_plus(...)` |
-| Bundled PROV-O specification | Implemented | Indexed when declared through `VocabularyConfiguration.bundled_plus(...)` |
-| Bundled SKOS specification | Not started | `0.3.0` scope: enable as an additional declared bundled vocabulary in the vocabulary layer |
-| Additional bundled vocabularies | Not started | `0.3.0` scope: evaluate and enable additional declared bundled vocabularies (DC, SHACL, etc.) |
+| Bundled RDF specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
+| Bundled RDFS specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
+| Bundled OWL specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
+| Bundled PROV-O specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
+| Bundled SKOS specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
+| Opt-in bundled VANN specification | Implemented | Available through explicit declaration or `VocabularyConfiguration.plus_vann()` but not included by default |
+| Opt-in bundled Dublin Core extensions | Implemented | `VocabularyConfiguration.plus_dublin_core()` adds `DCAM`, `DCMITYPE`, and `DCTERMS` as an explicit grouped extension |
+| Additional bundled vocabularies | Not started | Further optional bundles beyond the current default set and Dublin Core grouping remain future scope |
 | User-supplied vocabularies at construction | Implemented | `VocabularyDeclaration(user_spec=...)` feeds `VocabularyConfiguration`, and the resulting `VocabularyContext` indexes those declarations explicitly |
 
 ### Dataset middleware implementation pattern

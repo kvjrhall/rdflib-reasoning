@@ -1,6 +1,6 @@
 import pytest
 from rdflib import FOAF, OWL, RDF, RDFS, Graph, Literal, Namespace, URIRef
-from rdflib.namespace import PROV
+from rdflib.namespace import DCAM, DCMITYPE, DCTERMS, PROV, SKOS, VANN
 from rdflib_reasoning.middleware import (
     DatasetMiddleware,
     DatasetMiddlewareConfig,
@@ -103,6 +103,11 @@ def test_bundled_plus_includes_repository_standard_bundled_vocabularies() -> Non
     assert str(PROV) in context.indexed_vocabularies
     assert str(RDF) in context.indexed_vocabularies
     assert str(RDFS) in context.indexed_vocabularies
+    assert str(SKOS) in context.indexed_vocabularies
+    assert str(VANN) not in context.indexed_vocabularies
+    assert str(DCAM) not in context.indexed_vocabularies
+    assert str(DCMITYPE) not in context.indexed_vocabularies
+    assert str(DCTERMS) not in context.indexed_vocabularies
     assert context.whitelist.allows_namespace(str(ex)) is True
 
 
@@ -202,3 +207,53 @@ def test_context_with_foaf_allows_foaf_across_middlewares() -> None:
     response = dataset_middleware.add_triples([triple])
 
     assert response.updated == 1
+
+
+def test_plus_returns_new_configuration_without_mutating_original() -> None:
+    base = VocabularyConfiguration.bundled_plus()
+
+    extended = base.plus(VocabularyDeclaration(prefix="vann", namespace=VANN))
+
+    assert str(VANN) not in {
+        declaration.namespace_uri for declaration in base.declarations
+    }
+    assert str(VANN) in {
+        declaration.namespace_uri for declaration in extended.declarations
+    }
+
+
+def test_plus_overrides_existing_declaration_by_namespace() -> None:
+    base = VocabularyConfiguration.bundled_plus()
+
+    overridden = base.plus(
+        VocabularyDeclaration(prefix="rdfs-alt", namespace=RDFS),
+    )
+
+    declarations = {
+        declaration.namespace_uri: declaration
+        for declaration in overridden.declarations
+    }
+
+    assert declarations[str(RDFS)].prefix == "rdfs-alt"
+
+
+def test_explicit_non_default_bundled_vocabulary_is_still_indexed() -> None:
+    context = VocabularyConfiguration(
+        declarations=(VocabularyDeclaration(prefix="vann", namespace=VANN),)
+    ).build_context()
+
+    assert str(VANN) in context.indexed_vocabularies
+
+
+def test_plus_dublin_core_adds_all_three_extended_dublin_core_vocabularies() -> None:
+    context = VocabularyConfiguration.bundled_plus().plus_dublin_core().build_context()
+
+    assert str(DCAM) in context.indexed_vocabularies
+    assert str(DCMITYPE) in context.indexed_vocabularies
+    assert str(DCTERMS) in context.indexed_vocabularies
+
+
+def test_plus_vann_adds_vann_explicitly() -> None:
+    context = VocabularyConfiguration.bundled_plus().plus_vann().build_context()
+
+    assert str(VANN) in context.indexed_vocabularies

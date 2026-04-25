@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from langchain_core.messages import SystemMessage, ToolMessage
 from rdflib import FOAF, OWL, PROV, RDF, RDFS, Graph, Literal, Namespace, URIRef
-from rdflib.namespace import DC
+from rdflib.namespace import DC, SKOS, VANN
 from rdflib_reasoning.middleware import (
     RDFVocabularyMiddleware,
     RDFVocabularyMiddlewareConfig,
@@ -204,6 +204,9 @@ def test_list_vocabularies_returns_curated_labels_and_descriptions() -> None:
     assert "Provenance terms" in vocabularies[str(PROV)].description
     assert vocabularies[str(FOAF)].label == "FOAF"
     assert "social connections" in vocabularies[str(FOAF)].description
+    assert vocabularies[str(SKOS)].label == "SKOS"
+    assert "Knowledge Organization System" in vocabularies[str(SKOS)].description
+    assert str(VANN) not in vocabularies
 
 
 def test_list_vocabularies_uses_user_supplied_description() -> None:
@@ -239,6 +242,19 @@ def test_list_vocabularies_uses_user_supplied_description() -> None:
         vocabularies[str(domain_ns)].description
         == "Domain-specific terms for the current extraction task."
     )
+
+
+def test_list_vocabularies_shows_vann_only_when_explicitly_added() -> None:
+    middleware = _middleware(
+        VocabularyConfiguration.bundled_plus().plus_vann().build_context()
+    )
+
+    vocabularies = {
+        str(vocabulary.namespace): vocabulary
+        for vocabulary in middleware.list_vocabularies()
+    }
+
+    assert str(VANN) in vocabularies
 
 
 def test_vocabulary_tool_schema_and_descriptions_are_agent_facing() -> None:

@@ -6,88 +6,23 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Final, Self
 
-from rdflib import DC, FOAF, OWL, RDF, Graph, Literal, Namespace, URIRef
+from rdflib import DC, OWL, RDF, Graph, Literal, Namespace, URIRef
 from rdflib.graph import ReadOnlyGraphAggregate
-from rdflib.namespace import (
-    DCAM,
-    DCMITYPE,
-    DCTERMS,
-    PROV,
-    RDFS,
-    SKOS,
-    VANN,
-    DefinedNamespace,
+from rdflib.namespace import RDFS, DefinedNamespace
+from rdflib_reasoning.middleware.namespaces._bundled import (
+    ALL_BUNDLED_VOCABULARIES,
+    bundled_vocabulary_by_namespace,
+    has_bundled_vocabulary,
 )
 from rdflib_reasoning.middleware.namespaces.spec_index import RDFVocabulary
 
 logger = logging.getLogger(__name__)
 
-# NOTE: Disabled caching and fetching remote specs for now; will revisit later.
-# from platformdirs import user_cache_path
-# KNOWN_SPECS: Final[Set[str]] = frozenset(
-#     [
-#         str(ns)
-#         for ns in [
-#             BRICK,
-#             CSVW,
-#             DC,
-#             DCAM,
-#             DCAT,
-#             DCMITYPE,
-#             DCTERMS,
-#             DOAP,
-#             FOAF,
-#             ODRL2,
-#             ORG,
-#             OWL,
-#             PROF,
-#             PROV,
-#             QB,
-#             RDF,
-#             RDFS,
-#             SDO,
-#             SH,
-#             SKOS,
-#             SOSA,
-#             SSN,
-#             TIME,
-#             VANN,
-#             VOID,
-#             WGS,
-#             XSD,
-#         ]
-#     ]
-# )
 
 _BUNDLED_SPEC_FILENAMES: Final[Mapping[str, str]] = MappingProxyType(
     {
-        # str(BRICK): "brick.ttl",
-        # str(CSVW): "csvw.ttl",
-        # str(DC): "dc.ttl",  # Deprecated in favor of DCMI Terms
-        str(DCAM): "dcam.ttl",
-        # str(DCAT): "dcat.ttl",
-        str(DCMITYPE): "dcmitype.ttl",
-        str(DCTERMS): "dcterms.ttl",
-        # str(DOAP): "doap.ttl",
-        str(FOAF): "foaf.rdf",
-        # str(ODRL2): "odrl2.ttl",
-        # str(ORG): "org.ttl",
-        str(OWL): "owl.ttl",
-        # str(PROF): "prof.ttl",
-        str(PROV): "prov-o.ttl",
-        # str(QB): "qb.ttl",
-        str(RDF): "rdf.ttl",
-        str(RDFS): "rdfs.ttl",
-        # str(SDO): "sdo.ttl",
-        # str(SH): "sh.ttl",
-        str(SKOS): "skos.rdf",
-        # str(SOSA): "sosa.ttl",
-        # str(SSN): "ssn.ttl",
-        # str(TIME): "time.ttl",
-        str(VANN): "vann.rdf",
-        # str(VOID): "void.ttl",
-        # str(WGS): "wgs.ttl",
-        # str(XSD): "xsd.ttl",
+        vocabulary.namespace_uri: vocabulary.filename
+        for vocabulary in ALL_BUNDLED_VOCABULARIES
     }
 )
 
@@ -105,71 +40,11 @@ _DEFAULT_VOCABULARY_LABEL: Final[str] = "An Anonymous User-Supplied RDF Vocabula
 _BUNDLED_VOCABULARY_METADATA: Final[Mapping[str, VocabularyMetadata]] = (
     MappingProxyType(
         {
-            str(DCAM): VocabularyMetadata(
-                label="DCAM",
-                description="Terms used in the _description_ of DCMI metadata terms.",
-            ),
-            str(DCMITYPE): VocabularyMetadata(
-                label="DCMITYPE",
-                description=(
-                    "DCMI Type Vocabulary, which defines classes for basic types of "
-                    "thing that can be described using DCMI metadata terms."
-                ),
-            ),
-            str(DCTERMS): VocabularyMetadata(
-                label="DCTERMS",
-                description=(
-                    "Properties and terms coined outside of the original fifteen-element "
-                    "Dublin Core and published as ISO 15836-2:2019"
-                ),
-            ),
-            str(FOAF): VocabularyMetadata(
-                label="FOAF",
-                description=(
-                    "People, agents, profiles, social connections, and related "
-                    "online identity and metadata terms."
-                ),
-            ),
-            str(OWL): VocabularyMetadata(
-                label="OWL",
-                description=(
-                    "Ontology modeling and logical constraint terms for classes, "
-                    "restrictions, axioms, and richer property semantics."
-                ),
-            ),
-            str(PROV): VocabularyMetadata(
-                label="PROV-O",
-                description=(
-                    "Provenance terms for entities, activities, agents, and "
-                    "qualified influence relationships."
-                ),
-            ),
-            str(RDF): VocabularyMetadata(
-                label="RDF",
-                description=(
-                    "Core RDF data model terms for statements, lists, containers, "
-                    "and literal/datatype machinery."
-                ),
-            ),
-            str(RDFS): VocabularyMetadata(
-                label="RDFS",
-                description=(
-                    "Schema-level RDF terms for classes, properties, labels, "
-                    "comments, domain/range, and hierarchy modeling."
-                ),
-            ),
-            str(SKOS): VocabularyMetadata(
-                label="SKOS",
-                description=(
-                    "The Simple Knowledge Organization System (SKOS) is a common "
-                    "data model for sharing and linking knowledge organization systems "
-                    "via the Semantic Web."
-                ),
-            ),
-            str(VANN): VocabularyMetadata(
-                label="VANN",
-                description="A vocabulary for annotating vocabulary descriptions.",
-            ),
+            vocabulary.namespace_uri: VocabularyMetadata(
+                label=vocabulary.label,
+                description=vocabulary.description,
+            )
+            for vocabulary in ALL_BUNDLED_VOCABULARIES
         }
     )
 )
@@ -270,7 +145,7 @@ class SpecificationCache:
         if key not in self._bundled_specs:
             raise ValueError(f"Namespace is not bundled or cached: {key}")
 
-        filename = _BUNDLED_SPEC_FILENAMES[key]
+        filename = bundled_vocabulary_by_namespace(key).filename
         match Path(filename).suffix:
             case ".jsonld":
                 format = "json-ld"
@@ -326,7 +201,7 @@ class SpecificationCache:
     def has_bundled_resource(
         namespace: URIRef | Namespace | type[DefinedNamespace] | str,
     ) -> bool:
-        return str(namespace) in _BUNDLED_SPEC_FILENAMES
+        return has_bundled_vocabulary(namespace)
 
     def _build_metadata(
         self,
