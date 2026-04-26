@@ -38,20 +38,21 @@
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/dataset\_state.py                  |        2 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/ministral\_middleware.py           |       17 |        2 |     88% |     50-56 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/\_\_init\_\_.py         |        0 |        0 |    100% |           |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/\_bundled.py            |       76 |        1 |     99% |        40 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/common.py               |        6 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_cache.py          |      128 |       19 |     85% |173, 180, 234, 239, 241, 243, 248-249, 281-283, 295-303, 335, 341, 351 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_cache.py          |      132 |        7 |     95% |105, 110, 112, 114, 119-120, 277 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_index.py          |       38 |        6 |     84% |35, 38, 41, 48, 55, 60 |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_normalizer.py     |      135 |       19 |     86% |193, 196, 233-238, 250-256, 309, 315, 324-329, 337-342, 357-359 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_normalizer.py     |      135 |       19 |     86% |196, 199, 236-241, 253-259, 312, 318, 327-332, 340-345, 360-362 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/namespaces/spec\_whitelist.py      |      100 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/rdf\_vocabulary\_middleware.py     |      311 |       31 |     90% |482-491, 619-623, 690, 704, 706, 747-751, 819, 821, 823-827, 843, 895, 899, 925, 934, 1040, 1046, 1057-1058 |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/rdf\_vocabulary\_middleware.py     |      313 |       31 |     90% |498-507, 635-639, 712, 726, 728, 769-773, 841, 843, 845-849, 865, 917, 921, 947, 956, 1062, 1068, 1079-1080 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/shared\_services.py                |       53 |       15 |     72% |26-45, 59, 62-63, 91-92 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/tracing.py                         |      305 |       36 |     88% |75, 85, 87-91, 98, 104-119, 125, 138, 144, 147, 427, 439, 528, 554, 560-561, 577, 621, 652-653 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/tracing\_notebook.py               |      155 |       21 |     86% |53, 69, 112, 142-145, 158, 160, 174, 229-230, 236, 240, 268, 287, 311-312, 315-316, 320 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/\_\_init\_\_.py         |        0 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_index.py        |      165 |        2 |     99% |   283-284 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_model.py        |       15 |        0 |    100% |           |
-| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary\_configuration.py       |       75 |        5 |     93% |20, 22, 25, 53, 119 |
-| **TOTAL**                                                                                       | **4128** |  **428** | **90%** |           |
+| rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary\_configuration.py       |       79 |        4 |     95% |26, 28, 31, 76 |
+| **TOTAL**                                                                                       | **4214** |  **416** | **90%** |           |
 
 
 ## Setup coverage badge
