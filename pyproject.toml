@@ -39,6 +39,7 @@ dev = [
 research = [
   "ipykernel",
   "jupyter",
+  "nbconvert>=7.17.1",
   "rdflib-reasoning-engine[notebook]",
   "rdflib-reasoning-middleware[notebook]",
 ]
