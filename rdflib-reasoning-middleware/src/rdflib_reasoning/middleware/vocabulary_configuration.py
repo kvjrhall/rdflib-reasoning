@@ -2,9 +2,15 @@ from dataclasses import dataclass
 from typing import TypeAlias, cast
 
 from rdflib import Namespace, URIRef
-from rdflib.namespace import FOAF, OWL, PROV, RDF, RDFS, DefinedNamespace
+from rdflib.namespace import VANN, DefinedNamespace
 
-from .namespaces.spec_cache import SpecificationCache, UserSpec
+from .namespaces._bundled import (
+    DEFAULT_BUNDLED_VOCABULARIES,
+    BundledVocabularyInfo,
+    bundled_vocabularies_for_group,
+    bundled_vocabulary_by_namespace,
+)
+from .namespaces.spec_cache import SpecificationCache, UserVocabularySource
 from .namespaces.spec_whitelist import RestrictedNamespaceWhitelist, WhitelistEntry
 
 VocabularyNamespace: TypeAlias = Namespace | type[DefinedNamespace] | URIRef | str
@@ -31,8 +37,25 @@ def _namespace_uri(namespace: ResolvedVocabularyNamespace) -> str:
     return str(namespace._NS)
 
 
-def _standard_bundled_declarations() -> tuple["VocabularyDeclaration", ...]:
-    return STANDARD_BUNDLED_VOCABULARY_DECLARATIONS
+def _merge_declarations(
+    base: tuple["VocabularyDeclaration", ...],
+    *declarations: "VocabularyDeclaration",
+) -> tuple["VocabularyDeclaration", ...]:
+    merged: dict[str, VocabularyDeclaration] = {
+        declaration.namespace_uri: declaration for declaration in base
+    }
+    for declaration in declarations:
+        merged[declaration.namespace_uri] = declaration
+    return tuple(merged.values())
+
+
+def _declaration_from_bundled_vocabulary(
+    vocabulary: BundledVocabularyInfo,
+) -> "VocabularyDeclaration":
+    return VocabularyDeclaration(
+        prefix=vocabulary.prefix,
+        namespace=vocabulary.resolved_namespace,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +64,7 @@ class VocabularyDeclaration:
 
     prefix: str
     namespace: Namespace | type[DefinedNamespace] | URIRef | str
-    user_spec: UserSpec | None = None
+    user_spec: UserVocabularySource | None = None
 
     def __post_init__(self) -> None:
         coerced_namespace = _coerce_namespace(self.namespace)
@@ -67,9 +90,8 @@ class VocabularyDeclaration:
 
     @property
     def is_indexed(self) -> bool:
-        return (
-            self.user_spec is not None
-            or self.namespace_uri in _STANDARD_BUNDLED_NAMESPACE_URIS
+        return self.user_spec is not None or SpecificationCache.has_bundled_resource(
+            self.namespace_uri
         )
 
 
@@ -105,21 +127,41 @@ class VocabularyConfiguration:
     def bundled_plus(
         cls, *declarations: VocabularyDeclaration
     ) -> "VocabularyConfiguration":
-        merged: dict[str, VocabularyDeclaration] = {
-            declaration.namespace_uri: declaration
-            for declaration in _standard_bundled_declarations()
-        }
-        for declaration in declarations:
-            merged[declaration.namespace_uri] = declaration
-        return cls(declarations=tuple(merged.values()))
+        return cls(
+            declarations=_merge_declarations(
+                tuple(
+                    _declaration_from_bundled_vocabulary(vocabulary)
+                    for vocabulary in DEFAULT_BUNDLED_VOCABULARIES
+                ),
+                *declarations,
+            )
+        )
+
+    def plus(self, *declarations: VocabularyDeclaration) -> "VocabularyConfiguration":
+        """Return a new configuration extended by the supplied declarations."""
+
+        return VocabularyConfiguration(
+            declarations=_merge_declarations(self.declarations, *declarations)
+        )
+
+    def plus_dublin_core(self) -> "VocabularyConfiguration":
+        """Add the extended Dublin Core published as ISO 15836-2:2019: https://www.iso.org/standard/71341.html."""
+
+        return self.plus(
+            *(
+                _declaration_from_bundled_vocabulary(vocabulary)
+                for vocabulary in bundled_vocabularies_for_group("dublin_core")
+            )
+        )
+
+    def plus_vann(self) -> "VocabularyConfiguration":
+        """Add the bundled VANN vocabulary declaration to this configuration."""
+
+        return self.plus(
+            _declaration_from_bundled_vocabulary(bundled_vocabulary_by_namespace(VANN))
+        )
 
     def build_context(self) -> VocabularyContext:
-        for declaration in _standard_bundled_declarations():
-            if not SpecificationCache.has_bundled_resource(declaration.namespace_uri):
-                raise ValueError(
-                    "Standard bundled vocabulary declaration has no bundled resource: "
-                    f"{declaration.namespace_uri}"
-                )
         whitelist = RestrictedNamespaceWhitelist(
             declaration.as_whitelist_entry() for declaration in self.declarations
         )
@@ -147,17 +189,3 @@ class VocabularyConfiguration:
             _specification_cache=specification_cache,
             _indexed_vocabularies=indexed_vocabularies,
         )
-
-
-STANDARD_BUNDLED_VOCABULARY_DECLARATIONS = (
-    VocabularyDeclaration(prefix="foaf", namespace=FOAF),
-    VocabularyDeclaration(prefix="owl", namespace=OWL),
-    VocabularyDeclaration(prefix="prov", namespace=PROV),
-    VocabularyDeclaration(prefix="rdf", namespace=RDF),
-    VocabularyDeclaration(prefix="rdfs", namespace=RDFS),
-)
-
-_STANDARD_BUNDLED_NAMESPACE_URIS = frozenset(
-    declaration.namespace_uri
-    for declaration in STANDARD_BUNDLED_VOCABULARY_DECLARATIONS
-)

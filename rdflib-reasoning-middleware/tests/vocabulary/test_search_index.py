@@ -6,7 +6,7 @@ from rdflib_reasoning.middleware import (
     VocabularyDeclaration,
 )
 from rdflib_reasoning.middleware.namespaces.common import VocabularyTermType
-from rdflib_reasoning.middleware.namespaces.spec_cache import UserSpec
+from rdflib_reasoning.middleware.namespaces.spec_cache import UserVocabularySource
 from rdflib_reasoning.middleware.vocabulary.search_index import (
     VocabularySearchIndex,
     normalize_text,
@@ -28,9 +28,9 @@ def _build_homo_sapiens_context() -> tuple[VocabularyContext, URIRef]:
         VocabularyDeclaration(
             prefix="exterms",
             namespace=ex,
-            user_spec=UserSpec.from_graph(
-                graph,
-                namespace=ex,
+            user_spec=UserVocabularySource(
+                graph=graph,
+                vocabulary=URIRef(str(ex)),
                 label="Example Ontology",
                 description="Vocabulary for search normalization tests.",
             ),
@@ -135,9 +135,9 @@ def test_search_prefers_exact_label_over_definition_only_match() -> None:
         VocabularyDeclaration(
             prefix="ex",
             namespace=ex,
-            user_spec=UserSpec.from_graph(
-                graph,
-                namespace=ex,
+            user_spec=UserVocabularySource(
+                graph=graph,
+                vocabulary=URIRef(str(ex)),
                 label="Example Search Vocabulary",
                 description="Terms used for lexical search tests.",
             ),

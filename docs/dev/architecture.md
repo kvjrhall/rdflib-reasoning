@@ -296,8 +296,10 @@ validation, whereas knowledge retrieval middleware performs remote RDF import.
 - Vocabulary middleware MAY also consume explicitly injected shared read-only
   services such as `RunTermTelemetry`.
 - The indexed vocabulary set is backed by bundled specification files and
-  extensible through `UserSpec`, but bundled vocabularies are visible only when
-  declared into the `VocabularyContext`.
+  extensible through `VocabularyDeclaration(user_spec=UserVocabularySource(...))`.
+  Bundled and user-supplied vocabularies both flow through shared ontology
+  metadata extraction and caching, but bundled vocabularies are visible only
+  when declared into the `VocabularyContext`.
 - The indexed vocabulary set SHOULD include at minimum the core Semantic Web vocabularies (RDF, RDFS, OWL, SKOS, PROV) and MAY expand to additional well-known vocabularies as bundled specification files become available.
 - Vocabulary middleware SHOULD use VANN annotation properties such as
   `vann:preferredNamespacePrefix` and `vann:preferredNamespaceUri` as optional

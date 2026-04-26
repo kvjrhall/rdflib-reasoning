@@ -281,6 +281,22 @@ class VocabularySummary(BaseModel):
             "Provenance terms for entities, activities, agents, and qualified influence relationships.",
         ],
     )
+    preferredPrefix: str | None = Field(
+        default=None,
+        description=(
+            "Preferred namespace prefix advertised by the vocabulary metadata "
+            "when available."
+        ),
+        examples=["rdf", "prov", None],
+    )
+    preferredNamespace: N3IRIRef | None = Field(
+        default=None,
+        description=(
+            "Preferred namespace IRI advertised by the vocabulary metadata when "
+            "available. This is advisory presentation metadata only."
+        ),
+        examples=["<http://purl.org/dc/terms/>", None],
+    )
     term_count: NonNegativeInt = Field(
         description="Number of indexed terms available from this vocabulary.",
         examples=[10, 60, 500],
@@ -672,6 +688,12 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
                     namespace=URIRef(namespace),
                     label=metadata.label,
                     description=metadata.description,
+                    preferredPrefix=metadata.preferred_namespace_prefix,
+                    preferredNamespace=(
+                        URIRef(metadata.preferred_namespace_uri)
+                        if metadata.preferred_namespace_uri is not None
+                        else None
+                    ),
                     term_count=len(vocabulary.all_terms),
                 )
             )

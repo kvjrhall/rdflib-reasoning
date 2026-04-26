@@ -46,10 +46,10 @@ install:  # install the base metapackage workspace
 	uv sync
 
 install-dev:  # install base + developer tooling extras
-	uv sync --extra dev
+	uv sync --inexact --extra dev
 
 install-research:  # install base + notebook/research extras
-	uv sync --extra research
+	uv sync --inexact --extra research
 
 install-all:  # install base + all optional extras used in this repository
 	uv sync --extra dev --extra research
