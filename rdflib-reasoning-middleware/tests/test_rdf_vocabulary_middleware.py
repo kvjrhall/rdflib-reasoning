@@ -13,7 +13,7 @@ from rdflib_reasoning.middleware import (
     VocabularyContext,
     VocabularyDeclaration,
 )
-from rdflib_reasoning.middleware.namespaces.spec_cache import UserSpec
+from rdflib_reasoning.middleware.namespaces.spec_cache import UserVocabularySource
 from rdflib_reasoning.middleware.rdf_vocabulary_middleware import (
     VocabularyListResponse,
 )
@@ -186,7 +186,7 @@ def test_inspect_term_returns_compact_summary_with_optional_source_rdf() -> None
     assert "rdfs:Class" in detailed.source_rdf.content
 
 
-def test_list_vocabularies_returns_curated_labels_and_descriptions() -> None:
+def test_list_vocabularies_returns_stable_labels_and_descriptions() -> None:
     middleware = _middleware()
 
     vocabularies = {
@@ -194,17 +194,19 @@ def test_list_vocabularies_returns_curated_labels_and_descriptions() -> None:
         for vocabulary in middleware.list_vocabularies()
     }
 
-    assert vocabularies[str(RDF)].label == "RDF"
-    assert "Core RDF data model terms" in vocabularies[str(RDF)].description
-    assert vocabularies[str(RDFS)].label == "RDFS"
-    assert "Schema-level RDF terms" in vocabularies[str(RDFS)].description
-    assert vocabularies[str(OWL)].label == "OWL"
-    assert "logical constraint terms" in vocabularies[str(OWL)].description
-    assert vocabularies[str(PROV)].label == "PROV-O"
+    assert "RDF" in vocabularies[str(RDF)].label
+    assert vocabularies[str(RDF)].description.strip() != ""
+    assert vocabularies[str(RDF)].preferredPrefix is None
+    assert vocabularies[str(RDF)].preferredNamespace is None
+    assert "RDFS" in vocabularies[str(RDFS)].label
+    assert vocabularies[str(RDFS)].description.strip() != ""
+    assert "OWL" in vocabularies[str(OWL)].label
+    assert vocabularies[str(OWL)].description.strip() != ""
+    assert "PROV" in vocabularies[str(PROV)].label
     assert "Provenance terms" in vocabularies[str(PROV)].description
-    assert vocabularies[str(FOAF)].label == "FOAF"
-    assert "social connections" in vocabularies[str(FOAF)].description
-    assert vocabularies[str(SKOS)].label == "SKOS"
+    assert "FOAF" in vocabularies[str(FOAF)].label
+    assert vocabularies[str(FOAF)].description.strip() != ""
+    assert "SKOS" in vocabularies[str(SKOS)].label
     assert "Knowledge Organization System" in vocabularies[str(SKOS)].description
     assert str(VANN) not in vocabularies
 
@@ -223,7 +225,7 @@ def test_list_vocabularies_uses_user_supplied_description() -> None:
             VocabularyDeclaration(
                 prefix="example",
                 namespace=domain_ns,
-                user_spec=UserSpec(
+                user_spec=UserVocabularySource(
                     graph=graph,
                     vocabulary=URIRef(str(domain_ns)),
                     label="Example Task Vocabulary",
@@ -244,6 +246,50 @@ def test_list_vocabularies_uses_user_supplied_description() -> None:
     )
 
 
+def test_list_vocabularies_surfaces_user_vann_metadata_without_changing_namespace() -> (
+    None
+):
+    domain_ns = Namespace("urn:example:vann#")
+    graph = Graph(identifier=domain_ns)
+    graph.add((URIRef(str(domain_ns)), RDF.type, OWL.Ontology))
+    graph.add((URIRef(str(domain_ns)), DC.title, Literal("Example Task Vocabulary")))
+    graph.add((URIRef(str(domain_ns)), VANN.preferredNamespacePrefix, Literal("exv")))
+    graph.add(
+        (
+            URIRef(str(domain_ns)),
+            VANN.preferredNamespaceUri,
+            Literal("https://example.com/preferred#"),
+        )
+    )
+    graph.add((URIRef(f"{domain_ns}Thing"), RDF.type, RDFS.Class))
+    graph.add((URIRef(f"{domain_ns}Thing"), RDFS.isDefinedBy, URIRef(str(domain_ns))))
+
+    middleware = _middleware(
+        VocabularyConfiguration(
+            declarations=(
+                VocabularyDeclaration(
+                    prefix="example",
+                    namespace=domain_ns,
+                    user_spec=UserVocabularySource(
+                        graph=graph,
+                        vocabulary=URIRef(str(domain_ns)),
+                    ),
+                ),
+            )
+        ).build_context()
+    )
+
+    vocabulary = next(
+        vocabulary
+        for vocabulary in middleware.list_vocabularies()
+        if str(vocabulary.namespace) == str(domain_ns)
+    )
+
+    assert vocabulary.namespace == URIRef(str(domain_ns))
+    assert vocabulary.preferredPrefix == "exv"
+    assert vocabulary.preferredNamespace == URIRef("https://example.com/preferred#")
+
+
 def test_list_vocabularies_shows_vann_only_when_explicitly_added() -> None:
     middleware = _middleware(
         VocabularyConfiguration.bundled_plus().plus_vann().build_context()
@@ -255,6 +301,11 @@ def test_list_vocabularies_shows_vann_only_when_explicitly_added() -> None:
     }
 
     assert str(VANN) in vocabularies
+    assert vocabularies[str(VANN)].namespace == URIRef(str(VANN))
+    assert vocabularies[str(VANN)].preferredPrefix == "vann"
+    assert vocabularies[str(VANN)].preferredNamespace == URIRef(
+        "http://purl.org/vocab/vann/"
+    )
 
 
 def test_vocabulary_tool_schema_and_descriptions_are_agent_facing() -> None:
@@ -290,6 +341,13 @@ def test_vocabulary_tool_schema_and_descriptions_are_agent_facing() -> None:
         in inspect_term_schema["properties"]["include_source_rdf"]["description"]
     )
     assert "description" in response_schema["$defs"]["VocabularySummary"]["properties"]
+    assert (
+        "preferredPrefix" in response_schema["$defs"]["VocabularySummary"]["properties"]
+    )
+    assert (
+        "preferredNamespace"
+        in response_schema["$defs"]["VocabularySummary"]["properties"]
+    )
     assert (
         "what the vocabulary is for"
         in response_schema["$defs"]["VocabularySummary"]["properties"]["description"][
@@ -731,7 +789,7 @@ def test_wrap_tool_call_reports_nearest_indexed_candidates_for_unindexed_term() 
                 VocabularyDeclaration(
                     prefix="ex",
                     namespace=ex,
-                    user_spec=UserSpec(
+                    user_spec=UserVocabularySource(
                         graph=graph,
                         vocabulary=URIRef(str(ex)),
                         label="Example Ontology",
@@ -780,7 +838,7 @@ def test_wrap_tool_call_uses_user_indexed_vocab_for_unindexed_term_suggestions()
                 VocabularyDeclaration(
                     prefix="ex",
                     namespace=ex,
-                    user_spec=UserSpec(
+                    user_spec=UserVocabularySource(
                         graph=graph,
                         vocabulary=URIRef(str(ex)),
                         label="Example Vocabulary",

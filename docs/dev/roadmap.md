@@ -122,8 +122,8 @@ of that target while the remaining items stay explicitly deferred.
    - Enable declared bundled vocabulary resources for at minimum RDF, RDFS, OWL, SKOS, and PROV. Additional well-known vocabularies MAY be enabled by extending the standard bundled vocabulary declarations in the vocabulary layer.
    - Architecture: [RDF vocabulary middleware](architecture.md#rdf-vocabulary-middleware)
 1. Using VANN annotation metadata
-   - Use VANN annotation properties such as `vann:preferredNamespacePrefix` and `vann:preferredNamespaceUri` to enrich indexed vocabulary summaries and namespace presentation when that metadata is present in bundled or user-supplied vocabularies.
-   - VANN metadata SHOULD improve discovery ergonomics for `RDFVocabularyMiddleware`, but MUST NOT override declared namespace policy, `VocabularyContext`, or whitelist enforcement.
+   - Implemented: `vann:preferredNamespacePrefix` and `vann:preferredNamespaceUri` are surfaced as advisory metadata for indexed vocabulary summaries when present in bundled or user-supplied vocabularies.
+   - VANN metadata improves discovery ergonomics for `RDFVocabularyMiddleware`, but MUST NOT override declared namespace policy, `VocabularyContext`, or whitelist enforcement.
    - Architecture: [RDF vocabulary middleware](architecture.md#rdf-vocabulary-middleware)
 1. Vocabulary middleware demo notebook
    - Align `demo-vocabulary-middleware.ipynb` with the shared evaluation infrastructure (`demo_utils.py`) established in `0.2.0`, including shared prompts, evaluation metrics, and the parseability gate pattern.

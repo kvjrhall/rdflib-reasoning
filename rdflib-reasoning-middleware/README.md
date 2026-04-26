@@ -67,7 +67,7 @@ from rdflib_reasoning.middleware import (
     VocabularyConfiguration,
     VocabularyDeclaration,
 )
-from rdflib_reasoning.middleware.namespaces.spec_cache import UserSpec
+from rdflib_reasoning.middleware.namespaces.spec_cache import UserVocabularySource
 
 EX = Namespace("urn:example:vocab#")
 
@@ -75,9 +75,9 @@ vocabulary_context = VocabularyConfiguration.bundled_plus(
     VocabularyDeclaration(
         prefix="ex",
         namespace=EX,
-        user_spec=UserSpec.from_graph(
-            domain_terms,
-            namespace=EX,
+        user_spec=UserVocabularySource(
+            graph=domain_terms,
+            vocabulary=EX,
             description="Task-specific terms for this extraction run.",
         ),
     )
@@ -88,9 +88,9 @@ vocabulary_context = VocabularyConfiguration.bundled_plus(
     VocabularyDeclaration(
         prefix="ex",
         namespace=EX,
-        user_spec=UserSpec.from_graph(
-            domain_terms,
-            namespace=EX,
+        user_spec=UserVocabularySource(
+            graph=domain_terms,
+            vocabulary=EX,
             description="Task-specific terms for this extraction run.",
         ),
     )
@@ -249,7 +249,7 @@ progress.
 | Whitelist-aware vocabulary filtering | Implemented | `list_vocabularies`, `list_terms`, and `inspect_term` honor the injected `VocabularyContext` policy and index set |
 | Unified vocabulary configuration | Implemented | `VocabularyConfiguration.build_context()` produces the single runtime `VocabularyContext` injected into both middleware components |
 | Incremental vocabulary extension | Implemented | `VocabularyConfiguration.plus(...)`, `plus_dublin_core()`, and `plus_vann()` return extended immutable configurations |
-| Using VANN annotation metadata | Not started | Planned metadata enrichment: use `vann:preferredNamespacePrefix` / `vann:preferredNamespaceUri` and related VANN annotations to improve vocabulary summaries and namespace presentation without changing policy |
+| Using VANN annotation metadata | Implemented | `list_vocabularies` surfaces advisory `vann:preferredNamespacePrefix` / `vann:preferredNamespaceUri` metadata for bundled and user-supplied vocabularies without changing namespace policy |
 | Bundled RDF specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
 | Bundled RDFS specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
 | Bundled OWL specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
@@ -257,8 +257,8 @@ progress.
 | Bundled SKOS specification | Implemented | Included in the default `VocabularyConfiguration.bundled_plus(...)` set |
 | Opt-in bundled VANN specification | Implemented | Available through explicit declaration or `VocabularyConfiguration.plus_vann()` but not included by default |
 | Opt-in bundled Dublin Core extensions | Implemented | `VocabularyConfiguration.plus_dublin_core()` adds `DCAM`, `DCMITYPE`, and `DCTERMS` as an explicit grouped extension |
-| Additional bundled vocabularies | Not started | Further optional bundles beyond the current default set and Dublin Core grouping remain future scope |
-| User-supplied vocabularies at construction | Implemented | `VocabularyDeclaration(user_spec=...)` feeds `VocabularyConfiguration`, and the resulting `VocabularyContext` indexes those declarations explicitly |
+| Additional bundled vocabularies | Implemented | Optional bundled additions currently include `VANN` and grouped Dublin Core extensions beyond the default indexed set |
+| User-supplied vocabularies at construction | Implemented | `VocabularyDeclaration(user_spec=UserVocabularySource(...))` feeds `VocabularyConfiguration`, and the resulting `VocabularyContext` indexes those declarations explicitly |
 
 ### Dataset middleware implementation pattern
 

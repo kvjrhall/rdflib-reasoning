@@ -10,7 +10,7 @@ from .namespaces._bundled import (
     bundled_vocabularies_for_group,
     bundled_vocabulary_by_namespace,
 )
-from .namespaces.spec_cache import SpecificationCache, UserSpec
+from .namespaces.spec_cache import SpecificationCache, UserVocabularySource
 from .namespaces.spec_whitelist import RestrictedNamespaceWhitelist, WhitelistEntry
 
 VocabularyNamespace: TypeAlias = Namespace | type[DefinedNamespace] | URIRef | str
@@ -64,7 +64,7 @@ class VocabularyDeclaration:
 
     prefix: str
     namespace: Namespace | type[DefinedNamespace] | URIRef | str
-    user_spec: UserSpec | None = None
+    user_spec: UserVocabularySource | None = None
 
     def __post_init__(self) -> None:
         coerced_namespace = _coerce_namespace(self.namespace)

@@ -12,7 +12,7 @@ from rdflib_reasoning.middleware import (
     VocabularyDeclaration,
 )
 from rdflib_reasoning.middleware.dataset_middleware import WhitelistViolation
-from rdflib_reasoning.middleware.namespaces.spec_cache import UserSpec
+from rdflib_reasoning.middleware.namespaces.spec_cache import UserVocabularySource
 
 
 def _build_domain_graph(namespace: Namespace) -> Graph:
@@ -32,9 +32,9 @@ def test_build_context_exposes_cached_whitelist_and_specification_cache() -> Non
             VocabularyDeclaration(
                 prefix="ex",
                 namespace=ex,
-                user_spec=UserSpec.from_graph(
-                    _build_domain_graph(ex),
-                    namespace=ex,
+                user_spec=UserVocabularySource(
+                    graph=_build_domain_graph(ex),
+                    vocabulary=URIRef(str(ex)),
                     description="Task-specific terms.",
                 ),
             ),
@@ -78,9 +78,9 @@ def test_indexed_vocabularies_are_always_whitelisted() -> None:
         VocabularyDeclaration(
             prefix="ex",
             namespace=ex,
-            user_spec=UserSpec.from_graph(
-                _build_domain_graph(ex),
-                namespace=ex,
+            user_spec=UserVocabularySource(
+                graph=_build_domain_graph(ex),
+                vocabulary=URIRef(str(ex)),
                 description="Task-specific terms.",
             ),
         )
@@ -125,9 +125,9 @@ def test_shared_context_can_be_injected_into_both_middlewares() -> None:
         VocabularyDeclaration(
             prefix="ex",
             namespace=ex,
-            user_spec=UserSpec.from_graph(
-                _build_domain_graph(ex),
-                namespace=ex,
+            user_spec=UserVocabularySource(
+                graph=_build_domain_graph(ex),
+                vocabulary=URIRef(str(ex)),
                 description="Task-specific terms.",
             ),
         )

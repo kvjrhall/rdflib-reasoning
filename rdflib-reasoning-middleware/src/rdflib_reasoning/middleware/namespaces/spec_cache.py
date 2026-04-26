@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 from types import MappingProxyType
-from typing import Final, Self
+from typing import Final
 
 from rdflib import DC, OWL, RDF, Graph, Literal, Namespace, URIRef
 from rdflib.graph import ReadOnlyGraphAggregate
-from rdflib.namespace import RDFS, DefinedNamespace
+from rdflib.namespace import RDFS, VANN, DefinedNamespace
 from rdflib_reasoning.middleware.namespaces._bundled import (
     ALL_BUNDLED_VOCABULARIES,
     bundled_vocabulary_by_namespace,
@@ -28,87 +28,42 @@ _BUNDLED_SPEC_FILENAMES: Final[Mapping[str, str]] = MappingProxyType(
 
 
 @dataclass(frozen=True, slots=True)
-class VocabularyMetadata:
+class OntologyDescription:
+    vocabulary: URIRef
     label: str
     description: str
+    preferred_namespace_prefix: str | None = None
+    preferred_namespace_uri: str | None = None
 
 
 _DEFAULT_VOCABULARY_DESCRIPTION: Final[str] = (
     "The user supplied this RDF vocabulary for your task."
 )
 _DEFAULT_VOCABULARY_LABEL: Final[str] = "An Anonymous User-Supplied RDF Vocabulary"
-_BUNDLED_VOCABULARY_METADATA: Final[Mapping[str, VocabularyMetadata]] = (
-    MappingProxyType(
-        {
-            vocabulary.namespace_uri: VocabularyMetadata(
-                label=vocabulary.label,
-                description=vocabulary.description,
-            )
-            for vocabulary in ALL_BUNDLED_VOCABULARIES
-        }
-    )
-)
 
 
 @dataclass(frozen=True, slots=True)
-class UserSpec:
+class UserVocabularySource:
     graph: Graph
     vocabulary: URIRef
-    label: str
-    description: str
-
-    @classmethod
-    def from_graph(
-        cls,
-        graph: Graph,
-        namespace: Namespace | URIRef | str | None = None,
-        label: str | None = None,
-        description: str | None = None,
-    ) -> Self:
-        ontology = _find_ontology(graph)
-        if namespace is None and isinstance(graph.identifier, URIRef):
-            namespace = graph.identifier
-        if namespace is None and ontology is not None:
-            namespace = ontology
-        if label is None:
-            label = _resolve_title(graph, ontology)
-        if description is None:
-            description = _resolve_description(
-                graph,
-                ontology,
-                fallback_to_default=False,
-            )
-
-        if namespace is None:
-            logger.warning(
-                "Unable to dynamically infer namespace from graph %s",
-                graph.identifier,
-            )
-
-        vocabulary = URIRef(namespace) if namespace is not None else None
-        if vocabulary is None:
-            raise ValueError("Unable to infer vocabulary name from arguments or graph")
-
-        label = label or _DEFAULT_VOCABULARY_LABEL
-        description = description or _DEFAULT_VOCABULARY_DESCRIPTION
-
-        return cls(
-            graph=graph, vocabulary=vocabulary, label=label, description=description
-        )
+    label: str | None = None
+    description: str | None = None
+    preferred_namespace_prefix: str | None = None
+    preferred_namespace_uri: str | None = None
 
 
 class SpecificationCache:
     # cache_path: Path
     _bundled_specs: frozenset[str]
     _specs: MutableMapping[str, ReadOnlyGraphAggregate]
-    _metadata: MutableMapping[str, VocabularyMetadata]
+    _metadata: MutableMapping[str, OntologyDescription]
     _vocabularies: MutableMapping[str, RDFVocabulary]
 
     def __init__(
         self,
         *,
         bundled_namespaces: Sequence[URIRef | Namespace | type[DefinedNamespace] | str],
-        user_specs: Sequence[UserSpec] = (),
+        user_specs: Sequence[UserVocabularySource] = (),
     ) -> None:
         # self.cache_path = user_cache_path(
         #     "rdflib-reasoning",
@@ -130,9 +85,13 @@ class SpecificationCache:
                 g.add(triple)
             key = str(user_spec.vocabulary)
             self._specs[key] = ReadOnlyGraphAggregate([g])
-            self._metadata[key] = VocabularyMetadata(
+            self._metadata[key] = self._build_ontology_description(
+                user_spec.vocabulary,
+                g,
                 label=user_spec.label,
                 description=user_spec.description,
+                preferred_namespace_prefix=user_spec.preferred_namespace_prefix,
+                preferred_namespace_uri=user_spec.preferred_namespace_uri,
             )
 
     def get_spec(
@@ -181,19 +140,14 @@ class SpecificationCache:
 
     def get_vocabulary_metadata(
         self, namespace: URIRef | Namespace | type[DefinedNamespace] | str
-    ) -> VocabularyMetadata:
+    ) -> OntologyDescription:
         key = str(namespace)
-        # Bundled vocabularies have static metadata.
-        if key in _BUNDLED_VOCABULARY_METADATA:
-            return _BUNDLED_VOCABULARY_METADATA[key]
-        # User-supplied vocabularies have eagerly-computed metadata
         if key in self._metadata:
             return self._metadata[key]
 
-        # Other cases, we'd build metadata on-the-fly.
         # NOTE: No mechanism currently exists to fetch specs dynamically, so
         #       this would raise an error out of `get_spec`.
-        metadata = self._build_metadata(URIRef(key), self.get_spec(key))
+        metadata = self._build_ontology_description(URIRef(key), self.get_spec(key))
         self._metadata[key] = metadata
         return metadata
 
@@ -203,24 +157,55 @@ class SpecificationCache:
     ) -> bool:
         return has_bundled_vocabulary(namespace)
 
-    def _build_metadata(
+    def _build_ontology_description(
         self,
         namespace: URIRef,
         graph: Graph,
+        *,
+        label: str | None = None,
         description: str | None = None,
-    ) -> VocabularyMetadata:
-        ontology = _find_ontology(graph)
-        title = _resolve_title(graph, ontology)
-        resolved_description = _resolve_description(
-            graph,
-            ontology,
-            description=description,
+        preferred_namespace_prefix: str | None = None,
+        preferred_namespace_uri: str | None = None,
+    ) -> OntologyDescription:
+        extracted = _extract_ontology_metadata(graph, namespace)
+        bundled_defaults = None
+        if self.has_bundled_resource(namespace):
+            bundled_defaults = bundled_vocabulary_by_namespace(namespace)
+
+        resolved_label = (
+            label
+            or extracted.label
+            or (bundled_defaults.label if bundled_defaults is not None else None)
+            or _DEFAULT_VOCABULARY_LABEL
         )
-        assert resolved_description is not None
-        return VocabularyMetadata(
-            label=title or str(namespace),
+        resolved_description = (
+            description
+            or extracted.description
+            or (bundled_defaults.description if bundled_defaults is not None else None)
+            or _DEFAULT_VOCABULARY_DESCRIPTION
+        )
+        resolved_prefix = (
+            preferred_namespace_prefix or extracted.preferred_namespace_prefix
+        )
+        resolved_namespace_uri = (
+            preferred_namespace_uri or extracted.preferred_namespace_uri
+        )
+
+        return OntologyDescription(
+            vocabulary=namespace,
+            label=resolved_label,
             description=resolved_description,
+            preferred_namespace_prefix=resolved_prefix,
+            preferred_namespace_uri=resolved_namespace_uri,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class _ExtractedOntologyMetadata:
+    label: str | None = None
+    description: str | None = None
+    preferred_namespace_prefix: str | None = None
+    preferred_namespace_uri: str | None = None
 
 
 def _find_ontology(graph: Graph) -> URIRef | None:
@@ -244,19 +229,43 @@ def _resolve_title(graph: Graph, ontology: URIRef | None) -> str | None:
 def _resolve_description(
     graph: Graph,
     ontology: URIRef | None,
-    description: str | None = None,
-    *,
-    fallback_to_default: bool = True,
 ) -> str | None:
-    if description is not None:
-        return description
     if ontology is not None:
         for predicate in (DC.description, RDFS.comment, DC.title):
             if (value := _literal_to_str(graph.value(ontology, predicate))) is not None:
                 return value
-    if fallback_to_default:
-        return _DEFAULT_VOCABULARY_DESCRIPTION
     return None
+
+
+def _extract_ontology_metadata(
+    graph: Graph,
+    namespace: URIRef,
+) -> _ExtractedOntologyMetadata:
+    ontology = _find_ontology(graph)
+    if ontology is None and isinstance(graph.identifier, URIRef):
+        ontology = graph.identifier
+    if ontology is None:
+        logger.warning(
+            "Unable to dynamically infer ontology resource from graph %s",
+            graph.identifier,
+        )
+
+    preferred_namespace_prefix = None
+    preferred_namespace_uri = None
+    if ontology is not None:
+        preferred_namespace_prefix = _literal_to_str(
+            graph.value(ontology, VANN.preferredNamespacePrefix)
+        )
+        preferred_namespace_uri = _literal_to_str(
+            graph.value(ontology, VANN.preferredNamespaceUri)
+        )
+
+    return _ExtractedOntologyMetadata(
+        label=_resolve_title(graph, ontology),
+        description=_resolve_description(graph, ontology),
+        preferred_namespace_prefix=preferred_namespace_prefix,
+        preferred_namespace_uri=preferred_namespace_uri,
+    )
 
 
 def _literal_to_str(value: object) -> str | None:
