@@ -211,9 +211,11 @@ This release completes the staged engine plan for support-aware removal and begi
    - Add generic quad-level CRUD and other explicitly dataset-scoped operations only after earlier graph-oriented middleware phases have proven necessary and stable.
    - Architecture: [Dataset middleware capability phases](architecture.md#dataset-middleware-capability-phases)
 1. Recursive retraction
-   - Implement Mark-Verify-Sweep removal over the dependency graph and wire full removal through the supported integration path.
+   - Implemented at the TMS-controller layer: `TMSController.retract_triple` performs Mark-Verify-Sweep over the dependency graph and returns a `RetractionOutcome` describing swept facts, dropped justifications, and stated-flag clearings.
+   - Pending: wiring full removal through the supported integration path (`RETEEngine.retract_triples`, `RETEStore.remove`, and re-enabling the `TripleRemovedBatchEvent` subscription); this is tracked under the "Removal-aware store and engine flow" item below.
    - Architecture: [Truth Maintenance System (TMS)](architecture.md#truth-maintenance-system-tms)
    - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)
+   - Decision: [DR-024 TMSController Recursive Retraction](decision-records/DR-024%20TMSController%20Recursive%20Retraction.md)
 1. Removal-aware store and engine flow
    - Complete the intended remove-event contract without treating event arrival alone as sufficient for logical removal.
    - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)

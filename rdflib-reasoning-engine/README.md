@@ -76,8 +76,9 @@ This matrix tracks functional engine features independent of standards coverage.
 | Builtin predicate / function support | Implemented | Predicate conditions compile and execute through the RETE matcher using injected read-only predicate hooks |
 | Rule action callbacks | Implemented | Callback consequents execute through the agenda with read-only invocation context; richer signature validation and retraction-time policy remain future work |
 | Derivation / trace logging | Implemented | Engine-native `DerivationRecord` values are emitted for new logical conclusions produced by fired rules |
-| JTMS-compatible support bookkeeping | Implemented | `WorkingMemory`, `DependencyGraph`, and `Justification` records track stated facts and multi-parent support for derived facts; recursive retraction remains future work |
-| JTMS support verification APIs | Implemented | `SupportSnapshot` and `TMSController` verifier methods expose read-only checks for current support, hypothetical support-path invalidation, transitive support, and dependency traversal; recursive retraction remains future work |
+| JTMS-compatible support bookkeeping | Implemented | `WorkingMemory`, `DependencyGraph`, and `Justification` records track stated facts and multi-parent support for derived facts |
+| JTMS support verification APIs | Implemented | `SupportSnapshot` and `TMSController` verifier methods expose read-only checks for current support, hypothetical support-path invalidation, transitive support, and dependency traversal |
+| Recursive retraction (TMS layer) | Implemented | `TMSController.retract_triple` performs Mark-Verify-Sweep over the dependency graph and returns a `RetractionOutcome`; engine and store wiring (`RETEEngine.retract_triples`, `RETEStore.remove`, removal-event subscription) remain future work |
 | Explanation reconstruction | Implemented | `DerivationProofReconstructor` rebuilds `DirectProof` trees from non-silent derivation records for triple-goal explanations |
 | Proof rendering (markdown and Mermaid) | Implemented | Presentation-focused rendering over canonical `DirectProof` data includes namespace-aware shortening and notebook display adapters via optional extras |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |

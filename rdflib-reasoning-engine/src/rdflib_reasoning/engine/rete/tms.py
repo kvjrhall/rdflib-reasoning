@@ -36,6 +36,58 @@ class DependencyGraph(BaseModel):
     def consequents_of(self, antecedent_id: str) -> tuple[str, ...]:
         return tuple(sorted(self.consequents_by_antecedent.get(antecedent_id, set())))
 
+    def discard_consequent(self, consequent_id: str) -> None:
+        """Remove every edge that involves this fact.
+
+        Used when the fact is being swept from working memory: both the
+        consequent-to-antecedent and antecedent-to-consequent directions
+        of the dependency graph are cleared.
+        """
+        antecedents = self.antecedents_by_consequent.pop(consequent_id, None)
+        if antecedents:
+            for antecedent_id in antecedents:
+                supported = self.consequents_by_antecedent.get(antecedent_id)
+                if supported is None:
+                    continue
+                supported.discard(consequent_id)
+                if not supported:
+                    del self.consequents_by_antecedent[antecedent_id]
+        consequents_of = self.consequents_by_antecedent.pop(consequent_id, None)
+        if consequents_of:
+            for cons_id in consequents_of:
+                antecedents_of_cons = self.antecedents_by_consequent.get(cons_id)
+                if antecedents_of_cons is None:
+                    continue
+                antecedents_of_cons.discard(consequent_id)
+                if not antecedents_of_cons:
+                    del self.antecedents_by_consequent[cons_id]
+
+    def update_consequent_edges(
+        self, consequent_id: str, antecedent_ids: Iterable[str]
+    ) -> None:
+        """Rewrite a consequent's antecedent edges to the given identifiers.
+
+        Used when a fact is kept after a sweep but its justification set has
+        been trimmed: the consequent's antecedent edges are set to exactly the
+        union of antecedents of its surviving justifications, and reverse
+        edges that no longer correspond to any surviving justification are
+        discarded.
+        """
+        new_antecedents = set(antecedent_ids)
+        old_antecedents = self.antecedents_by_consequent.get(consequent_id, set())
+        removed = old_antecedents - new_antecedents
+        if new_antecedents:
+            self.antecedents_by_consequent[consequent_id] = new_antecedents
+        else:
+            self.antecedents_by_consequent.pop(consequent_id, None)
+        for antecedent_id in removed:
+            supported = self.consequents_by_antecedent.get(antecedent_id)
+            if supported is None:
+                continue
+            supported.discard(consequent_id)
+            if not supported:
+                del self.consequents_by_antecedent[antecedent_id]
+
     def clear(self) -> None:
         self.antecedents_by_consequent.clear()
         self.consequents_by_antecedent.clear()
@@ -78,6 +130,32 @@ class SupportSnapshot(BaseModel):
         return self.is_present and (self.is_stated or self.justification_count > 0)
 
 
+class RetractionOutcome(BaseModel):
+    """Immutable record of the facts and justifications affected by a retraction.
+
+    Mark-Verify-Sweep retraction may remove facts from working memory, drop
+    justification records, and clear the ``stated`` flag from a fact that
+    survives because of independent derived support. This outcome surfaces all
+    three categories so that engine-side wiring can mirror the changes through
+    the supported integration path in a future stage.
+    """
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    removed_fact_ids: tuple[str, ...] = ()
+    removed_triples: tuple[Triple, ...] = ()
+    removed_justification_ids: tuple[str, ...] = ()
+    unstated_fact_ids: tuple[str, ...] = ()
+
+    @property
+    def is_empty(self) -> bool:
+        return (
+            not self.removed_fact_ids
+            and not self.removed_justification_ids
+            and not self.unstated_fact_ids
+        )
+
+
 class WorkingMemory(BaseModel):
     """
     Reactive store of currently asserted facts flowing through the network.
@@ -116,6 +194,15 @@ class WorkingMemory(BaseModel):
 
     def facts(self) -> tuple[Fact, ...]:
         return tuple(self.facts_by_id.values())
+
+    def remove_fact(self, fact_id: str) -> Fact:
+        """Remove the working-memory entry for a fact id and return it.
+
+        Raises ``KeyError`` if the fact id is not present.
+        """
+        fact = self.facts_by_id.pop(fact_id)
+        del self.fact_ids_by_triple[fact.triple]
+        return fact
 
     def clear(self) -> None:
         self.facts_by_id.clear()
@@ -312,6 +399,149 @@ class TMSController(BaseModel):
             seen.add(dependent_id)
             pending.extend(self.dependency_graph.consequents_of(dependent_id))
         return tuple(sorted(seen))
+
+    def retract_triple(self, triple: Triple) -> RetractionOutcome:
+        """Retract a stated triple using Mark-Verify-Sweep over support paths.
+
+        Behavior follows the usual JTMS support rules for this controller:
+        stated facts remain supported regardless of whether they also have
+        derived justifications; derived facts are removed only when they have
+        no remaining valid justifications; silent justifications count the
+        same as visible ones for support.
+
+        - If the triple is unknown, the call is a no-op and an empty outcome
+          is returned.
+        - If the matching fact is non-stated (derived only), ``ValueError`` is
+          raised. Direct retraction of derived facts violates the invariant
+          that derived facts are removed iff their justification set becomes
+          empty; only stated retraction is exposed at this layer.
+        - If the fact is stated and has at least one justification, the
+          ``stated`` flag is cleared. The fact remains present, supported by
+          its derived justifications, and no cascade is performed.
+        - If the fact is stated and has no justifications, the fact is removed
+          and Mark-Verify-Sweep removes any transitive dependents whose
+          remaining justifications cannot be grounded outside the swept set.
+
+        The method is atomic: the verify fixed point completes before any
+        mutation occurs, so the call either commits the full sweep or makes no
+        mutations at all.
+
+        This method updates only working memory, the justification table, and
+        the dependency graph. It does not update the RETE alpha/beta network,
+        the agenda, or any backing RDF store; callers that embed this
+        controller in a full engine must apply matching removals there
+        separately.
+        """
+        fact = self.working_memory.get_fact(triple)
+        if fact is None:
+            return RetractionOutcome()
+
+        if not fact.stated:
+            raise ValueError(
+                "TMSController.retract_triple only accepts stated facts; "
+                f"the fact for triple {triple!r} is derived. Retract one of "
+                "its stated antecedents instead."
+            )
+
+        if self.justifications_for_fact_id(fact.id):
+            fact.stated = False
+            return RetractionOutcome(unstated_fact_ids=(fact.id,))
+
+        return self._mark_verify_sweep(fact.id)
+
+    def _mark_verify_sweep(self, seed_fact_id: str) -> RetractionOutcome:
+        """Perform Mark-Verify-Sweep starting from a stated, unsupported seed.
+
+        Pre-condition: the seed fact exists in working memory, is stated, and
+        has no justifications. The seed is unconditionally added to the
+        candidate set and removed by the sweep.
+        """
+        candidates: set[str] = {seed_fact_id}
+        pending = list(self.dependency_graph.consequents_of(seed_fact_id))
+        while pending:
+            candidate_id = pending.pop()
+            if candidate_id in candidates:
+                continue
+            candidates.add(candidate_id)
+            pending.extend(self.dependency_graph.consequents_of(candidate_id))
+
+        kept: set[str] = set()
+
+        def is_supported_outside(fact_id: str) -> bool:
+            if fact_id not in candidates:
+                return True
+            if fact_id in kept:
+                return True
+            return False
+
+        changed = True
+        while changed:
+            changed = False
+            for candidate_id in candidates:
+                if candidate_id == seed_fact_id:
+                    continue
+                if candidate_id in kept:
+                    continue
+                candidate_fact = self.working_memory.facts_by_id.get(candidate_id)
+                if candidate_fact is None:
+                    continue
+                if candidate_fact.stated:
+                    kept.add(candidate_id)
+                    changed = True
+                    continue
+                for justification in self.justifications_for_fact_id(candidate_id):
+                    if all(
+                        is_supported_outside(antecedent_id)
+                        for antecedent_id in justification.antecedent_ids
+                    ):
+                        kept.add(candidate_id)
+                        changed = True
+                        break
+
+        swept = candidates - kept
+
+        removed_pairs: list[tuple[str, Triple]] = []
+        removed_justification_ids: list[str] = []
+
+        for swept_id in sorted(swept):
+            swept_justifications = self.justifications_by_consequent.pop(swept_id, {})
+            removed_justification_ids.extend(swept_justifications.keys())
+            self.dependency_graph.discard_consequent(swept_id)
+            fact = self.working_memory.facts_by_id.get(swept_id)
+            if fact is not None:
+                self.working_memory.remove_fact(swept_id)
+                removed_pairs.append((swept_id, fact.triple))
+
+        for kept_id in sorted(kept):
+            kept_justifications = self.justifications_by_consequent.get(kept_id)
+            if kept_justifications is None:
+                continue
+            surviving_justification_ids = {
+                justification_id
+                for justification_id, justification in kept_justifications.items()
+                if all(
+                    antecedent_id not in swept
+                    for antecedent_id in justification.antecedent_ids
+                )
+            }
+            for justification_id in list(kept_justifications.keys()):
+                if justification_id not in surviving_justification_ids:
+                    removed_justification_ids.append(justification_id)
+                    del kept_justifications[justification_id]
+            if not kept_justifications:
+                del self.justifications_by_consequent[kept_id]
+            surviving_antecedents: set[str] = set()
+            for justification in kept_justifications.values():
+                surviving_antecedents.update(justification.antecedent_ids)
+            self.dependency_graph.update_consequent_edges(
+                kept_id, surviving_antecedents
+            )
+
+        return RetractionOutcome(
+            removed_fact_ids=tuple(pair[0] for pair in removed_pairs),
+            removed_triples=tuple(pair[1] for pair in removed_pairs),
+            removed_justification_ids=tuple(sorted(removed_justification_ids)),
+        )
 
     def clear(self) -> None:
         self.working_memory.clear()

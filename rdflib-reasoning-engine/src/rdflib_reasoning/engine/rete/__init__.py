@@ -23,6 +23,7 @@ from .network import (
 from .tms import (
     DependencyGraph,
     Justification,
+    RetractionOutcome,
     SupportSnapshot,
     TMSController,
     WorkingMemory,
@@ -44,6 +45,7 @@ __all__ = [
     "NodeRegistry",
     "PartialMatch",
     "PredicateNode",
+    "RetractionOutcome",
     "RuleCompiler",
     "SupportSnapshot",
     "TMSController",
