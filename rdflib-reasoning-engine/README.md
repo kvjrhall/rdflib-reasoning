@@ -77,6 +77,7 @@ This matrix tracks functional engine features independent of standards coverage.
 | Rule action callbacks | Implemented | Callback consequents execute through the agenda with read-only invocation context; richer signature validation and retraction-time policy remain future work |
 | Derivation / trace logging | Implemented | Engine-native `DerivationRecord` values are emitted for new logical conclusions produced by fired rules |
 | JTMS-compatible support bookkeeping | Implemented | `WorkingMemory`, `DependencyGraph`, and `Justification` records track stated facts and multi-parent support for derived facts; recursive retraction remains future work |
+| JTMS support verification APIs | Implemented | `SupportSnapshot` and `TMSController` verifier methods expose read-only checks for current support, hypothetical support-path invalidation, transitive support, and dependency traversal; recursive retraction remains future work |
 | Explanation reconstruction | Implemented | `DerivationProofReconstructor` rebuilds `DirectProof` trees from non-silent derivation records for triple-goal explanations |
 | Proof rendering (markdown and Mermaid) | Implemented | Presentation-focused rendering over canonical `DirectProof` data includes namespace-aware shortening and notebook display adapters via optional extras |
 | Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
