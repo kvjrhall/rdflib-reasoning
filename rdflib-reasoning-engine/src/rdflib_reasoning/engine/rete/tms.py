@@ -51,10 +51,31 @@ class Justification(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    id: str
     rule_id: RuleId
     consequent_id: str
     antecedent_ids: tuple[str, ...]
     metadata: dict[str, Any]
+
+
+class SupportSnapshot(BaseModel):
+    """Immutable view of a fact's TMS support state at a moment in time."""
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    triple: Triple
+    fact_id: str | None
+    is_present: bool
+    is_stated: bool
+    justification_ids: tuple[str, ...]
+
+    @property
+    def justification_count(self) -> int:
+        return len(self.justification_ids)
+
+    @property
+    def is_supported(self) -> bool:
+        return self.is_present and (self.is_stated or self.justification_count > 0)
 
 
 class WorkingMemory(BaseModel):
@@ -122,16 +143,17 @@ class TMSController(BaseModel):
         return tuple((name, value.n3()) for name, value in sorted(bindings.items()))
 
     @staticmethod
-    def _justification_key(justification: Justification) -> str:
+    def _justification_key(
+        *,
+        rule_id: RuleId,
+        antecedent_ids: tuple[str, ...],
+        metadata: dict[str, Any],
+    ) -> str:
         metadata_key = "|".join(
-            f"{key}={repr(value)}"
-            for key, value in sorted(justification.metadata.items())
+            f"{key}={repr(value)}" for key, value in sorted(metadata.items())
         )
-        antecedents_key = ",".join(justification.antecedent_ids)
-        return (
-            f"{justification.rule_id.ruleset}:{justification.rule_id.rule_id}"
-            f"|{antecedents_key}|{metadata_key}"
-        )
+        antecedents_key = ",".join(antecedent_ids)
+        return f"{rule_id.ruleset}:{rule_id.rule_id}|{antecedents_key}|{metadata_key}"
 
     def register_stated(self, triples: Iterable[Triple]) -> tuple[Fact, ...]:
         return tuple(
@@ -149,16 +171,20 @@ class TMSController(BaseModel):
     ) -> Fact:
         consequent = self.working_memory.add_fact(triple, stated=False)
         antecedent_ids = tuple(fact.id for fact in premises)
+        metadata = {
+            "depth": depth,
+            "bindings": self._bindings_metadata(bindings),
+        }
+        support_key = self._justification_key(
+            rule_id=rule_id, antecedent_ids=antecedent_ids, metadata=metadata
+        )
         justification = Justification(
+            id=support_key,
             rule_id=rule_id,
             consequent_id=consequent.id,
             antecedent_ids=antecedent_ids,
-            metadata={
-                "depth": depth,
-                "bindings": self._bindings_metadata(bindings),
-            },
+            metadata=metadata,
         )
-        support_key = self._justification_key(justification)
         supports = self.justifications_by_consequent.setdefault(consequent.id, {})
         if support_key not in supports:
             supports[support_key] = justification
@@ -172,7 +198,10 @@ class TMSController(BaseModel):
         fact = self.working_memory.get_fact(triple)
         if fact is None:
             return ()
-        return tuple(self.justifications_by_consequent.get(fact.id, {}).values())
+        return self.justifications_for_fact_id(fact.id)
+
+    def justifications_for_fact_id(self, fact_id: str) -> tuple[Justification, ...]:
+        return tuple(self.justifications_by_consequent.get(fact_id, {}).values())
 
     def support_count(self, triple: Triple) -> int:
         return len(self.justifications_for(triple))
@@ -182,6 +211,107 @@ class TMSController(BaseModel):
         if fact is None:
             return False
         return fact.stated or self.support_count(triple) > 0
+
+    def support_snapshot(self, triple: Triple) -> SupportSnapshot:
+        fact = self.working_memory.get_fact(triple)
+        if fact is None:
+            return SupportSnapshot(
+                triple=triple,
+                fact_id=None,
+                is_present=False,
+                is_stated=False,
+                justification_ids=(),
+            )
+        justifications = self.justifications_for_fact_id(fact.id)
+        return SupportSnapshot(
+            triple=triple,
+            fact_id=fact.id,
+            is_present=True,
+            is_stated=fact.stated,
+            justification_ids=tuple(
+                justification.id for justification in justifications
+            ),
+        )
+
+    def would_remain_supported(
+        self,
+        triple: Triple,
+        *,
+        without_justification_id: str | None = None,
+        without_antecedent_id: str | None = None,
+    ) -> bool:
+        if (without_justification_id is None) == (without_antecedent_id is None):
+            raise ValueError(
+                "Provide exactly one of without_justification_id or "
+                "without_antecedent_id."
+            )
+
+        fact = self.working_memory.get_fact(triple)
+        if fact is None:
+            return False
+        if fact.stated:
+            return True
+
+        for justification in self.justifications_for_fact_id(fact.id):
+            if without_justification_id is not None:
+                if justification.id != without_justification_id:
+                    return True
+                continue
+            if without_antecedent_id not in justification.antecedent_ids:
+                return True
+        return False
+
+    def transitively_supported(self, triple: Triple) -> bool:
+        fact = self.working_memory.get_fact(triple)
+        if fact is None:
+            return False
+        return self._fact_id_transitively_supported(fact.id, set())
+
+    def _fact_id_transitively_supported(self, fact_id: str, visiting: set[str]) -> bool:
+        fact = self.working_memory.facts_by_id.get(fact_id)
+        if fact is None:
+            return False
+        if fact.stated:
+            return True
+        if fact_id in visiting:
+            return False
+
+        justifications = self.justifications_for_fact_id(fact_id)
+        if not justifications:
+            return False
+
+        visiting.add(fact_id)
+        try:
+            return all(
+                all(
+                    self._fact_id_transitively_supported(antecedent_id, visiting)
+                    for antecedent_id in justification.antecedent_ids
+                )
+                for justification in justifications
+            )
+        finally:
+            visiting.remove(fact_id)
+
+    def dependents_of(self, triple: Triple) -> tuple[str, ...]:
+        fact = self.working_memory.get_fact(triple)
+        if fact is None:
+            return ()
+        return self.dependency_graph.consequents_of(fact.id)
+
+    def transitive_dependents_of(self, triple: Triple) -> tuple[str, ...]:
+        fact = self.working_memory.get_fact(triple)
+        if fact is None:
+            return ()
+
+        seen: set[str] = set()
+        pending = list(self.dependency_graph.consequents_of(fact.id))
+        while pending:
+            dependent_id = pending.pop(0)
+            if dependent_id in seen:
+                continue
+            seen.add(dependent_id)
+            pending.extend(self.dependency_graph.consequents_of(dependent_id))
+        return tuple(sorted(seen))
 
     def clear(self) -> None:
         self.working_memory.clear()

@@ -20,7 +20,13 @@ from .network import (
     PredicateNode,
     TerminalNode,
 )
-from .tms import DependencyGraph, Justification, TMSController, WorkingMemory
+from .tms import (
+    DependencyGraph,
+    Justification,
+    SupportSnapshot,
+    TMSController,
+    WorkingMemory,
+)
 
 __all__ = [
     "ActionInstance",
@@ -39,6 +45,7 @@ __all__ = [
     "PartialMatch",
     "PredicateNode",
     "RuleCompiler",
+    "SupportSnapshot",
     "TMSController",
     "TerminalNode",
     "TripleProduction",

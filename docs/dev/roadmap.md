@@ -204,8 +204,9 @@ This release completes the staged engine plan for support-aware removal and begi
 ### 7.1. In scope
 
 1. JTMS support verification APIs
-   - Expose support-checking behavior needed to decide whether conclusions remain justified after a support path is invalidated.
+   - Implemented: `TMSController` exposes read-only support snapshots, hypothetical support-path invalidation checks, transitive support verification, and dependency traversal APIs needed to decide whether conclusions remain justified after a support path is invalidated.
    - Architecture: [Truth Maintenance System (TMS)](architecture.md#truth-maintenance-system-tms)
+   - Decision: [DR-023 JTMS Support Verification API Surface](decision-records/DR-023%20JTMS%20Support%20Verification%20API%20Surface.md)
 1. Explicit dataset and quad operations
    - Add generic quad-level CRUD and other explicitly dataset-scoped operations only after earlier graph-oriented middleware phases have proven necessary and stable.
    - Architecture: [Dataset middleware capability phases](architecture.md#dataset-middleware-capability-phases)
