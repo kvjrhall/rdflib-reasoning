@@ -129,6 +129,17 @@ and therefore emits `TripleAddedEvent` on every add. To honor the
 `BatchDispatcher` pre-mutation event contract on the removal path,
 `RETEStore.remove` performs the event emission itself:
 
+> **Updated by [DR-026](DR-026%20Store%20Event%20Ownership%20and%20BatchDispatcher%20Source%20Decoupling.md).**
+> The manual `TripleRemovedEvent` emission described in this section is now
+> the general policy for every mutation, not a workaround for `Memory.remove`.
+> `RETEStore` owns raw `TripleAddedEvent` and `TripleRemovedEvent` emission
+> on a private `_raw_dispatcher` for `add`, `addN`, and `remove`;
+> `BatchDispatcher` subscribes to that private dispatcher rather than to the
+> backing store's own dispatcher. The snapshot-and-emit shape from this
+> section is preserved on the remove path; the only change is that the
+> events are dispatched on `RETEStore._raw_dispatcher` instead of
+> `self.store.dispatcher`.
+
 1. Snapshots the concrete triples that match the requested pattern in the
    requested context using `self.store.triples(pattern, context)`.
 2. Dispatches one `TripleRemovedEvent` per concrete match through the

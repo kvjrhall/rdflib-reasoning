@@ -537,6 +537,99 @@ def test_dataset_remove_with_scripted_engine_calls_retract_triples_once_per_batc
     assert engine.retract_triples_calls == [{seed}]
 
 
+class SilentMemoryWrapper(Store):
+    """Context-aware ``Store`` that performs mutations without dispatching events.
+
+    Wraps an internal ``Memory`` instance via composition. Mutating methods
+    (``add``, ``addN``, ``remove``) deliberately do NOT call up to
+    ``Store.add`` / ``Store.remove`` on ``self``, so the wrapper's own
+    ``dispatcher`` never fires ``TripleAddedEvent`` / ``TripleRemovedEvent``.
+
+    Per DR-026, ``RETEStore`` owns raw event emission on a private dispatcher
+    and ``BatchDispatcher`` no longer subscribes to ``backing_store.dispatcher``,
+    so the engine should drive end-to-end through this silent wrapper without
+    relying on the backing store emitting any events.
+    """
+
+    context_aware = True
+    graph_aware = True
+    formula_aware = False
+    transaction_aware = False
+
+    def __init__(self, configuration: str | None = None, identifier: Any = None):
+        super().__init__(configuration=configuration, identifier=identifier)
+        self._memory = Memory()
+
+    def add(self, triple, context, quoted=False):  # type: ignore[override]
+        self._memory.add(triple, context, quoted)
+
+    def addN(self, quads):  # type: ignore[override]
+        self._memory.addN(quads)
+
+    def remove(self, triple, context=None):  # type: ignore[override]
+        self._memory.remove(triple, context)
+
+    def triples(self, triple_pattern, context=None):  # type: ignore[override]
+        return self._memory.triples(triple_pattern, context)
+
+    def __len__(self, context=None):  # type: ignore[override]
+        return self._memory.__len__(context)
+
+    def contexts(self, triple=None):  # type: ignore[override]
+        return self._memory.contexts(triple)
+
+    def add_graph(self, graph):  # type: ignore[override]
+        self._memory.add_graph(graph)
+
+    def remove_graph(self, graph):  # type: ignore[override]
+        self._memory.remove_graph(graph)
+
+    def bind(self, prefix, namespace, override=True):  # type: ignore[override]
+        return self._memory.bind(prefix, namespace, override)
+
+    def namespace(self, prefix):  # type: ignore[override]
+        return self._memory.namespace(prefix)
+
+    def prefix(self, namespace):  # type: ignore[override]
+        return self._memory.prefix(namespace)
+
+    def namespaces(self):  # type: ignore[override]
+        yield from self._memory.namespaces()
+
+
+def test_rete_store_drives_engine_through_silent_backing_store() -> None:
+    """End-to-end add and remove drive the engine without backing-store events.
+
+    Wraps a ``Memory`` in a ``Store`` whose ``add`` and ``remove`` never call
+    up to ``Store.add`` / ``Store.remove``, so the wrapper's own dispatcher
+    never emits ``TripleAddedEvent`` or ``TripleRemovedEvent``. Per DR-026,
+    ``RETEStore`` owns event emission on a private raw dispatcher, so the
+    engine still observes both the seed addition and its subsequent removal.
+    """
+    seed = (_NS.s, _NS.p, _NS.o)
+    derived = (_NS.a, _NS.b, _NS.c)
+    factory = ScriptedFactory(
+        scripted_results={
+            frozenset({seed}): {derived},
+            frozenset({derived}): set(),
+        }
+    )
+    silent = SilentMemoryWrapper()
+    store = RETEStore(silent, factory)
+    dataset = Dataset(store=store)
+
+    dataset.default_graph.add(seed)
+
+    engine = factory.engines[dataset.default_graph.identifier]
+    assert engine.add_triples_calls == [set(), {seed}, {derived}]
+    assert seed in dataset.default_graph
+    assert derived in dataset.default_graph
+
+    dataset.default_graph.remove(seed)
+
+    assert seed not in dataset.default_graph
+
+
 def test_rete_store_warmup_does_not_materialize_silent_bootstrap_rule() -> None:
     silent_bootstrap = (URIRef("urn:test:silent-bootstrap"), RDF.type, RDFS.Resource)
     rule = Rule(
