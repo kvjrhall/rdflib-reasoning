@@ -38,6 +38,7 @@ from .proof_rendering import (
     render_proof_markdown,
     render_proof_mermaid,
 )
+from .rete_store import RetractionRematerializeWarning
 from .rules import (
     Builtins,
     CallbackConsequent,
@@ -97,6 +98,7 @@ __all__ = [
     "build_rule_lookup",
     "RETEEngine",
     "RETEEngineFactory",
+    "RetractionRematerializeWarning",
     "Rule",
     "RuleCondition",
     "RuleConsequent",
