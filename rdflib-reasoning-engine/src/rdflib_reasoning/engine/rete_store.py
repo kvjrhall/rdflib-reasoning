@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Generator, Iterable, Iterator, Mapping
 from typing import Any, Literal, cast
 
@@ -12,12 +13,27 @@ from rdflib.graph import (
 from rdflib.plugins.sparql.sparql import Query
 from rdflib.plugins.sparql.update import Update
 from rdflib.query import Result
-from rdflib.store import VALID_STORE, Store
+from rdflib.store import VALID_STORE, Store, TripleRemovedEvent
 from rdflib.term import Identifier
 from rdflib_reasoning.axiom.common import ContextIdentifier, Triple
 
 from .api import RETEEngine, RETEEngineFactory
-from .batch_dispatcher import BatchDispatcher, TripleAddedBatchEvent
+from .batch_dispatcher import (
+    BatchDispatcher,
+    TripleAddedBatchEvent,
+    TripleRemovedBatchEvent,
+)
+
+
+class RetractionRematerializeWarning(UserWarning):
+    """Warning emitted when a store removal is logically ineffective.
+
+    The engine still derives the removed triple, so ``RETEStore`` re-adds it
+    to the backing context graph after the original removal pass completes.
+    Callers that intend the triple to actually disappear must retract a
+    supporting stated fact instead.
+    """
+
 
 # Return type for open(): rdflib stores use 1, 0, -1 (VALID_STORE, CORRUPTED_STORE, NO_STORE)
 _OpenResult = Literal[1, 0, -1] | None
@@ -28,6 +44,8 @@ class RETEStore(Store):
     factory: RETEEngineFactory
     engines: dict[ContextIdentifier, RETEEngine]
     engine_contexts: dict[ContextIdentifier, Graph]
+    _pending_rematerialize: dict[ContextIdentifier, set[Triple]]
+    _remove_depth: int
 
     def __init__(self, store: Store, factory: RETEEngineFactory):
         super().__init__()
@@ -43,10 +61,12 @@ class RETEStore(Store):
         self.factory = factory
         self.engines = dict()
         self.engine_contexts = {}
+        self._pending_rematerialize = {}
+        self._remove_depth = 0
 
         self.dispatcher = BatchDispatcher(backing_store=store)
         self.dispatcher.subscribe(TripleAddedBatchEvent, self._on_triples_added)
-        # self.dispatcher.subscribe(TripleRemovedBatchEvent, self._on_triples_removed)
+        self.dispatcher.subscribe(TripleRemovedBatchEvent, self._on_triples_removed)
 
     def _ensure_engine(self, context_id: ContextIdentifier) -> tuple[RETEEngine, Graph]:
         if context_id not in self.engines:
@@ -77,8 +97,71 @@ class RETEStore(Store):
         ]
         context.addN(quads_produced)
 
-    # def _on_triples_removed(self, batch: TripleRemovedBatchEvent):
-    #     raise NotImplementedError("RETEStore._on_triples_removed is not implemented")
+    def _on_triples_removed(self, batch: TripleRemovedBatchEvent) -> None:
+        """Drive support-aware removal through the engine and reconcile the store.
+
+        The dispatcher delivers a per-context batch of triples that are about
+        to be removed from the backing store. ``RETEEngine.retract_triples``
+        decides which input triples actually leave the engine's logical
+        closure and what cascade consequents lose support. This handler:
+
+        1. Issues backing-store removes for cascade consequents that were
+           not in the original batch. ``BatchDispatcher`` queues these into a
+           follow-up batch; the engine no-ops on that pass because each
+           triple is already absent from working memory.
+        2. Records any input triple whose working-memory fact survived
+           because the engine still derives it (DR-025
+           re-materialize-with-warning policy) into
+           ``_pending_rematerialize``. The actual re-add is deferred to
+           ``_flush_rematerialize`` so that it executes after the backing
+           ``Memory.remove`` mutation completes; otherwise an inline
+           ``context.add`` would be a no-op while the triple is still
+           present in the backing store.
+        """
+        engine, context = self._ensure_engine(batch.context_id)
+
+        cascade = engine.retract_triples(batch.events)
+
+        cascade_to_remove = [t for t in cascade if t not in batch.events]
+        for triple in cascade_to_remove:
+            context.remove(triple)
+
+        rematerialize = [t for t in batch.events if engine.working_memory.has_fact(t)]
+        if rematerialize:
+            self._pending_rematerialize.setdefault(batch.context_id, set()).update(
+                rematerialize
+            )
+
+    def _flush_rematerialize(self) -> None:
+        """Re-add re-materialized triples and emit warnings.
+
+        Called from the outermost ``RETEStore.remove`` frame after the
+        backing-store mutation has completed. At this point the original
+        triples are gone from the backing store, so re-adding through the
+        normal ``Graph.add`` path will succeed and the engine will see the
+        re-add as an idempotent re-assertion of a fact it already believes.
+        """
+        if not self._pending_rematerialize:
+            return
+        pending = self._pending_rematerialize
+        self._pending_rematerialize = {}
+        for ctx_id, triples in pending.items():
+            ctx_graph = self.engine_contexts.get(ctx_id)
+            if ctx_graph is None:
+                continue
+            for triple in triples:
+                warnings.warn(
+                    "Removal of triple "
+                    f"{triple[0].n3()} {triple[1].n3()} {triple[2].n3()} . "
+                    "was logically ineffective: the engine still derives "
+                    "this triple from another supported justification, so "
+                    "it has been re-added to the backing store. Retract a "
+                    "supporting stated fact instead if you intend the "
+                    "triple to actually disappear.",
+                    RetractionRematerializeWarning,
+                    stacklevel=4,
+                )
+                ctx_graph.add(triple)
 
     def create(self, configuration: str) -> None:
         # Delegated to the backing store
@@ -117,9 +200,34 @@ class RETEStore(Store):
     def remove(
         self, triple: _TriplePatternType, context: _ContextType | None = None
     ) -> None:
-        raise NotImplementedError(
-            "Retractions (i.e., truth maintenance) are not yet supported"
-        )
+        # ``Memory.remove`` does not call ``Store.remove`` (the base class) on
+        # itself, so it never emits ``TripleRemovedEvent``. To honor the
+        # ``BatchDispatcher`` pre-mutation event contract we (a) snapshot the
+        # concrete triples that match the pattern in the requested context,
+        # (b) emit one ``TripleRemovedEvent`` per match before any mutation,
+        # and (c) delegate the actual removal to the backing store. The
+        # depth counter ensures re-materializations queued by
+        # ``_on_triples_removed`` are flushed only at the outermost frame,
+        # after the backing mutation has completed.
+        if context is None:
+            self.store.remove(triple, context)
+            return
+
+        self._remove_depth += 1
+        try:
+            concrete_matches = [
+                cast(Triple, match)
+                for match, _ctxs in self.store.triples(triple, context)
+            ]
+            for match in concrete_matches:
+                self.store.dispatcher.dispatch(
+                    TripleRemovedEvent(triple=match, context=context)
+                )
+            self.store.remove(triple, context)
+        finally:
+            self._remove_depth -= 1
+            if self._remove_depth == 0:
+                self._flush_rematerialize()
 
     def triples_choices(
         self,

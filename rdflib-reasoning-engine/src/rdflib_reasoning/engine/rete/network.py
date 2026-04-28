@@ -124,6 +124,28 @@ class NodeRegistry(BaseModel):
         self.terminal_nodes[node.key] = node
         return node
 
+    def evict_partial_matches_referencing(self, fact_ids: frozenset[str]) -> None:
+        """Drop persisted partial matches that reference any of these fact ids.
+
+        Network alpha and beta memories accumulate ``PartialMatch`` records
+        across calls to ``NetworkMatcher.match_terminals``. When the engine
+        retracts triples, the corresponding ``Fact`` objects leave working
+        memory; the persisted partial matches must also be evicted so that
+        subsequent join passes do not produce activations grounded in
+        removed facts.
+        """
+        if not fact_ids:
+            return
+        for memory in (self.alpha_memory, self.beta_memory):
+            for matches in memory.values():
+                stale_keys = [
+                    match_key
+                    for match_key, match in matches.items()
+                    if any(fact.id in fact_ids for fact in match.facts)
+                ]
+                for match_key in stale_keys:
+                    del matches[match_key]
+
 
 class NetworkBuilder:
     """

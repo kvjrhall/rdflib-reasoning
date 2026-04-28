@@ -380,6 +380,12 @@ class RETEEngine:
         well-formedness policies. Triples rejected under those policies are
         either raised as errors or warned-and-skipped before they can enter
         working memory or derivation outputs.
+
+        Per DR-004, this method is idempotent for triples the engine already
+        knows. Triples already present in ``known_triples`` are skipped
+        before ``register_stated`` runs so that materialization round-trips
+        through the store dispatcher do not retroactively promote derived
+        facts to stated facts.
         """
         # Filter incoming triples according to RDF term-type policies.
         raw_pending = {cast(Triple, triple) for triple in triples}
@@ -391,9 +397,13 @@ class RETEEngine:
         if not pending:
             return set()
 
-        self.tms.register_stated(pending)
-        self.known_triples.update(pending)
-        self.materialized_triples.update(pending)
+        fresh = pending - self.known_triples
+        if not fresh:
+            return set()
+
+        self.tms.register_stated(fresh)
+        self.known_triples.update(fresh)
+        self.materialized_triples.update(fresh)
         return self._saturate_from_working_memory()
 
     def _saturate_from_working_memory(
@@ -523,8 +533,67 @@ class RETEEngine:
 
         return newly_materialized
 
-    def retract_triples(self, triple: Triple) -> None:
-        raise NotImplementedError("RETEEngine.retract_triple is not implemented")
+    def retract_triples(self, triples: Iterable[Triple]) -> set[Triple]:
+        """Retract triples; return all triples that left the logical closure.
+
+        For each input triple the engine looks up the working-memory fact:
+
+        - If the fact is absent, the input is skipped (idempotent for
+          already-absent triples; a second call with the same input is a
+          no-op).
+        - If the fact is stated, the engine delegates to
+          ``TMSController.retract_triple`` and consumes the resulting
+          ``RetractionOutcome``. Stated facts that also have derived
+          justifications have only the ``stated`` flag cleared; they remain
+          in working memory and are NOT included in the returned set.
+        - If the fact is derived only, the engine leaves working memory
+          unchanged and does NOT include the triple in the returned set.
+          Callers that received this triple from a store-side removal event
+          are expected to re-add it to the backing store under the policy
+          documented in DR-025.
+
+        After all TMS calls finish, the engine evicts persisted partial
+        matches that referenced the removed facts so that subsequent join
+        passes do not produce activations grounded in retracted facts.
+        ``known_triples`` and ``materialized_triples`` are updated so they
+        no longer include triples that left the logical closure; triples
+        whose working-memory fact survived (stated-and-derived clearings,
+        derived-only) remain in both sets.
+
+        Returns the union of (a) input triples whose working-memory fact
+        was actually removed and (b) cascade consequents removed by
+        Mark-Verify-Sweep. Idempotence is the symmetric counterpart of the
+        DR-004 requirement that ``add_triples`` is idempotent for
+        already-known triples; ``BatchDispatcher`` relies on this symmetry
+        to converge cascade events without an explicit reentrancy guard.
+        """
+        inputs = {cast(Triple, triple) for triple in triples}
+        if not inputs:
+            return set()
+
+        cascade: set[Triple] = set()
+        removed_fact_ids: set[str] = set()
+
+        for triple in inputs:
+            fact = self.working_memory.get_fact(triple)
+            if fact is None:
+                continue
+            if not fact.stated:
+                continue
+            outcome = self.tms.retract_triple(triple)
+            cascade.update(outcome.removed_triples)
+            removed_fact_ids.update(outcome.removed_fact_ids)
+
+        if removed_fact_ids:
+            self.matcher.registry.evict_partial_matches_referencing(
+                frozenset(removed_fact_ids)
+            )
+
+        if cascade:
+            self.known_triples.difference_update(cascade)
+            self.materialized_triples.difference_update(cascade)
+
+        return cascade
 
     def _run_bootstrap_rules(self) -> None:
         """Execute zero-precondition rules once for this engine context.

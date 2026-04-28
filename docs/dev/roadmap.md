@@ -212,13 +212,13 @@ This release completes the staged engine plan for support-aware removal and begi
    - Architecture: [Dataset middleware capability phases](architecture.md#dataset-middleware-capability-phases)
 1. Recursive retraction
    - Implemented at the TMS-controller layer: `TMSController.retract_triple` performs Mark-Verify-Sweep over the dependency graph and returns a `RetractionOutcome` describing swept facts, dropped justifications, and stated-flag clearings.
-   - Pending: wiring full removal through the supported integration path (`RETEEngine.retract_triples`, `RETEStore.remove`, and re-enabling the `TripleRemovedBatchEvent` subscription); this is tracked under the "Removal-aware store and engine flow" item below.
    - Architecture: [Truth Maintenance System (TMS)](architecture.md#truth-maintenance-system-tms)
    - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)
    - Decision: [DR-024 TMSController Recursive Retraction](decision-records/DR-024%20TMSController%20Recursive%20Retraction.md)
 1. Removal-aware store and engine flow
-   - Complete the intended remove-event contract without treating event arrival alone as sufficient for logical removal.
+   - Implemented end-to-end: `RETEEngine.retract_triples(Iterable[Triple]) -> set[Triple]` composes `TMSController.retract_triple`, evicts stale alpha/beta partial matches, and is idempotent for already-absent triples (the symmetric counterpart of DR-004's add-side idempotence). `RETEStore.remove` snapshots concrete pattern matches, drives the `BatchDispatcher` event chain, and re-materializes triples the engine still derives with a `RetractionRematerializeWarning` per the policy in DR-025.
    - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)
+   - Decision: [DR-025 RETE Store Removal Wiring and Re-Materialization Policy](decision-records/DR-025%20RETE%20Store%20Removal%20Wiring%20and%20Re-Materialization%20Policy.md)
 1. Specialized relation indexes
    - Evaluate and implement targeted acceleration for selected schema-lattice relations where justified.
    - Architecture: [Rule Matching & Network Topology](architecture.md#rule-matching--network-topology)

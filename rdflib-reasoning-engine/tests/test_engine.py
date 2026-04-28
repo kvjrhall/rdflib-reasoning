@@ -1042,6 +1042,205 @@ def test_rete_engine_tracks_stated_and_derived_facts_in_working_memory() -> None
     assert engine.tms.support_count(derived) == 1
 
 
+def _subclass_chain_engine() -> tuple[RETEEngine, Rule]:
+    """Build an engine with a single ``rdfs9``-style subclass-chain rule."""
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="subclass-chain"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    return engine, rule
+
+
+def test_retract_triples_stated_with_no_dependents_updates_engine_state() -> None:
+    engine, _ = _subclass_chain_engine()
+    triple = (URIRef("urn:test:alice"), RDF.type, URIRef("urn:test:Human"))
+    engine.add_triples([triple])
+    assert triple in engine.known_triples
+    assert triple in engine.materialized_triples
+
+    cascade = engine.retract_triples([triple])
+
+    assert cascade == {triple}
+    assert triple not in engine.known_triples
+    assert triple not in engine.materialized_triples
+    assert engine.working_memory.get_fact(triple) is None
+
+
+def test_retract_triples_returns_empty_set_for_absent_triple() -> None:
+    engine, _ = _subclass_chain_engine()
+    absent = (URIRef("urn:test:absent"), RDF.type, URIRef("urn:test:Class"))
+
+    assert engine.retract_triples([absent]) == set()
+    assert engine.retract_triples([]) == set()
+
+
+def test_retract_triples_cascades_multi_hop_rdfs_subclass_chain() -> None:
+    engine, _ = _subclass_chain_engine()
+    alice = URIRef("urn:test:alice")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    c_cls = URIRef("urn:test:C")
+    seed = (alice, RDF.type, a_cls)
+    derived_b = (alice, RDF.type, b_cls)
+    derived_c = (alice, RDF.type, c_cls)
+
+    inferred = engine.add_triples(
+        [
+            seed,
+            (a_cls, RDFS.subClassOf, b_cls),
+            (b_cls, RDFS.subClassOf, c_cls),
+        ]
+    )
+    assert {derived_b, derived_c}.issubset(inferred)
+
+    cascade = engine.retract_triples([seed])
+
+    assert cascade == {seed, derived_b, derived_c}
+    for triple in cascade:
+        assert triple not in engine.known_triples
+        assert triple not in engine.materialized_triples
+        assert engine.working_memory.get_fact(triple) is None
+
+
+def test_retract_triples_is_idempotent_for_already_retracted_triple() -> None:
+    engine, _ = _subclass_chain_engine()
+    alice = URIRef("urn:test:alice")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    seed = (alice, RDF.type, a_cls)
+
+    engine.add_triples([seed, (a_cls, RDFS.subClassOf, b_cls)])
+    first_cascade = engine.retract_triples([seed])
+    assert seed in first_cascade
+
+    second_cascade = engine.retract_triples([seed])
+
+    assert second_cascade == set()
+
+
+def test_retract_triples_keeps_stated_and_derived_fact_with_stated_cleared() -> None:
+    engine, _ = _subclass_chain_engine()
+    alice = URIRef("urn:test:alice")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    derived = (alice, RDF.type, b_cls)
+
+    # The user's batch contains both the eventual antecedents AND the derived
+    # triple; per JTMS semantics this fact ends up stated AND derived.
+    engine.add_triples(
+        [
+            (alice, RDF.type, a_cls),
+            derived,
+            (a_cls, RDFS.subClassOf, b_cls),
+        ]
+    )
+    fact = engine.working_memory.get_fact(derived)
+    assert fact is not None and fact.stated is True
+    assert engine.tms.justifications_for(derived)
+
+    cascade = engine.retract_triples([derived])
+
+    assert cascade == set()
+    surviving = engine.working_memory.get_fact(derived)
+    assert surviving is not None
+    assert surviving.stated is False
+    assert derived in engine.known_triples
+    assert derived in engine.materialized_triples
+
+
+def test_retract_triples_preserves_derived_only_fact() -> None:
+    engine, _ = _subclass_chain_engine()
+    alice = URIRef("urn:test:alice")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    derived = (alice, RDF.type, b_cls)
+
+    engine.add_triples(
+        [
+            (alice, RDF.type, a_cls),
+            (a_cls, RDFS.subClassOf, b_cls),
+        ]
+    )
+
+    cascade = engine.retract_triples([derived])
+
+    assert cascade == set()
+    surviving = engine.working_memory.get_fact(derived)
+    assert surviving is not None
+    assert surviving.stated is False
+    assert derived in engine.known_triples
+
+
+def test_retract_triples_evicts_stale_partial_matches_so_replay_does_not_misfire() -> (
+    None
+):
+    engine, _ = _subclass_chain_engine()
+    alice = URIRef("urn:test:alice")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    seed = (alice, RDF.type, a_cls)
+    schema = (a_cls, RDFS.subClassOf, b_cls)
+    derived = (alice, RDF.type, b_cls)
+
+    engine.add_triples([seed, schema])
+    assert derived in engine.known_triples
+
+    engine.retract_triples([seed])
+
+    registry = engine.matcher.registry
+    for memory in (registry.alpha_memory, registry.beta_memory):
+        for matches in memory.values():
+            for match in matches.values():
+                assert all(
+                    fact.triple != seed and fact.triple != derived
+                    for fact in match.facts
+                )
+
+    other = URIRef("urn:test:bob")
+    new_seed = (other, RDF.type, a_cls)
+    inferred = engine.add_triples([new_seed])
+
+    assert (other, RDF.type, b_cls) in inferred
+    assert derived not in engine.known_triples
+
+
+def test_retract_triples_supports_iterable_input_and_batch_call() -> None:
+    engine, _ = _subclass_chain_engine()
+    alice = URIRef("urn:test:alice")
+    bob = URIRef("urn:test:bob")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    seed_a = (alice, RDF.type, a_cls)
+    seed_b = (bob, RDF.type, a_cls)
+    schema = (a_cls, RDFS.subClassOf, b_cls)
+
+    engine.add_triples([seed_a, seed_b, schema])
+
+    cascade = engine.retract_triples(iter([seed_a, seed_b]))
+
+    assert {seed_a, seed_b}.issubset(cascade)
+    assert (alice, RDF.type, b_cls) in cascade
+    assert (bob, RDF.type, b_cls) in cascade
+    assert all(engine.working_memory.get_fact(triple) is None for triple in cascade)
+
+
 def test_rete_engine_tracks_multiple_supports_for_one_derived_fact() -> None:
     x = Variable("x")
     y = Variable("y")

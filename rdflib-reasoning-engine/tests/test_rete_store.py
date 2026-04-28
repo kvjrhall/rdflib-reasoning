@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Iterable
 from typing import Any
 
@@ -10,7 +11,10 @@ from rdflib.term import BNode, URIRef, Variable
 from rdflib_reasoning.engine.api import RETEEngine, RETEEngineFactory
 from rdflib_reasoning.engine.batch_dispatcher import TripleAddedBatchEvent
 from rdflib_reasoning.engine.proof import RuleId
-from rdflib_reasoning.engine.rete_store import RETEStore
+from rdflib_reasoning.engine.rete_store import (
+    RETEStore,
+    RetractionRematerializeWarning,
+)
 from rdflib_reasoning.engine.rules import (
     Rule,
     TripleCondition,
@@ -337,6 +341,200 @@ def test_rete_store_warmup_does_not_materialize_bootstrap_only_nonsilent_closure
     dataset.default_graph.add((_NS.seed_bootstrap, _NS.p, _NS.o))
 
     assert closure not in dataset.default_graph
+
+
+def _subclass_chain_rule() -> Rule:
+    """RDFS-style ``rdfs9`` subclass chain rule used by the removal tests."""
+    x = Variable("x")
+    y = Variable("y")
+    z = Variable("z")
+    return Rule(
+        id=RuleId(ruleset="test", rule_id="subclass-chain"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=y)
+            ),
+            TripleCondition(
+                pattern=TriplePattern(subject=y, predicate=RDFS.subClassOf, object=z)
+            ),
+        ),
+        head=(
+            TripleConsequent(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=z)
+            ),
+        ),
+    )
+
+
+def test_dataset_remove_drives_engine_retraction_and_cascade_in_backing_graph() -> None:
+    rule = _subclass_chain_rule()
+    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    dataset = Dataset(store=store)
+    alice = URIRef("urn:test:alice")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    c_cls = URIRef("urn:test:C")
+    seed = (alice, RDF.type, a_cls)
+    schema_ab = (a_cls, RDFS.subClassOf, b_cls)
+    schema_bc = (b_cls, RDFS.subClassOf, c_cls)
+    derived_b = (alice, RDF.type, b_cls)
+    derived_c = (alice, RDF.type, c_cls)
+
+    dataset.default_graph.add(seed)
+    dataset.default_graph.add(schema_ab)
+    dataset.default_graph.add(schema_bc)
+    assert derived_b in dataset.default_graph
+    assert derived_c in dataset.default_graph
+
+    dataset.default_graph.remove(seed)
+
+    assert seed not in dataset.default_graph
+    assert derived_b not in dataset.default_graph
+    assert derived_c not in dataset.default_graph
+    assert schema_ab in dataset.default_graph
+    assert schema_bc in dataset.default_graph
+
+
+def test_dataset_remove_is_idempotent_for_already_absent_triple() -> None:
+    rule = _subclass_chain_rule()
+    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    dataset = Dataset(store=store)
+    seed = (URIRef("urn:test:alice"), RDF.type, URIRef("urn:test:A"))
+    dataset.default_graph.add(seed)
+
+    dataset.default_graph.remove(seed)
+    assert seed not in dataset.default_graph
+
+    dataset.default_graph.remove(seed)
+    assert seed not in dataset.default_graph
+
+
+def test_dataset_remove_rematerializes_stated_and_derived_triple_with_warning() -> None:
+    rule = _subclass_chain_rule()
+    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    dataset = Dataset(store=store)
+    alice = URIRef("urn:test:alice")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    schema = (a_cls, RDFS.subClassOf, b_cls)
+    seed = (alice, RDF.type, a_cls)
+    derived = (alice, RDF.type, b_cls)
+
+    dataset.default_graph.add(seed)
+    dataset.default_graph.add(schema)
+    assert derived in dataset.default_graph
+    dataset.default_graph.add(derived)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", RetractionRematerializeWarning)
+        dataset.default_graph.remove(derived)
+
+    rematerialize_warnings = [
+        w for w in caught if issubclass(w.category, RetractionRematerializeWarning)
+    ]
+    assert len(rematerialize_warnings) == 1
+    assert derived in dataset.default_graph
+
+
+def test_dataset_remove_pattern_drives_per_triple_engine_retraction() -> None:
+    rule = _subclass_chain_rule()
+    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    dataset = Dataset(store=store)
+    alice = URIRef("urn:test:alice")
+    bob = URIRef("urn:test:bob")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    schema = (a_cls, RDFS.subClassOf, b_cls)
+    alice_seed = (alice, RDF.type, a_cls)
+    bob_seed = (bob, RDF.type, a_cls)
+
+    dataset.default_graph.add(alice_seed)
+    dataset.default_graph.add(bob_seed)
+    dataset.default_graph.add(schema)
+    assert (alice, RDF.type, b_cls) in dataset.default_graph
+    assert (bob, RDF.type, b_cls) in dataset.default_graph
+
+    dataset.default_graph.remove((None, RDF.type, a_cls))
+
+    assert alice_seed not in dataset.default_graph
+    assert bob_seed not in dataset.default_graph
+    assert (alice, RDF.type, b_cls) not in dataset.default_graph
+    assert (bob, RDF.type, b_cls) not in dataset.default_graph
+    assert schema in dataset.default_graph
+
+
+def test_dataset_re_add_after_remove_re_derives_inference() -> None:
+    """Stale partial-match safety: after retract + re-add, no spurious old derivations."""
+    rule = _subclass_chain_rule()
+    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    dataset = Dataset(store=store)
+    alice = URIRef("urn:test:alice")
+    bob = URIRef("urn:test:bob")
+    a_cls = URIRef("urn:test:A")
+    b_cls = URIRef("urn:test:B")
+    schema = (a_cls, RDFS.subClassOf, b_cls)
+    alice_seed = (alice, RDF.type, a_cls)
+    bob_seed = (bob, RDF.type, a_cls)
+
+    dataset.default_graph.add(alice_seed)
+    dataset.default_graph.add(schema)
+    assert (alice, RDF.type, b_cls) in dataset.default_graph
+
+    dataset.default_graph.remove(alice_seed)
+    assert (alice, RDF.type, b_cls) not in dataset.default_graph
+
+    dataset.default_graph.add(bob_seed)
+    assert (bob, RDF.type, b_cls) in dataset.default_graph
+    assert (alice, RDF.type, b_cls) not in dataset.default_graph
+
+
+def test_dataset_remove_with_scripted_engine_calls_retract_triples_once_per_batch() -> (
+    None
+):
+    """Validate that ``RETEStore`` invokes ``engine.retract_triples`` exactly once
+    per dispatched batch (analogous to the add path's ``add_triples`` call)."""
+
+    class RemoveScriptedEngine(RETEEngine):
+        def __init__(self) -> None:
+            super().__init__(context_data={}, rules=[])
+            self.add_triples_calls: list[set[Any]] = []
+            self.retract_triples_calls: list[set[Any]] = []
+
+        def add_triples(self, triples):  # type: ignore[override]
+            collected = set(triples)
+            self.add_triples_calls.append(collected)
+            return set()
+
+        def retract_triples(self, triples):  # type: ignore[override]
+            collected = set(triples)
+            self.retract_triples_calls.append(collected)
+            return set()
+
+        def warmup(self, existing_triples):  # type: ignore[override]
+            return set(existing_triples)
+
+    class RemoveScriptedFactory(RETEEngineFactory):
+        def __init__(self) -> None:
+            super().__init__()
+            self.engines: dict[Any, RemoveScriptedEngine] = {}
+
+        def new_engine(self, context: Any) -> RemoveScriptedEngine:  # type: ignore[override]
+            engine = RemoveScriptedEngine()
+            self.engines[context] = engine
+            return engine
+
+    factory = RemoveScriptedFactory()
+    store = RETEStore(Memory(), factory)
+    dataset = Dataset(store=store)
+    seed = (_NS.s, _NS.p, _NS.o)
+    dataset.default_graph.add(seed)
+    engine = factory.engines[dataset.default_graph.identifier]
+
+    engine.retract_triples_calls.clear()
+    dataset.default_graph.remove(seed)
+
+    assert engine.retract_triples_calls == [{seed}]
 
 
 def test_rete_store_warmup_does_not_materialize_silent_bootstrap_rule() -> None:

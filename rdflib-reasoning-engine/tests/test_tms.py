@@ -155,9 +155,18 @@ def test_would_remain_supported_for_stated_fact_returns_true_regardless_of_exclu
     mammal = URIRef("urn:test:Mammal")
     stated_and_derived = (alice, RDF.type, mammal)
 
-    engine.add_triples([(alice, RDF.type, human), (human, RDFS.subClassOf, mammal)])
+    # Path that produces stated-and-derived under DR-004 idempotence: the
+    # user's batch contains both the eventual antecedents and the triple
+    # they already know is true; the rule then attaches a justification to
+    # the already-stated fact in the same saturation pass.
+    engine.add_triples(
+        [
+            (alice, RDF.type, human),
+            stated_and_derived,
+            (human, RDFS.subClassOf, mammal),
+        ]
+    )
     support = engine.tms.justifications_for(stated_and_derived)[0]
-    engine.add_triples([stated_and_derived])
 
     assert engine.tms.would_remain_supported(
         stated_and_derived, without_justification_id=support.id
@@ -471,10 +480,15 @@ def test_retract_triple_clears_stated_flag_when_independent_support_exists() -> 
     mammal = URIRef("urn:test:Mammal")
     stated_and_derived = (alice, RDF.type, mammal)
 
-    engine.add_triples([(alice, RDF.type, human), (human, RDFS.subClassOf, mammal)])
+    engine.add_triples(
+        [
+            (alice, RDF.type, human),
+            stated_and_derived,
+            (human, RDFS.subClassOf, mammal),
+        ]
+    )
     derived_fact = engine.working_memory.get_fact(stated_and_derived)
     assert derived_fact is not None
-    engine.add_triples([stated_and_derived])
     assert derived_fact.stated is True
     supports_before = engine.tms.justifications_for(stated_and_derived)
     assert len(supports_before) == 1
