@@ -34,21 +34,30 @@ class TripleRemovedBatchEvent(BatchEvent):
 class BatchDispatcher(Dispatcher):
     """A dispatcher that batches store events and drives fixed-point iteration.
 
-    If a listener to a `rdflib.Store` is sensitive to reentrant event handlers,
-    this dispatcher allows for batches of events to be handled without re-entrancy.
+    If a listener to a ``rdflib.Store`` is sensitive to reentrant event
+    handlers, this dispatcher allows for batches of events to be handled
+    without re-entrancy. Additionally, this dispatcher forwards
+    ``TripleAddedEvent`` and ``TripleRemovedEvent`` events after
+    deduplication; subscribers can assume that each event will be unique.
 
-    Additionally, this dispatcher will forward `TripleAddedEvent` and
-    `TripleRemovedEvent` events after deduplication.
-    Subscribers can assume that each event will be unique.
+    **Source-dispatcher contract (per DR-026)**
 
-    **Store event contract**
+    The batch dispatcher subscribes its ``_on_triple_added`` and
+    ``_on_triple_removed`` handlers to a caller-supplied ``source_dispatcher``
+    rather than to the backing store's dispatcher. The owner of the source
+    dispatcher (in this codebase, ``RETEStore`` via its private
+    ``_raw_dispatcher``) MUST emit one ``TripleAddedEvent`` (respectively
+    ``TripleRemovedEvent``) per mutation, BEFORE performing the mutation,
+    even when the triple is already present or absent. Pre-mutation
+    semantics are required so that the dedup check ``_exists_in_store``
+    correctly reports "already present" for adds and "still present" for
+    removes.
 
-    The batch dispatcher assumes that backing stores *always* emit
-    ``TripleAddedEvent`` (respectively ``TripleRemovedEvent``) on every
-    ``add()`` / ``remove()`` call, even when the triple is already present or
-    absent, and that they do so *before* performing the mutation. The
-    dispatcher uses a ``triple in context`` check to filter duplicate events
-    (skip adding to the batch when the triple is already in the context).
+    The backing store reference is retained solely for the read-only
+    ``_exists_in_store`` dedup check, which uses the standard
+    ``Store.contexts(triple)`` API. The backing store's own dispatcher is
+    not consumed; events emitted there (for example by
+    ``Memory.add`` via ``Store.add(self, ...)``) are ignored by the engine.
 
     **Fixed-point procedure**
 
@@ -77,7 +86,7 @@ class BatchDispatcher(Dispatcher):
 
     backing_store: Store
 
-    def __init__(self, backing_store: Store):
+    def __init__(self, *, source_dispatcher: Dispatcher, backing_store: Store):
         super().__init__()
         self.backing_store = backing_store
         self._current_additions = dict()
@@ -85,9 +94,8 @@ class BatchDispatcher(Dispatcher):
         self._handling_addition = False
         self._handling_removal = False
 
-        # We subscribe to the triple addition events
-        backing_store.dispatcher.subscribe(TripleAddedEvent, self._on_triple_added)
-        backing_store.dispatcher.subscribe(TripleRemovedEvent, self._on_triple_removed)
+        source_dispatcher.subscribe(TripleAddedEvent, self._on_triple_added)
+        source_dispatcher.subscribe(TripleRemovedEvent, self._on_triple_removed)
 
     def _exists_in_store(self, triple: Triple, context_id: ContextIdentifier) -> bool:
         def matches_context(context: _ContextType) -> bool:

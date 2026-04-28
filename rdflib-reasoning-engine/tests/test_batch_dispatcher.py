@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 from rdflib import Dataset, Graph, Namespace
+from rdflib.events import Dispatcher
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.memory import Memory
 from rdflib.store import Store, TripleAddedEvent, TripleRemovedEvent
@@ -51,8 +52,18 @@ def store() -> TestData[Store]:
 
 
 def create_dispatcher(store: Store) -> BatchDispatcher:
-    dispatcher = BatchDispatcher(backing_store=store)
-    return dispatcher
+    """Construct a ``BatchDispatcher`` for the existing test-suite shape.
+
+    These tests drive ``BatchDispatcher`` by mutating the backing ``Memory``
+    store directly, which dispatches ``TripleAddedEvent`` on
+    ``Memory.dispatcher``. Per DR-026 ``BatchDispatcher`` no longer subscribes
+    to the backing store's dispatcher implicitly; we wire it explicitly here
+    to keep the existing event-flow assertions meaningful.
+    """
+    return BatchDispatcher(
+        source_dispatcher=store.dispatcher,
+        backing_store=store,
+    )
 
 
 class BatchCollector:
@@ -479,6 +490,39 @@ def test_batch_dispatcher_resets_handling_flag_after_batch_subscriber_error(
     assert failures == 1
     assert len(listener.added_batches) == 1
     assert listener.added_batches[0].events == {(_NS.d, _NS.e, _NS.f)}
+
+
+def test_backing_store_dispatcher_is_not_consumed_when_source_is_separate(
+    empty_store: Store,
+) -> None:
+    """Per DR-026, BatchDispatcher subscribes only to the source_dispatcher.
+
+    When the source dispatcher is distinct from ``backing_store.dispatcher``,
+    events emitted on the backing store's own dispatcher MUST NOT produce any
+    batch events. This regression test guards against accidentally
+    re-introducing an implicit subscription to ``backing_store.dispatcher``.
+    """
+    source_dispatcher = Dispatcher()
+    dispatcher = BatchDispatcher(
+        source_dispatcher=source_dispatcher,
+        backing_store=empty_store,
+    )
+    listener = BatchCollector(dispatcher)
+
+    g = Graph(identifier="https://example.org/g")
+    triple = (_NS.s, _NS.p, _NS.o)
+
+    empty_store.dispatcher.dispatch(TripleAddedEvent(triple=triple, context=g))
+    empty_store.dispatcher.dispatch(TripleRemovedEvent(triple=triple, context=g))
+
+    assert listener.added_batches == []
+    assert listener.removed_batches == []
+
+    source_dispatcher.dispatch(TripleAddedEvent(triple=triple, context=g))
+
+    assert len(listener.added_batches) == 1
+    assert listener.added_batches[0].context_id == g.identifier
+    assert listener.added_batches[0].events == {triple}
 
 
 def test_add_by_SPARQL_update(empty_store: Store) -> None:

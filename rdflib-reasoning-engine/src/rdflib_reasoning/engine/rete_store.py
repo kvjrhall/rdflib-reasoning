@@ -3,6 +3,7 @@ from collections.abc import Generator, Iterable, Iterator, Mapping
 from typing import Any, Literal, cast
 
 from rdflib import Graph, URIRef
+from rdflib.events import Dispatcher
 from rdflib.graph import (
     _ContextType,
     _QuadType,
@@ -13,7 +14,7 @@ from rdflib.graph import (
 from rdflib.plugins.sparql.sparql import Query
 from rdflib.plugins.sparql.update import Update
 from rdflib.query import Result
-from rdflib.store import VALID_STORE, Store, TripleRemovedEvent
+from rdflib.store import VALID_STORE, Store, TripleAddedEvent, TripleRemovedEvent
 from rdflib.term import Identifier
 from rdflib_reasoning.axiom.common import ContextIdentifier, Triple
 
@@ -46,6 +47,7 @@ class RETEStore(Store):
     engine_contexts: dict[ContextIdentifier, Graph]
     _pending_rematerialize: dict[ContextIdentifier, set[Triple]]
     _remove_depth: int
+    _raw_dispatcher: Dispatcher
 
     def __init__(self, store: Store, factory: RETEEngineFactory):
         super().__init__()
@@ -64,7 +66,12 @@ class RETEStore(Store):
         self._pending_rematerialize = {}
         self._remove_depth = 0
 
-        self.dispatcher = BatchDispatcher(backing_store=store)
+        # Per DR-026, RETEStore owns raw event emission; BatchDispatcher
+        # subscribes to a private dispatcher rather than the backing store's.
+        self._raw_dispatcher = Dispatcher()
+        self.dispatcher = BatchDispatcher(
+            source_dispatcher=self._raw_dispatcher, backing_store=store
+        )
         self.dispatcher.subscribe(TripleAddedBatchEvent, self._on_triples_added)
         self.dispatcher.subscribe(TripleRemovedBatchEvent, self._on_triples_removed)
 
@@ -114,7 +121,7 @@ class RETEStore(Store):
            re-materialize-with-warning policy) into
            ``_pending_rematerialize``. The actual re-add is deferred to
            ``_flush_rematerialize`` so that it executes after the backing
-           ``Memory.remove`` mutation completes; otherwise an inline
+           store's remove mutation completes; otherwise an inline
            ``context.add`` would be a no-op while the triple is still
            present in the backing store.
         """
@@ -190,23 +197,35 @@ class RETEStore(Store):
         context: _ContextType,
         quoted: bool = False,
     ) -> None:
-        # Delegated to the backing store
+        # Per DR-026, emit the pre-mutation event ourselves on the private
+        # raw dispatcher; BatchDispatcher will dedup against the backing
+        # store via Store.contexts(triple).
+        self._raw_dispatcher.dispatch(TripleAddedEvent(triple=triple, context=context))
         self.store.add(triple, context, quoted)
 
     def addN(self, quads: Iterable[_QuadType]) -> None:  # type: ignore[misc,override]
-        # Delegated to the backing store
-        self.store.addN(quads)
+        # Per DR-026, materialize the iterable so we can emit one
+        # pre-mutation event per quad on the private raw dispatcher before
+        # delegating to the backing store.
+        materialized_quads = list(quads)
+        for quad in materialized_quads:
+            subject, predicate, obj, context = quad
+            self._raw_dispatcher.dispatch(
+                TripleAddedEvent(
+                    triple=(subject, predicate, obj),
+                    context=context,
+                )
+            )
+        self.store.addN(materialized_quads)
 
     def remove(
         self, triple: _TriplePatternType, context: _ContextType | None = None
     ) -> None:
-        # ``Memory.remove`` does not call ``Store.remove`` (the base class) on
-        # itself, so it never emits ``TripleRemovedEvent``. To honor the
-        # ``BatchDispatcher`` pre-mutation event contract we (a) snapshot the
-        # concrete triples that match the pattern in the requested context,
-        # (b) emit one ``TripleRemovedEvent`` per match before any mutation,
-        # and (c) delegate the actual removal to the backing store. The
-        # depth counter ensures re-materializations queued by
+        # Per DR-026, RETEStore owns pre-mutation event emission for
+        # remove: snapshot the concrete triples matching the pattern in
+        # the requested context, emit one ``TripleRemovedEvent`` per match
+        # on the private raw dispatcher, then delegate to the backing
+        # store. The depth counter ensures re-materializations queued by
         # ``_on_triples_removed`` are flushed only at the outermost frame,
         # after the backing mutation has completed.
         if context is None:
@@ -220,7 +239,7 @@ class RETEStore(Store):
                 for match, _ctxs in self.store.triples(triple, context)
             ]
             for match in concrete_matches:
-                self.store.dispatcher.dispatch(
+                self._raw_dispatcher.dispatch(
                     TripleRemovedEvent(triple=match, context=context)
                 )
             self.store.remove(triple, context)
