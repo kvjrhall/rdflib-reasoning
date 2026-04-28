@@ -7,8 +7,8 @@
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/\_\_init\_\_.py                             |        0 |        0 |    100% |           |
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/common.py                                   |        6 |        0 |    100% |           |
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/structural\_element.py                      |       77 |       27 |     65% |39, 42, 46, 68, 74, 79, 96, 101-115, 119-140, 149, 154 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/\_\_init\_\_.py                            |        8 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/api.py                                     |      226 |       10 |     96% |245, 263, 362-372, 440 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/\_\_init\_\_.py                            |        9 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/api.py                                     |      249 |       10 |     96% |245, 263, 362-372, 450 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/batch\_dispatcher.py                       |       73 |        2 |     97% |  125, 157 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/builtins.py                                |       36 |        5 |     86% |15, 25, 35, 45, 56 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/derivation.py                              |       40 |        2 |     95% |   78, 115 |
@@ -21,9 +21,9 @@
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/compiler.py                           |       81 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/consequents.py                        |       39 |        3 |     92% |     78-80 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/facts.py                              |       15 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/network.py                            |      221 |        3 |     99% |302-303, 372 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/tms.py                                |      298 |       13 |     96% |51, 60, 86, 282, 287, 299, 338, 354, 360, 368, 398, 487, 518 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete\_store.py                             |       86 |       15 |     83% |85, 92-93, 98, 102, 130, 142, 149, 160, 177, 181, 185, 189, 193, 197 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/network.py                            |      229 |        4 |     98% |138, 324-325, 394 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/tms.py                                |      298 |       14 |     95% |51, 60, 86, 178, 282, 287, 299, 338, 354, 360, 368, 398, 487, 518 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete\_store.py                             |      124 |       18 |     85% |151, 168, 175-176, 181, 185, 213-214, 238, 250, 257, 268, 285, 289, 293, 297, 301, 305 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rules.py                                   |       49 |        4 |     92% |11-12, 24, 32 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/\_\_init\_\_.py                   |        4 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/rdf\_axioms.py                    |       13 |        0 |    100% |           |
@@ -52,7 +52,7 @@
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_index.py        |      165 |        2 |     99% |   283-284 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_model.py        |       15 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary\_configuration.py       |       79 |        4 |     95% |26, 28, 31, 76 |
-| **TOTAL**                                                                                       | **4410** |  **422** | **90%** |           |
+| **TOTAL**                                                                                       | **4480** |  **427** | **90%** |           |
 
 
 ## Setup coverage badge
