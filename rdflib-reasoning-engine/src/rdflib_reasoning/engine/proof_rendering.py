@@ -21,6 +21,7 @@ from .proof import (
 )
 from .rules import (
     CallbackConsequent,
+    ContradictionConsequent,
     PredicateCondition,
     Rule,
     RuleCondition,
@@ -211,6 +212,13 @@ class ProofRenderer:
                 for argument in consequent.arguments
             )
             return f"{consequent.callback}({args})"
+        if isinstance(consequent, ContradictionConsequent):
+            args = ", ".join(
+                self._term_to_text(cast(Node, argument))
+                for argument in consequent.arguments
+            )
+            detail = f", {consequent.detail}" if consequent.detail is not None else ""
+            return f"contradiction[{consequent.category}]({args}{detail})"
         return str(consequent)
 
     def _payload_to_text(self, payload: ProofPayload) -> str:
@@ -247,10 +255,16 @@ class ProofRenderer:
 
     @staticmethod
     def _escape_mermaid(text: str) -> str:
-        return text.replace("\\", "\\\\").replace('"', '\\"')
+        """Escape text embedded in Mermaid double-quoted labels for SVG/XML safety.
+
+        RDFLib ``n3()`` uses angle brackets around IRIs; raw ``<``/``>`` break SVG
+        ``<text>`` payloads and some HTML sanitizers. Apply XML character references
+        after backslash and quote escaping so embedded quotes remain valid.
+        """
+        escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+        return escaped.replace("<", "&lt;").replace(">", "&gt;")
 
     def _mermaid_node(self, node_id: str, kind: str, label: str) -> str:
-        # text = self._escape_mermaid(f"{kind.title()}: {label}")
         text = self._escape_mermaid(label)
         if kind == "goal":
             return f'{node_id}>"{text}"]'

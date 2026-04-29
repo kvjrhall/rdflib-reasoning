@@ -373,9 +373,12 @@ These rules are aligned with [DR-004 RETE Store Persistence and Engine Update Co
 
 Contradiction handling is related to, but distinct from, inference execution and explanation behavior.
 
-- Contradiction detection is expected to be flagged by the derivation or observation of a triple of the form `?x rdf:type owl:Nothing`.
+- Per [DR-027 Dual-Channel Contradiction Diagnostics and Explanation Contract](decision-records/DR-027%20Dual-Channel%20Contradiction%20Diagnostics%20and%20Explanation%20Contract.md), contradiction handling follows a dual-channel model: logical entailment remains triple-oriented engine-managed production, while contradiction outcomes are captured through a non-mutating diagnostics channel.
+- Contradiction detection SHOULD cover the full currently modeled OWL 2 RL contradiction-producing `false` family (for example `eq-diff*`, `prp-irp`, `prp-asyp`, `prp-npa*`, `cls-nothing2`, `dt-not-type`) rather than relying only on `owl:Nothing` witness triples.
+- Contradiction diagnostics MUST be queryable through a read-only API surface; they MUST NOT be represented as working-memory facts and MUST NOT mutate graph state.
+- `?x rdf:type owl:Nothing` remains a valid contradiction witness shape, but it is not the only contradiction trigger.
 - The behavior of the system after contradiction detection (for example `silent`, `warn`, or `error`) MUST be independently configurable from contradiction detection itself.
-- Whether the system can explain a contradiction depends independently on derivation logging or proof reconstruction capabilities and MUST NOT be assumed merely because contradiction detection is present.
+- Contradiction explanation SHOULD be reconstructed from contradiction diagnostics records and supporting premise/derivation context. It MUST NOT require materializing synthetic contradiction triples into logical closure.
 
 ## Proof evaluation harness
 

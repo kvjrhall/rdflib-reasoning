@@ -3,13 +3,18 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
+from rdflib.namespace import OWL, RDF
 from rdflib.term import BNode, Node, URIRef, Variable
 from rdflib.term import Literal as RDFLiteral
 from rdflib_reasoning.axiom.common import ContextIdentifier, Triple
 
 from .builtins import DEFAULT_PREDICATE_BUILTINS
-from .derivation import DerivationLogger
-from .proof import DerivationRecord, TripleFact, VariableBinding
+from .derivation import (
+    ContradictionRecorder,
+    DerivationLogger,
+    RaiseOnContradictionRecorder,
+)
+from .proof import ContradictionRecord, DerivationRecord, TripleFact, VariableBinding
 from .rete import (
     Agenda,
     NetworkBuilder,
@@ -191,6 +196,7 @@ class RETEEngine:
     materialized_triples: set[Triple]
     matcher: NetworkMatcher
     derivation_logger: DerivationLogger | None
+    contradiction_recorder: ContradictionRecorder
     callbacks: dict[str, CallbackHook]
     callback_recorder: Any
     tms: TMSController
@@ -198,6 +204,7 @@ class RETEEngine:
     literal_subject_policy: LiteralSubjectPolicy
     predicate_term_policy: PredicateTermPolicy
     _bootstrap_completed: bool
+    _contradiction_sequence: int
 
     def __init__(self, context_data: ContextData, rules: Iterable[Rule]) -> None:
         self.context_data = context_data
@@ -213,6 +220,13 @@ class RETEEngine:
         self.known_triples = set()
         self.materialized_triples = set()
         self.derivation_logger = self.context_data.get("derivation_logger")
+        self.contradiction_recorder = cast(
+            ContradictionRecorder,
+            self.context_data.get(
+                "contradiction_recorder",
+                RaiseOnContradictionRecorder(),
+            ),
+        )
         self.callback_recorder = self.context_data.get("callback_recorder")
         # Configure RDF term-type enforcement; default to strict error mode.
         self.literal_subject_policy = cast(
@@ -226,11 +240,33 @@ class RETEEngine:
         self.tms = TMSController()
         self.working_memory = self.tms.working_memory
         self._bootstrap_completed = False
+        self._contradiction_sequence = 0
 
     def close(self) -> None:
         self.known_triples.clear()
         self.materialized_triples.clear()
         self.tms.clear()
+        self.contradiction_recorder.clear()
+        self._contradiction_sequence = 0
+
+    def next_contradiction_sequence(self) -> int:
+        """Return the next monotonic contradiction sequence id."""
+        self._contradiction_sequence += 1
+        return self._contradiction_sequence
+
+    def contradiction_records(
+        self, *, context: ContextIdentifier | None = None
+    ) -> tuple[ContradictionRecord, ...]:
+        """Return contradiction records, optionally filtered by context."""
+        records = tuple(self.contradiction_recorder.iter_records())
+        if context is None:
+            return records
+        return tuple(record for record in records if record.context == context)
+
+    def clear_contradiction_records(self) -> None:
+        """Clear contradiction records and reset sequence numbering."""
+        self.contradiction_recorder.clear()
+        self._contradiction_sequence = 0
 
     @staticmethod
     def _instantiate_triple(
@@ -496,6 +532,52 @@ class RETEEngine:
                         if isinstance(exc, FatalRuleError):
                             raise
                         raise FatalRuleError(str(exc)) from exc
+
+                if context is not None:
+                    premise_facts = [
+                        TripleFact(context=context, triple=fact.triple)
+                        for fact in action.premises
+                    ]
+                    binding_facts = [
+                        VariableBinding(name=name, value=value)
+                        for name, value in sorted(action.bindings.items())
+                    ]
+                    for contradiction in action.contradictions:
+                        resolved = self._resolve_callback_arguments(
+                            contradiction.arguments,
+                            action.bindings,
+                        )
+                        witness: TripleFact | None = None
+                        if len(resolved) >= 3:
+                            maybe_witness = cast(
+                                Triple,
+                                (resolved[0], resolved[1], resolved[2]),
+                            )
+                            witness = TripleFact(context=context, triple=maybe_witness)
+                        elif len(resolved) == 1:
+                            candidate = cast(Triple, action.premises[0].triple)
+                            witness = TripleFact(context=context, triple=candidate)
+                        # Prefer explicit owl:Nothing witness when present in premises.
+                        for premise in premise_facts:
+                            if (
+                                premise.triple[1] == RDF.type
+                                and premise.triple[2] == OWL.Nothing
+                            ):
+                                witness = premise
+                                break
+
+                        self.contradiction_recorder.record(
+                            ContradictionRecord(
+                                context=context,
+                                rule_id=action.rule_id,
+                                premises=premise_facts,
+                                bindings=binding_facts,
+                                sequence_id=self.next_contradiction_sequence(),
+                                witness=witness,
+                                category=contradiction.category,
+                                detail=contradiction.detail,
+                            )
+                        )
 
                 if (
                     context is not None

@@ -120,6 +120,46 @@ class VariableBinding(ProofModel):
     value: Node = Field(..., description="The RDF term bound to the variable.")
 
 
+class ContradictionRecord(ProofModel):
+    """Engine-native trace for one contradiction-triggering rule application."""
+
+    context: ContextIdentifier = Field(
+        ..., description="The graph (context) wherein the contradiction was detected."
+    )
+    rule_id: RuleId = Field(
+        ..., description="Stable identifier for the contradiction-triggering rule."
+    )
+    premises: list[TripleFact] = Field(
+        ...,
+        min_length=1,
+        description=(
+            "Triple-level premises matched by the contradiction rule application."
+        ),
+    )
+    bindings: list[VariableBinding] = Field(
+        default_factory=list,
+        description="Optional variable bindings captured for this contradiction event.",
+    )
+    sequence_id: int = Field(
+        ..., ge=1, description="Monotonic sequence id preserving record order."
+    )
+    witness: TripleFact | None = Field(
+        default=None,
+        description=(
+            "Optional contradiction witness triple for presentation, commonly "
+            "an `?x rdf:type owl:Nothing` style witness."
+        ),
+    )
+    category: str | None = Field(
+        default=None,
+        description="Optional contradiction category label for coarse grouping.",
+    )
+    detail: str | None = Field(
+        default=None,
+        description="Optional short contradiction detail message.",
+    )
+
+
 class DerivationRecord(ProofModel):
     """Engine-native trace for one fired rule application."""
 

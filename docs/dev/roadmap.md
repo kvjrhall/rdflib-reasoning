@@ -19,7 +19,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 Priority: highest
 
-This release establishes the minimum coherent platform for graph-backed reasoning experiments, proof interchange, and baseline evaluation.
+This release establishes the minimum coherent platform for graph-backed reasoning experiments, proof interchange, and baseline demonstration.
 
 ### 3.1. In scope
 
@@ -34,24 +34,23 @@ This release establishes the minimum coherent platform for graph-backed reasonin
 1. RDF triple well-formedness enforcement
    - Enforce RDF 1.1 subject and predicate constraints at the engine boundary with a configurable handling policy.
    - Architecture: [RDF Data-Model Enforcement](architecture.md#rdf-data-model-enforcement)
-1. Proof interchange and baseline evaluation harness
-   - Deliver `DirectProof`-oriented evaluation inputs and outputs sufficient for a baseline notebook and structured assessments.
-   - Architecture: [Proof evaluation harness](architecture.md#proof-evaluation-harness)
-   - Architecture: [Proof evaluation harness inputs and outputs](architecture.md#proof-evaluation-harness-inputs-and-outputs)
-   - Architecture: [Baseline scope](architecture.md#baseline-scope)
-   - Architecture: [Initial proof evaluation dimensions](architecture.md#initial-proof-evaluation-dimensions)
+1. Proof interchange models
+   - Implemented: `DirectProof` and related proof payload models provide stable typed proof interchange for baseline notebooks, engine-reconstructed explanations, and future evaluation tooling.
+   - Architecture: [Proof reconstruction and explanation](architecture.md#proof-reconstruction-and-explanation)
 1. Initial proof rendering layer
    - Provide presentation-focused rendering over canonical proof data, with markdown-friendly output as the initial target.
    - Architecture: [Proof rendering](architecture.md#proof-rendering)
 1. Initial contradiction signaling
-   - Support contradiction detection and independently configurable signaling behavior.
+   - Implemented: dual-channel contradiction detection with independently configurable signaling behavior.
+   - Implemented: contradiction detection targets currently modeled OWL 2 RL contradiction-producing `false` rules and records non-mutating diagnostics without requiring contradiction triple materialization.
    - Architecture: [Contradiction signaling](architecture.md#contradiction-signaling)
+   - Decision: [DR-027 Dual-Channel Contradiction Diagnostics and Explanation Contract](decision-records/DR-027%20Dual-Channel%20Contradiction%20Diagnostics%20and%20Explanation%20Contract.md)
 
 ### 3.2. Exit criteria
 
 - The engine supports the documented add-only fixed-point flow and derivation logging baseline.
 - The engine provides the complete informative RDFS entailment baseline (`rdfs1`-`rdfs13`) within that add-only flow.
-- Proofs can be represented, assessed, and rendered through stable typed interfaces.
+- Proofs can be represented and rendered through stable typed interfaces.
 
 ## 4. Release `0.2.0`: Dataset middleware and experiment foundation (released)
 
@@ -223,9 +222,11 @@ This release completes the staged engine plan for support-aware removal and begi
    - Evaluate and implement targeted acceleration for selected schema-lattice relations where justified.
    - Architecture: [Rule Matching & Network Topology](architecture.md#rule-matching--network-topology)
 1. Richer contradiction explanation
-   - Improve explanation behavior for contradictions once derivation and support data are sufficient.
+   - Implemented: contradiction explanation reconstruction builds `DirectProof` for `ContradictionClaim` goals from retained `ContradictionRecord` data (rule application step showing matched premise triples); output uses the same proof rendering path (`ProofRenderer`, notebook adapters) as triple-goal proofs where applicable.
+   - Further optional work (nested derivation proofs inside each contradiction premise, middleware harness evaluation surfaces, presentation polish) may be scheduled in later roadmap items without changing the baseline DR-027 contract fulfilled here.
    - Architecture: [Contradiction signaling](architecture.md#contradiction-signaling)
-   - Architecture: [Proof evaluation harness](architecture.md#proof-evaluation-harness)
+   - Architecture: [Proof rendering](architecture.md#proof-rendering)
+   - Decision: [DR-027 Dual-Channel Contradiction Diagnostics and Explanation Contract](decision-records/DR-027%20Dual-Channel%20Contradiction%20Diagnostics%20and%20Explanation%20Contract.md)
 
 ### 7.2. Exit criteria
 
@@ -258,7 +259,32 @@ This release establishes the public-facing citation and presentation baseline ex
 
 - Decide whether repository citation metadata should cite the metapackage release, the software family as a whole, or both.
 
-## 9. Release review rules
+## 9. Release `1.1.0`: Proof evaluation harness
+
+Priority: medium
+
+This release adds reusable proof-evaluation infrastructure over the proof interchange models delivered in `0.1.0`. The exact scope MAY be re-scoped as experiment needs and evaluator design mature.
+
+### 9.1. In scope
+
+1. Framework-agnostic proof assessment models
+   - Deliver Pydantic request/response models for assessing `DirectProof` outputs against task inputs and expected grounding.
+   - Architecture: [Proof evaluation harness](architecture.md#proof-evaluation-harness)
+   - Architecture: [Proof evaluation harness inputs and outputs](architecture.md#proof-evaluation-harness-inputs-and-outputs)
+1. Baseline structured assessment flow
+   - Implement a single-pass assessment contract suitable for notebooks and batch experiments before considering richer evaluator agents.
+   - Architecture: [Baseline scope](architecture.md#baseline-scope)
+   - Architecture: [Initial proof evaluation dimensions](architecture.md#initial-proof-evaluation-dimensions)
+1. Baseline proof notebook integration
+   - Update the baseline proof notebook to consume the reusable harness rather than defining evaluation ad hoc.
+
+### 9.2. Exit criteria
+
+- Development Agents can run a reusable proof assessment over a proposed `DirectProof` and receive structured results.
+- Baseline proof-evaluation notebooks use the shared harness and report conclusions grounded in harness outputs.
+- The harness remains framework-agnostic at its core, with any framework-specific adapters kept thin and secondary.
+
+## 10. Release review rules
 
 - Development Agents SHOULD consult this roadmap when estimating scope, selecting the next feature to implement, or deciding whether a task belongs in the current release.
 - Development Agents MUST verify that this roadmap remains accurate before closing a substantial feature task that changes Python behavior, middleware capability boundaries, release scope, or architectural assumptions.
