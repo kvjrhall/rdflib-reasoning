@@ -46,6 +46,23 @@ class CallbackSchedule(BaseModel):
     )
 
 
+class ContradictionSchedule(BaseModel):
+    """A normalized non-mutating contradiction signal from a completed match."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    category: str = Field(..., description="Contradiction category label.")
+    detail: str | None = Field(default=None, description="Optional detail message.")
+    arguments: tuple[Node, ...] = Field(
+        default_factory=tuple,
+        description="Normalized contradiction arguments as RDFLib terms or Variables.",
+    )
+    required_variables: tuple[str, ...] = Field(
+        default_factory=tuple,
+        description="Variable names that must be bound before contradiction capture.",
+    )
+
+
 class ActionInstance(BaseModel):
     """
     Scheduled unit of work derived from a completed match.
@@ -64,17 +81,24 @@ class ActionInstance(BaseModel):
     salience: int = 0
     productions: tuple[TripleProduction, ...] = ()
     callbacks: tuple[CallbackSchedule, ...] = ()
+    contradictions: tuple[ContradictionSchedule, ...] = ()
     silent: bool = False
     bootstrap: bool = False
 
     @property
-    def kind(self) -> Literal["production", "callback", "mixed", "empty"]:
+    def kind(
+        self,
+    ) -> Literal["production", "callback", "contradiction", "mixed", "empty"]:
         has_productions = len(self.productions) > 0
         has_callbacks = len(self.callbacks) > 0
-        if has_productions and has_callbacks:
+        has_contradictions = len(self.contradictions) > 0
+        kinds_active = sum((has_productions, has_callbacks, has_contradictions))
+        if kinds_active > 1:
             return "mixed"
         if has_productions:
             return "production"
         if has_callbacks:
             return "callback"
+        if has_contradictions:
+            return "contradiction"
         return "empty"

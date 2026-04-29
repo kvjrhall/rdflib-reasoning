@@ -8,7 +8,7 @@ from rdflib_reasoning.axiom.common import ContextIdentifier
 from .proof import ProofModel, RuleDescription, RuleId
 
 if TYPE_CHECKING:
-    from .derivation import DerivationLogger
+    from .derivation import ContradictionRecorder, DerivationLogger
     from .rete.callbacks import CallbackContext
 
 
@@ -50,6 +50,7 @@ class ContextData(TypedDict, total=False):
     builtins: Builtins
     context: ContextIdentifier
     derivation_logger: "DerivationLogger"
+    contradiction_recorder: "ContradictionRecorder"
     callback_recorder: "CallbackContext"
 
 
@@ -115,8 +116,28 @@ class CallbackConsequent(ProofModel):
     )
 
 
+class ContradictionConsequent(ProofModel):
+    """A non-mutating contradiction signal scheduled when a rule match completes."""
+
+    kind: Literal["contradiction"] = "contradiction"
+    category: str = Field(
+        ..., description="Machine-readable contradiction category label."
+    )
+    detail: str | None = Field(
+        default=None,
+        description="Optional human-readable contradiction detail.",
+    )
+    arguments: tuple[PatternTerm, ...] = Field(
+        default_factory=tuple,
+        description=(
+            "Ordered RDFLib terms or variables used to construct contradiction "
+            "premise/witness context."
+        ),
+    )
+
+
 RuleConsequent = Annotated[
-    TripleConsequent | CallbackConsequent,
+    TripleConsequent | CallbackConsequent | ContradictionConsequent,
     Field(discriminator="kind"),
 ]
 

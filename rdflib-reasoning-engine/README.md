@@ -79,9 +79,10 @@ This matrix tracks functional engine features independent of standards coverage.
 | JTMS-compatible support bookkeeping | Implemented | `WorkingMemory`, `DependencyGraph`, and `Justification` records track stated facts and multi-parent support for derived facts |
 | JTMS support verification APIs | Implemented | `SupportSnapshot` and `TMSController` verifier methods expose read-only checks for current support, hypothetical support-path invalidation, transitive support, and dependency traversal |
 | Recursive retraction | Implemented | `TMSController.retract_triple` performs Mark-Verify-Sweep over the dependency graph; `RETEEngine.retract_triples` composes the TMS primitive, evicts stale alpha/beta partial matches, and is idempotent for already-absent triples; `RETEStore.remove` drives the `BatchDispatcher` chain and re-materializes triples the engine still derives with a `RetractionRematerializeWarning` per DR-025 |
-| Explanation reconstruction | Implemented | `DerivationProofReconstructor` rebuilds `DirectProof` trees from non-silent derivation records for triple-goal explanations |
+| Triple-goal explanation reconstruction | Implemented | `DerivationProofReconstructor` rebuilds `DirectProof` trees from non-silent derivation records for triple-goal explanations |
+| Contradiction detection diagnostics | Implemented | Dual-channel contradiction detection records non-mutating contradiction diagnostics (`ContradictionRecord`) for currently modeled OWL 2 RL `false`-family rules; selectable recorders (`RaiseOnContradictionRecorder` default, `InMemoryContradictionRecorder`, `DropContradictionRecorder`) expose queryable diagnostics where retention applies |
+| Contradiction explanation reconstruction | In progress | Baseline contradiction-goal reconstruction is implemented from contradiction diagnostics records; richer contradiction explanation depth/UX remains planned |
 | Proof rendering (markdown and Mermaid) | Implemented | Presentation-focused rendering over canonical `DirectProof` data includes namespace-aware shortening and notebook display adapters via optional extras |
-| Contradiction / inconsistency handling | Not started | Detecting, surfacing, or managing incompatible conclusions |
 | Specialized transitive relation index | Not started | Intended optimization path for `rdfs:subClassOf` and `rdfs:subPropertyOf` first; broader general transitive-property support remains a later design question |
 
 ## Current integration baseline

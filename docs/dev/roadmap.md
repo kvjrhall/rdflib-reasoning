@@ -44,8 +44,10 @@ This release establishes the minimum coherent platform for graph-backed reasonin
    - Provide presentation-focused rendering over canonical proof data, with markdown-friendly output as the initial target.
    - Architecture: [Proof rendering](architecture.md#proof-rendering)
 1. Initial contradiction signaling
-   - Support contradiction detection and independently configurable signaling behavior.
+   - Implemented: dual-channel contradiction detection with independently configurable signaling behavior.
+   - Implemented: contradiction detection targets currently modeled OWL 2 RL contradiction-producing `false` rules and records non-mutating diagnostics without requiring contradiction triple materialization.
    - Architecture: [Contradiction signaling](architecture.md#contradiction-signaling)
+   - Decision: [DR-027 Dual-Channel Contradiction Diagnostics and Explanation Contract](decision-records/DR-027%20Dual-Channel%20Contradiction%20Diagnostics%20and%20Explanation%20Contract.md)
 
 ### 3.2. Exit criteria
 
@@ -223,9 +225,11 @@ This release completes the staged engine plan for support-aware removal and begi
    - Evaluate and implement targeted acceleration for selected schema-lattice relations where justified.
    - Architecture: [Rule Matching & Network Topology](architecture.md#rule-matching--network-topology)
 1. Richer contradiction explanation
-   - Improve explanation behavior for contradictions once derivation and support data are sufficient.
+   - In progress: contradiction explanation reconstruction now supports contradiction-goal proofs from contradiction diagnostics records plus supporting premises.
+   - Remaining scope: expand contradiction explanation depth and UX beyond baseline contradiction-goal reconstruction.
    - Architecture: [Contradiction signaling](architecture.md#contradiction-signaling)
    - Architecture: [Proof evaluation harness](architecture.md#proof-evaluation-harness)
+   - Decision: [DR-027 Dual-Channel Contradiction Diagnostics and Explanation Contract](decision-records/DR-027%20Dual-Channel%20Contradiction%20Diagnostics%20and%20Explanation%20Contract.md)
 
 ### 7.2. Exit criteria
 

@@ -9,6 +9,7 @@ from rdflib.term import Node, Variable
 from ..proof import RuleId
 from ..rules import (
     CallbackConsequent,
+    ContradictionConsequent,
     PatternTerm,
     PredicateCondition,
     Rule,
@@ -16,7 +17,7 @@ from ..rules import (
     TripleConsequent,
     TriplePattern,
 )
-from .consequents import CallbackSchedule, TripleProduction
+from .consequents import CallbackSchedule, ContradictionSchedule, TripleProduction
 
 
 class AlphaConstraint(BaseModel):
@@ -67,6 +68,7 @@ class CompiledRule(BaseModel):
     )
     productions: tuple[TripleProduction, ...] = Field(default_factory=tuple)
     callbacks: tuple[CallbackSchedule, ...] = Field(default_factory=tuple)
+    contradictions: tuple[ContradictionSchedule, ...] = Field(default_factory=tuple)
     variables: tuple[str, ...] = Field(default_factory=tuple)
 
 
@@ -227,6 +229,18 @@ class RuleCompiler:
             for consequent in rule.head
             if isinstance(consequent, CallbackConsequent)
         )
+        contradictions = tuple(
+            ContradictionSchedule(
+                category=consequent.category,
+                detail=consequent.detail,
+                arguments=tuple(
+                    cls._normalize_term(arg) for arg in consequent.arguments
+                ),
+                required_variables=cls._required_variables(consequent.arguments),
+            )
+            for consequent in rule.head
+            if isinstance(consequent, ContradictionConsequent)
+        )
         variables = tuple(sorted(available_bindings))
 
         return CompiledRule(
@@ -238,5 +252,6 @@ class RuleCompiler:
             predicate_conditions=predicate_conditions,
             productions=productions,
             callbacks=callbacks,
+            contradictions=contradictions,
             variables=variables,
         )

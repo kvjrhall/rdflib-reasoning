@@ -184,6 +184,19 @@ def test_render_proof_markdown_falls_back_to_comma_when_not_all_terms_shorten() 
     assert "(<urn:test:alice>, rdf:type, <urn:test:Animal>)" in rendered
 
 
+def test_render_proof_mermaid_escapes_angle_brackets_for_unshortened_urn_labels() -> (
+    None
+):
+    proof = _sample_proof()
+    graph = Graph()
+    graph.bind("rdf", RDF)
+
+    rendered = render_proof_mermaid(proof, namespace_manager=graph.namespace_manager)
+
+    assert "<urn:test:" not in rendered
+    assert "&lt;urn:test:" in rendered
+
+
 def test_notebook_proof_renderer_displays_markdown_and_mermaid(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

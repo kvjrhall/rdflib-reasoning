@@ -435,6 +435,7 @@ class NetworkMatcher:
                 salience=terminal.rule.salience,
                 productions=terminal.rule.productions,
                 callbacks=terminal.rule.callbacks,
+                contradictions=terminal.rule.contradictions,
                 silent=terminal.rule.silent,
                 bootstrap=terminal.rule.bootstrap,
             )
