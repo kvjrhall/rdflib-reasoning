@@ -8,6 +8,7 @@ In this document, we dive deeper into each component.
 - **Authoritative intended architecture**: This file is the single authoritative description of how the system *should* be structured and behave ("as it should be").
 - **Decision records as history**: Decision records in `docs/dev/decision-records/` capture the rationale and history that led to this architecture. Do not infer the current architecture from a subset of decision records; always treat this document as the baseline.
 - **Code as implementation**: The source code is the authority on how the system *currently* behaves ("as it is"). Where the code and this document disagree, that discrepancy represents design drift to be resolved by code changes, documentation changes, and/or new decision records.
+- **Prospective use cases as planning input**: [prospective-use-cases.md](prospective-use-cases.md) records research-facing aspirations and long-horizon use cases. It MAY motivate architectural additions and roadmap sequencing, but it is not itself authoritative scope and MUST NOT override this architecture, the roadmap, decision records, or source code. This posture is recorded in [DR-029 Prospective Use Cases as Non-Authoritative Planning Input](decision-records/DR-029%20Prospective%20Use%20Cases%20as%20Non-Authoritative%20Planning%20Input.md).
 
 ## Agent roles
 
@@ -29,6 +30,28 @@ Structural elements describe OWL 2 and related graph-scoped constructs in a way 
 - Structural elements expose `as_triples` and `as_quads` methods whose output conforms to the OWL 2 mapping to RDF and related RDF semantics specifications.
 - Models avoid embedding heavy graph/session types (such as `rdflib.Graph` or SPARQL result objects) and instead rely on node-level terms and Pydantic-generated JSON Schema as the primary interface.
 - The `rdflib-reasoning-middleware` project uses `GraphBacked` and `StructuralElement` models as tool argument/response schemas and as values embedded in middleware state for Research Agents.
+
+### Structural traversal and representation
+
+Structural traversal is the inverse-facing companion to structural-element serialization.
+Where `as_triples` and `as_quads` project a structural element into RDF, traversal lifts RDF graph content back into structural elements and related graph-backed objects.
+
+- Structural traversal SHOULD partition supported graph content into explicit `StructuralElement` or `GraphBacked` objects rather than forcing downstream agents to recover structural intent from raw triples alone.
+- Traversal over OWL 2 content SHOULD use the local OWL 2 Mapping to RDF specification artifacts and crosswalks as the primary Development Agent-facing references.
+- Traversal output SHOULD have a stable deterministic order so that graph-derived structural representations can be compared, rendered, embedded, and supplied to Research Agents repeatably.
+- Structural rendering SHOULD be distinct from structural traversal. Rendering MAY produce prose, markdown, or other human-readable text from structural elements, but it MUST NOT change the canonical structured payload.
+- Prose and text renderers SHOULD use RDFS labels, vocabulary metadata, CURIEs, and deterministic fallback identifiers so missing labels do not make output unstable.
+- Traversal SHOULD work over RDF graphs containing asserted triples, inferred triples, or both. Inferred triples SHOULD be treated as ordinary graph content for traversal, while derivation, provenance, or proof links MAY be preserved separately when available.
+- OWL structural traversal and OWL 2 RL inference SHOULD remain adjacent in roadmap planning. The system SHOULD avoid a design where inferred OWL-level facts cannot be lifted into structural representations that the rest of the repository can validate, render, or exchange.
+
+### OWL system composition
+
+The repository's OWL-related components are intended to compose rather than remain isolated features.
+
+- OWL 2 Mapping to RDF support SHOULD connect structural element serialization, graph traversal, and validation.
+- OWL 2 RL materialization SHOULD produce RDF graph output that can be consumed by structural traversal when the inferred triples correspond to supported structural constructs or assertions.
+- Proof and explanation facilities SHOULD be able to refer to structural elements when that yields a more meaningful user-facing claim, while preserving triple-level proof support for derivations that do not naturally correspond to one structural element.
+- OWL system integration SHOULD be demonstrated with graphs that include both asserted and inferred content, so architecture and tests exercise the asserted/inferred boundary explicitly.
 
 ### Schema-facing RDF boundary models
 
@@ -65,8 +88,8 @@ Middleware composition SHOULD use an explicit layered order (outer to inner):
    experiment
 2. LangChain prebuilt generic resilience middleware when needed (for example
    retry, fallback, context editing, and limits)
-3. RDF capability middleware such as `DatasetMiddleware` and
-   `RDFVocabularyMiddleware`
+3. RDF capability middleware such as `DatasetMiddleware`,
+   `RDFVocabularyMiddleware`, and `InferenceMiddleware`
 4. RDF orchestration and policy middleware such as
    `ContinuationGuardMiddleware`
 5. Provider-specific adapter middleware only when model-specific behavior
@@ -94,6 +117,23 @@ Memory and skills integration SHOULD be staged:
   stack layering and hook-role boundaries are stable.
 - Middleware state keys SHOULD remain concern-scoped (for example `rdf_*`,
   `continuation_*`, `memory_*`, `skills_*`) to avoid cross-concern coupling.
+
+Packaging and adoption experiments are intentionally separate from core
+semantic capability milestones:
+
+- LangGraph skill packaging MAY be evaluated after repeated workflows have
+  stable inputs, outputs, and success criteria.
+- Subagent packaging MAY be evaluated for bounded workflows such as retrieval,
+  axiom authoring, proof critique, or structural summarization.
+- Skill and subagent packaging MUST be treated as experimental adoption tracks
+  until concrete use cases show that they improve reliability, performance, or
+  ergonomics.
+- These packaging experiments are non-monotonic: evaluation MAY lead to
+  adoption, partial adoption, deferral, or rejection without changing the core
+  semantic architecture.
+
+This posture is recorded in
+[DR-030 Packaging Experiments as Post-Core Adoption Tracks](decision-records/DR-030%20Packaging%20Experiments%20as%20Post-Core%20Adoption%20Tracks.md).
 
 Process adoption guidance:
 
@@ -326,16 +366,48 @@ validation, whereas knowledge retrieval middleware performs remote RDF import.
 
 These rules are aligned with [DR-017 Search-First RDF Vocabulary Retrieval](decision-records/DR-017%20Search-First%20RDF%20Vocabulary%20Retrieval.md) and [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md).
 
-### Knowledge retrieval middleware
+### Graph import, provenance, and knowledge retrieval
 
-Knowledge retrieval middleware is responsible for importing structured knowledge into dataset-backed state.
-It is architecturally distinct from RDF vocabulary middleware: retrieval middleware performs remote RDF import and entity resolution, whereas vocabulary middleware exposes pre-indexed local vocabulary definitions.
+Graph import and provenance are core infrastructure for bringing structured
+knowledge into dataset-backed state in an inspectable way.
+Remote knowledge retrieval builds on that infrastructure, but it is a distinct
+capability that MAY be scheduled later than the local graph-import and
+provenance baseline.
 
+Knowledge retrieval middleware is architecturally distinct from RDF vocabulary
+middleware: retrieval middleware performs remote RDF import and entity
+resolution, whereas vocabulary middleware exposes pre-indexed local vocabulary
+definitions.
+
+- Graph import SHOULD support loading RDF content into controlled graph or dataset contexts before remote provider-specific retrieval is required.
+- Imported graph content SHOULD carry provenance sufficient to explain where facts originated, how they were imported, and which graph or dataset context owns them.
+- Provenance SHOULD be modeled as a cross-cutting concern for graph import, knowledge exchange, proof evaluation, and memory-oriented use cases rather than as retrieval-only metadata.
+- If provenance artifacts are intended to cross the runtime boundary as schema-driven values visible to the Research Agent, they SHOULD be modeled as `GraphBacked` structures rather than ad hoc dictionaries or transport-specific payloads.
 - Retrieval middleware MAY support remote RDF retrieval from providers such as DBpedia and, later, Wikidata.
 - Retrieval middleware MAY support extraction of structured site metadata such as embedded JSON-LD from HTML pages.
-- Retrieval results SHOULD carry provenance sufficient to explain where imported facts originated.
-- If entity resolution outputs or provenance artifacts are intended to cross the runtime boundary as schema-driven values visible to the Research Agent, they SHOULD be modeled as `GraphBacked` structures rather than ad hoc dictionaries or transport-specific payloads.
+- Retrieval results SHOULD reuse the graph-import and provenance contracts rather than defining provider-specific import semantics.
+- If entity resolution outputs are intended to cross the runtime boundary as schema-driven values visible to the Research Agent, they SHOULD be modeled as `GraphBacked` structures rather than ad hoc dictionaries or transport-specific payloads.
 - The entity-resolution pipeline MAY be exposed either as a sequence of tools or as a dedicated subagent with a constrained prompt and structured output. The architectural requirement is that its inputs and outputs remain explicit, inspectable, and controllable for experiments.
+
+### Knowledge exchange and axiom authoring
+
+Knowledge exchange is the controlled movement between RDF graph content,
+structural elements, prose, proof objects, and schema-driven payloads.
+
+- Knowledge exchange SHOULD build on structural traversal and representation so
+  graph content can be inspected as typed structural objects and deterministic
+  text.
+- Middleware MAY eventually expose axiom-authoring tools that let Research
+  Agents create supported structural elements directly, validate them, and add
+  their RDF projection to dataset-backed state.
+- Axiom-authoring surfaces SHOULD preserve the same boundary discipline as
+  dataset tools: schema-visible inputs, explicit validation, recoverable tool
+  errors, and thin adapters over internal implementation methods.
+- Common non-OWL patterns such as SKOS concepts or PROV derivations MAY receive
+  graph-backed helper models when repeated use cases justify them, but such
+  helpers MUST remain explicit extensions rather than implicit magic patterns.
+- Knowledge exchange SHOULD preserve provenance, citations, trust metadata, or
+  other quality signals when those signals are available in the source workflow.
 
 ### Inference middleware
 
@@ -359,7 +431,7 @@ This subsection codifies the contract and flow so that RETEStore and Development
 - **Persistence contract:** On open or attach, `RETEStore` MUST treat the current contents of the backing store as authoritative facts for each context. It MUST seed the engine from the fully materialized contents of that context; it MUST NOT attempt to reconstruct an asserted-versus-derived distinction from persisted RDF alone.
 - **Warm-start contract:** Warm-start MUST proceed by creating the engine, executing zero-precondition bootstrap rules once for that engine-context initialization, reading the existing triples for the context from the backing store, warming the engine from those triples, and materializing any non-silent deductions attributable to that existing graph content back into the store. Bootstrap execution MAY repeat when the engine for a context is recreated (for example after reopen), but MUST be idempotent with respect to resulting logical state and materialized output policy. Triples produced solely during bootstrap and its bootstrap-only closure MUST remain engine-internal unless later source-graph input independently causes a non-silent materialization.
 - **Engine update contract:** `RETEEngine.add_triples()` MUST be idempotent for already-known triples when derivation logging is disabled. `RETEEngine.add_triples()` and `RETEEngine.warmup()` MUST compute a fixed point for their input update set. `BatchDispatcher` provides store-level fixed-point iteration across reentrant materialization; it MUST NOT be relied upon to compensate for a partially saturating engine update step.
-- **Current implementation subset:** The current engine implementation MAY remain add-only so long as it preserves stable Fact identity, persistent alpha/beta memory, agenda-ordered execution, derivation logging, callback execution, and JTMS-compatible support bookkeeping for derived facts. This subset is intended to preserve the execution and support shapes required for future retraction without claiming full truth maintenance today.
+- **Implemented update and retraction baseline:** The current engine implementation preserves stable Fact identity, persistent alpha/beta memory, agenda-ordered execution, derivation logging, callback execution, and JTMS-compatible support bookkeeping for derived facts across add and remove flows. Development and debugging SHOULD treat recursive retraction and store/engine removal wiring as part of the implemented deductive dataset substrate, not as a future add-on.
 - **Derivation logging contract:** If derivation logging is enabled, the engine MUST record rule applications in an engine-native structured form centered on grouped triple conclusions, supporting premises, a minimal rule identifier, and the context. Engine-native derivation logs MUST support arbitrary custom rules and MUST NOT require every derivation step to map one-to-one to a named OWL 2 structural axiom. Derivation records MUST preserve per-application visibility metadata such as effective `silent` state and bootstrap-phase occurrence so downstream reconstruction can enforce policy without losing raw provenance.
 - **Silent visibility contract:** Rule-level silence MUST remain an immutable rule-definition property that defines default visibility during normal operation. Derivation records MUST carry the effective per-firing visibility in `DerivationRecord.silent`. Bootstrap-phase firings MAY therefore be recorded with `DerivationRecord.silent=True` even when `Rule.silent=False`, and `DerivationRecord.bootstrap=True` MUST distinguish that phase override from the rule's default policy. Silent rule applications MUST still be logged in derivation records when logging is enabled.
 - **Profile-specific rule partitioning contract:** A production-oriented ruleset MAY split a canonical entailment pattern into multiple internal rules so visible and silent materialization policy can differ by term class or other guard conditions. When this is done, a conformant profile SHOULD preserve the canonical semantic rule identity used by specification-facing tests and documentation, while production-only split rule ids remain profile implementation details.
@@ -465,7 +537,7 @@ The engine SHOULD employ a **Left-Deep** join tree by default but MUST support *
 
 The engine MUST provide a **Justification-based Truth Maintenance System (JTMS)** to manage the deductive closure of the RDF graph.
 
-- **Current implementation subset:** The add-only implementation MAY stop at recording support-compatible `Fact`, `PartialMatch`, and `Justification` data so long as later recursive retraction is not precluded. This means support sets MAY be recorded before removal semantics are implemented, provided the recorded support objects are the ones future truth maintenance will use rather than disposable scaffolding.
+- **Implemented support substrate:** The engine records support-compatible `Fact`, `PartialMatch`, and `Justification` data for stated and derived facts. These support objects are part of the live JTMS substrate used for proof reconstruction, support verification, and recursive retraction rather than disposable scaffolding.
 - **Multi-Parent Support**: The `TMSController` MUST support multiple justifications for a single Fact. A Fact is considered logically supported if it has at least one valid `Justification` or is flagged as "Stated" (User-inserted).
 - **Dependency Tracking**: Every `Justification` MUST capture a `PartialMatch` (as a tuple of FactIDs) to enable full **Derivation Tree** traversal. This is REQUIRED for both recursive retraction and generating human-readable explanations (e.g., Graphviz).
 - **Recursive Retraction**: When a `Fact` is retracted, the `TMSController` MUST perform a **Mark-Verify-Sweep** operation. It MUST only retract downstream consequences if their `Justification` set becomes empty.
@@ -481,7 +553,7 @@ Rule execution MUST be decoupled from matching via an `Agenda`.
 - **Conflict Resolution**: The `Agenda` SHOULD prioritize execution based on **Salience** (user-defined) and **Inference Depth** (Breadth-First). Breadth-First execution is RECOMMENDED to ensure shorter derivation paths are found before complex property chains.
 - **Logical Production Path**: Logical triple production MUST occur only through engine-managed rule heads. Python callbacks MUST NOT be an alternate inference channel or graph-mutation path.
 - **Callbacks**: Callbacks MUST interact with the engine only through a read-only `RuleContext` or equivalent hook context. They MAY emit logs, metrics, traces, or other external signals, but they MUST NOT modify graph state.
-- **Retraction Compatibility**: Because callbacks are non-logical and non-mutating, `RetractionNotImplemented` MUST be interpreted as meaning that no reversal is required for logical consistency. Retraction support remains a future design goal; the initial implementation MAY remain add-only so long as its data structures and rule model do not preclude JTMS-backed removal later.
+- **Retraction Compatibility**: Because callbacks are non-logical and non-mutating, `RetractionNotImplemented` MUST be interpreted as meaning that no callback reversal is required for logical consistency. Logical triple removal is handled by the JTMS-backed retraction path described above, including support verification and recursive Mark-Verify-Sweep behavior.
 
 ### RDF Data-Model Enforcement
 
