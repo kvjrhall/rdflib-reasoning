@@ -50,6 +50,8 @@ generated HTML output with `make docs-serve`.
 If you want to see the repository's RDFS inference capabilities quickly, start with these checked-in notebooks:
 
 - [notebooks/demo-rdfs-inference.ipynb](./notebooks/demo-rdfs-inference.ipynb): shortest end-to-end walkthrough of RDFLib-backed RDFS materialization plus a proof view showing which rule applications justify one inferred triple
+- [notebooks/demo-rdfs-retraction.ipynb](./notebooks/demo-rdfs-retraction.ipynb): update-aware companion showing that ordinary statement removal retracts dependent RDFS inferences
+- [notebooks/demo-contradiction-rules.ipynb](./notebooks/demo-contradiction-rules.ipynb): OWL 2 RL contradiction diagnostics when contradiction rules are included in the active ruleset
 - [notebooks/demo-proof-reconstructor.ipynb](./notebooks/demo-proof-reconstructor.ipynb): proof-focused companion notebook covering Mermaid rendering, markdown rendering, and raw `DirectProof` inspection
 - [notebooks/README.md](./notebooks/README.md): notebook index with suggested reading order for demos and experiments
 
@@ -79,6 +81,21 @@ graph.add((mammal, RDFS.subClassOf, animal))
 
 assert (alice, RDF.type, animal) in graph
 ```
+
+Because the reasoning store is wired through ordinary RDFLib graph events, statement
+retraction uses the normal `graph.remove(...)` API:
+
+```python
+graph.remove((alice, RDF.type, person))
+
+assert (alice, RDF.type, animal) not in graph
+```
+
+Contradiction detection is also available through the same engine path: include the
+appropriate contradiction rules in `RETEEngineFactory(rules=...)`, and the default
+recorder records the diagnostic before raising `ContradictionDetectedError`. The
+contradiction notebook shows how to choose recorder policy and inspect the resulting
+records.
 
 ## Component Overview
 

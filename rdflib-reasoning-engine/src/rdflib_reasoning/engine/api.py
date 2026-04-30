@@ -177,10 +177,11 @@ PredicateTermPolicy = Literal["error", "warning"]
 class RETEEngine:
     """Public engine facade for fixed-point triple entailment within one context.
 
-    The facade represents the add-only first implementation boundary:
-    triple-oriented rule execution, optional derivation logging, and warm-start
-    over an existing context. User-facing proof reconstruction is layered on top
-    of derivation records rather than being the engine's execution format.
+    The facade represents the direct implementation boundary: triple-oriented
+    rule execution, dependency-aware retraction, optional derivation logging,
+    and warm-start over an existing context. User-facing proof reconstruction is
+    layered on top of derivation records rather than being the engine's
+    execution format.
 
     The engine also enforces RDF 1.1 triple well-formedness for both stated and
     inferred triples. Literal subjects and non-IRI predicates never enter

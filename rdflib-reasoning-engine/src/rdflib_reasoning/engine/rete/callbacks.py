@@ -34,8 +34,9 @@ def rule_action(undo: Callable | None = None, salience: int = 0):
     """
     Decorator to register a non-mutating callback attached to a rule match.
 
-    The `undo` parameter remains as forward-looking scaffolding while
-    retraction is out of scope for the first implementation.
+    The ``undo`` parameter is reserved for future callback-specific undo
+    policy. Logical triple retraction is handled by the TMS path rather than
+    by callback actions.
     """
 
     def decorator(func: F) -> F:

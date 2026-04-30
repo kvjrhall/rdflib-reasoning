@@ -15,7 +15,7 @@ class TripleProduction(BaseModel):
     Declarative logical consequent managed by the engine.
 
     Logical rule heads are represented as engine-managed triple production so
-    that fixed-point reasoning and future truth maintenance remain centralized.
+    that fixed-point reasoning and truth-maintenance support remain centralized.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -68,8 +68,8 @@ class ActionInstance(BaseModel):
     Scheduled unit of work derived from a completed match.
 
     An action instance may represent logical triple production, an
-    observational callback, or both as separate scheduled consequences of a
-    single terminal match.
+    observational callback, a contradiction diagnostic, or a mixed set of
+    scheduled consequences from a single terminal match.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

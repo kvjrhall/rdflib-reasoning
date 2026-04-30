@@ -11,8 +11,15 @@ The `rdflib-reasoning-engine` package provides an efficient general purpose forw
 If you want to see the current RDFS inference surface in action, start with:
 
 - [../notebooks/demo-rdfs-inference.ipynb](../notebooks/demo-rdfs-inference.ipynb): compact end-to-end tutorial for RDFLib-backed RDFS materialization plus a proof view of the rule applications behind one inferred triple
-- [../notebooks/demo-proof-reconstructor.ipynb](../notebooks/demo-proof-reconstructor.ipynb): proof-focused companion notebook covering proof reconstruction, Mermaid rendering, markdown rendering, and raw proof inspection
+- [../notebooks/demo-rdfs-retraction.ipynb](../notebooks/demo-rdfs-retraction.ipynb): ordinary RDFLib `graph.remove(...)` usage with dependency-aware retraction of inferred triples
 - [../notebooks/demo-contradiction-rules.ipynb](../notebooks/demo-contradiction-rules.ipynb): dual-channel OWL 2 RL contradiction diagnostics (`ContradictionRecord`), recorder policies, contradiction-goal proof reconstruction, and rendering
+- [../notebooks/demo-proof-reconstructor.ipynb](../notebooks/demo-proof-reconstructor.ipynb): proof-focused companion notebook covering proof reconstruction, Mermaid rendering, markdown rendering, and raw proof inspection
+
+The RDFLib integration is intentionally ordinary at the call site: adding triples
+materializes supported conclusions, and removing asserted triples retracts dependent
+conclusions through the same `Graph` API. Contradiction diagnostics are likewise
+engine-managed when the active ruleset includes contradiction-producing rules; if no
+recorder is supplied, the default policy records the contradiction and raises.
 
 ## Feature Matrix
 
