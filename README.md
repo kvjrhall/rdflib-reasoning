@@ -8,21 +8,21 @@
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/common.py                                   |        6 |        0 |    100% |           |
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/structural\_element.py                      |       77 |       27 |     65% |39, 42, 46, 68, 74, 79, 96, 101-115, 119-140, 149, 154 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/\_\_init\_\_.py                            |        9 |        0 |    100% |           |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/api.py                                     |      282 |       13 |     95% |281, 299, 398-408, 486, 557-559 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/api.py                                     |      282 |       13 |     95% |282, 300, 399-409, 487, 558-560 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/batch\_dispatcher.py                       |       73 |        2 |     97% |  133, 165 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/builtins.py                                |       36 |        5 |     86% |15, 25, 35, 45, 56 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/derivation.py                              |      109 |       18 |     83% |24-33, 37, 113-115, 129-130, 133, 158, 217, 262, 287 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/derivation.py                              |      109 |       18 |     83% |25-34, 38, 114-116, 130-131, 134, 159, 222, 267, 292 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/proof.py                                   |      101 |        1 |     99% |        12 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/proof\_notebook.py                         |       24 |        2 |     92% |    48, 55 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/proof\_rendering.py                        |      183 |       26 |     86% |83, 125, 147-149, 156, 175, 182, 200, 209-222, 234-240, 252-253 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/\_\_init\_\_.py                       |        8 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/agenda.py                             |       40 |        2 |     95% |    64, 67 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/callbacks.py                          |       16 |        6 |     62% |     41-48 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/callbacks.py                          |       16 |        6 |     62% |     42-49 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/compiler.py                           |       83 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/consequents.py                        |       50 |        5 |     90% |   100-104 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/facts.py                              |       15 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/network.py                            |      229 |        2 |     99% |  138, 394 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/tms.py                                |      298 |       14 |     95% |51, 60, 86, 178, 282, 287, 299, 338, 354, 360, 368, 398, 487, 518 |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete/tms.py                                |      298 |       14 |     95% |51, 60, 86, 178, 285, 290, 302, 341, 357, 363, 371, 401, 490, 521 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rete\_store.py                             |      131 |       18 |     86% |158, 175, 182-183, 188, 192, 232-233, 257, 269, 276, 287, 304, 308, 312, 316, 320, 324 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rules.py                                   |       54 |        4 |     93% |11-12, 24, 32 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/rulesets/\_\_init\_\_.py                   |        5 |        0 |    100% |           |
