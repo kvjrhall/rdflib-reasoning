@@ -13,6 +13,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 - **Intended architecture ("as it should be")**: `docs/dev/architecture.md` is the authoritative description of the current intended architecture and design.
 - **Planned scope and sequencing**: `docs/dev/roadmap.md` is the authoritative description of planned feature priority, release grouping, and current intended delivery scope.
 - **Rationale and history**: `docs/dev/decision-records/` capture why the architecture is the way it is and how it evolved; they are not, by themselves, the operational specification for the current state.
+- **Prospective use cases and research aspirations**: `docs/dev/prospective-use-cases.md` is formal planning input for long-horizon use cases, shared foundations, ordering dependencies, and integration risks. It MAY motivate architecture or roadmap changes, but it MUST NOT override `architecture.md`, `roadmap.md`, decision records, local `AGENTS.md` files, or source code.
+- **Development-agent methodology**: `docs/dev/approach.md` explains the repository's approach to Development Agents as design participants. It is background orientation rather than current scope authority.
 - **Implementation ("as it is")**: The codebase is the authority on the system’s actual behavior. When code and `architecture.md` disagree, this discrepancy MUST be treated as design drift to be resolved via code changes, documentation changes, and/or new decision records.
 
 ## Architecture and roadmap synchronization
