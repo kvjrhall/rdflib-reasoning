@@ -62,3 +62,6 @@ autolabeler:
   - label: "tests"
     files:
       - "**/tests/**/*"
+exclude-labels:
+  - "ci"
+  - "exclude-from-changelog"
