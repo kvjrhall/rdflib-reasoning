@@ -7,7 +7,9 @@ This directory contains the repository's checked-in notebooks for demos, experim
 If you want a quick tour of the current reasoning surface, start here:
 
 1. [demo-rdfs-inference.ipynb](./demo-rdfs-inference.ipynb): shortest tutorial for RDFLib-backed RDFS materialization and the rule applications behind one inferred triple
-2. [demo-proof-reconstructor.ipynb](./demo-proof-reconstructor.ipynb): proof-focused companion notebook covering Mermaid rendering, markdown rendering, raw proof inspection, and fallback-to-leaf behavior
+2. [demo-rdfs-retraction.ipynb](./demo-rdfs-retraction.ipynb): companion tutorial showing that ordinary RDFLib statement removal retracts dependent RDFS inferences
+3. [demo-contradiction-rules.ipynb](./demo-contradiction-rules.ipynb): contradiction diagnostics and explanation when OWL 2 RL contradiction rules are enabled
+4. [demo-proof-reconstructor.ipynb](./demo-proof-reconstructor.ipynb): proof-focused companion notebook covering Mermaid rendering, markdown rendering, raw proof inspection, and fallback-to-leaf behavior
 
 ## Middleware demo series
 
