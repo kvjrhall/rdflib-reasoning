@@ -21,6 +21,7 @@ from .proof import (
 
 
 def format_contradiction_record(record: ContradictionRecord) -> str:
+    """Format one contradiction diagnostic for logs, warnings, or exceptions."""
     message = (
         f"[{record.category}] {record.detail} "
         f"(rule={record.rule_id.ruleset}:{record.rule_id.rule_id}, seq={record.sequence_id})"
@@ -169,7 +170,11 @@ class ExplanationReconstructor(Protocol):
 
 
 class DerivationProofReconstructor:
-    """Rebuild a `DirectProof` tree from engine-native derivation records."""
+    """Rebuild a `DirectProof` tree from engine-native trace records.
+
+    Triple goals are reconstructed from ``DerivationRecord`` values.
+    Contradiction goals are reconstructed from ``ContradictionRecord`` values.
+    """
 
     @staticmethod
     def _matching_records(

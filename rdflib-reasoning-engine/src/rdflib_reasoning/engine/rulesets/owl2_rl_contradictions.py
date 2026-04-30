@@ -27,6 +27,7 @@ _LT = Variable("lt")
 _NPA = Variable("npa")
 
 
+# Rules that emit ``ContradictionConsequent`` diagnostics rather than triples.
 OWL2_RL_CONTRADICTION_RULES: tuple[Rule, ...] = (
     Rule(
         id=RuleId(ruleset="owl2-rl-contradiction", rule_id="eq-diff1"),

@@ -137,7 +137,7 @@ class RetractionOutcome(BaseModel):
     justification records, and clear the ``stated`` flag from a fact that
     survives because of independent derived support. This outcome surfaces all
     three categories so that engine-side wiring can mirror the changes through
-    the supported integration path in a future stage.
+    the supported RDFLib integration path.
     """
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
@@ -213,8 +213,11 @@ class TMSController(BaseModel):
     """
     Controller for truth-maintenance bookkeeping and recursive retraction.
 
-    Retraction remains future work, but the controller scaffold marks the
-    boundary that add-only implementations should remain compatible with.
+    The controller owns fact support state, dependency graph maintenance, and
+    Mark-Verify-Sweep retraction. It deliberately does not mutate RETE matcher
+    memory or backing RDFLib stores; callers such as ``RETEEngine`` and
+    ``RETEStore`` compose those integration responsibilities around the TMS
+    primitive.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

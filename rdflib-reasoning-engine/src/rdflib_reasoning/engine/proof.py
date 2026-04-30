@@ -48,8 +48,8 @@ class ContradictionClaim(GraphBacked):
     witness: TripleFact = Field(
         ...,
         description=(
-            "The triple witnessing a contradiction, typically of the form "
-            "`?x rdf:type owl:Nothing`."
+            "The triple witnessing a contradiction, such as an offending "
+            "property assertion or an `?x rdf:type owl:Nothing` assertion."
         ),
     )
 
@@ -146,8 +146,9 @@ class ContradictionRecord(ProofModel):
     witness: TripleFact | None = Field(
         default=None,
         description=(
-            "Optional contradiction witness triple for presentation, commonly "
-            "an `?x rdf:type owl:Nothing` style witness."
+            "Optional contradiction witness triple for presentation, such as "
+            "an offending property assertion or an `?x rdf:type owl:Nothing` "
+            "assertion."
         ),
     )
     category: str | None = Field(

@@ -13,11 +13,11 @@ if TYPE_CHECKING:
 
 
 class RuleContext:
-    """Placeholder read-only context passed to public predicates and callbacks."""
+    """Read-only context passed to public predicates and callbacks."""
 
 
 class PredicateHook(ABC):
-    """Placeholder public read-only predicate hook used in rule conditions."""
+    """Public read-only predicate hook used in rule conditions."""
 
     @abstractmethod
     def test(self, context: RuleContext, *args: Node) -> bool:
@@ -25,7 +25,7 @@ class PredicateHook(ABC):
 
 
 class CallbackHook(ABC):
-    """Placeholder public non-logical callback hook attached to a rule match."""
+    """Public non-logical callback hook attached to a rule match."""
 
     @abstractmethod
     def run(self, context: RuleContext, *args: Node) -> None:
@@ -33,7 +33,7 @@ class CallbackHook(ABC):
 
 
 class Builtins(TypedDict, total=False):
-    """Placeholder registry for host-provided predicates and callbacks.
+    """Registry for host-provided predicates and callbacks.
 
     Public builtins are split into read-only predicate evaluation and
     observational callbacks. Logical triple production remains engine-managed
@@ -148,7 +148,7 @@ class Rule(ProofModel):
     The public Rule IR stays RDF triple-oriented. It uses RDFLib Variables for
     bindings, read-only predicate calls for body-side tests, engine-managed
     triple production for logical consequents, and optional non-mutating
-    callbacks for observational side effects.
+    callbacks or contradiction signals for observational side effects.
     """
 
     id: RuleId = Field(..., description="Stable identifier for this rule definition.")
