@@ -88,7 +88,7 @@ This release delivers the foundational dataset-backed middleware and the initial
 - The `0.2.0` dataset middleware surface is limited to the default-graph baseline and does not yet require named-graph management or generic quad-level CRUD.
 - Baseline and middleware conditions are comparable through shared evaluation metrics with reduced prompt asymmetry.
 
-## 5. Release `0.3.0`: Vocabulary middleware and namespace discipline
+## 5. Release `0.3.0`: Vocabulary middleware and namespace discipline (released)
 
 Priority: high
 
