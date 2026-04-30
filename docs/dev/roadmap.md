@@ -162,7 +162,7 @@ later milestones.
 - Silent-rule visibility semantics are implemented so silent derivations remain logged while reconstructed user-facing proofs exclude silent records.
 - Zero-precondition bootstrap rules execute once per engine-context initialization before warmup over existing graph content, with idempotent behavior across reopen/recreate and without materializing bootstrap-only closure back into the graph.
 
-## 6. Release `0.4.0`: Deductive RDFLib dataset behavior
+## 6. Release `0.4.0`: Deductive RDFLib dataset behavior (released)
 
 Priority: highest
 
