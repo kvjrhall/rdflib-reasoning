@@ -5,7 +5,7 @@ from typing import overload
 from pydantic import BaseModel, ConfigDict
 from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DefinedNamespace
-from rdflib_reasoning.middleware.dataset_model import N3IRIRef
+from rdflib_reasoning.axiom.common import N3IRIRef
 
 from .common import VocabularyTermType
 

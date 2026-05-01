@@ -1,12 +1,19 @@
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 from itertools import chain
-from typing import ClassVar, Literal, Self, get_args, get_origin, get_type_hints
+from typing import Any, ClassVar, Literal, Self, get_args, get_origin, get_type_hints
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    model_validator,
+)
 from rdflib import RDF, IdentifiedNode
 
-from .common import ContextIdentifier, Quad, Triple
+from .common import ContextIdentifier, N3Resource, Quad, Triple
 
 
 class GraphBacked(BaseModel, ABC):
@@ -20,6 +27,14 @@ class GraphBacked(BaseModel, ABC):
     container/session/handle types; they MAY use rdflib node types (URIRef,
     BNode, Literal, IdentifiedNode, etc.).
     """
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        if cls is GraphBacked:
+            raise TypeError(
+                "GraphBacked cannot be instantiated directly; subclass a concrete "
+                "graph-backed model."
+            )
+        return super().__new__(cls)
 
     context: ContextIdentifier = Field(
         ..., description="The graph (context) wherein this entity is defined."
@@ -82,9 +97,10 @@ class StructuralElement(GraphBacked, ABC):
 class Seq[T: StructuralElement](StructuralElement):
     """A Sequence of Structural Elements and their corresponding `rdf:List` nodes."""
 
+    _require_concrete_kind: ClassVar[bool] = True
     kind: Literal["seq"] = "seq"
 
-    names: Sequence[IdentifiedNode] = Field(
+    names: Sequence[N3Resource] = Field(
         ...,
         description="Identifiers for each `rdf:List` node in the sequence; typically blank nodes in the absence of skolemization.",
     )
@@ -141,7 +157,16 @@ class Seq[T: StructuralElement](StructuralElement):
 
 
 class DeclarationElement(StructuralElement, ABC):
-    _require_concrete_kind: ClassVar[bool] = False
+    name_value: N3Resource = Field(
+        ...,
+        validation_alias=AliasChoices("name", "name_value"),
+        serialization_alias="name",
+    )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def name(self) -> IdentifiedNode:
+        return self.name_value
 
     @property
     @abstractmethod

@@ -20,12 +20,12 @@ from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 from rdflib import RDFS, Graph, IdentifiedNode, URIRef
-from rdflib_reasoning.axiom.common import Triple
+from rdflib_reasoning.axiom.common import N3IRIRef, Triple
 from rdflib_reasoning.middleware.dataset_middleware import (
     WhitelistViolation,
     _format_whitelist_violation_message,
 )
-from rdflib_reasoning.middleware.dataset_model import N3IRIRef, SerializationResponse
+from rdflib_reasoning.middleware.dataset_model import SerializationResponse
 from rdflib_reasoning.middleware.dataset_state import DatasetState
 from rdflib_reasoning.middleware.namespaces.common import VocabularyTermType
 from rdflib_reasoning.middleware.namespaces.spec_index import (

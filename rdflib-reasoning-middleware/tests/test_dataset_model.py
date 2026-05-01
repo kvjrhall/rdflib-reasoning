@@ -11,15 +11,14 @@ from pydantic import (
     TypeAdapter,
 )
 from rdflib import RDF, XSD, BNode, IdentifiedNode, Literal, Node, URIRef
-from rdflib_reasoning.middleware.dataset_model import (
-    _TURTLE_ECMA_BLANK_NODE_PATTERN,
+from rdflib_reasoning.axiom.common import (
     N3ContextIdentifier,
     N3IRIRef,
     N3Node,
-    N3Quad,
     N3Resource,
-    N3Triple,
 )
+from rdflib_reasoning.axiom.n3_terms import TURTLE_ECMA_BLANK_NODE_PATTERN
+from rdflib_reasoning.middleware.dataset_model import N3Quad, N3Triple
 
 type TestData[T] = Generator[T, Any, Any]
 
@@ -27,7 +26,7 @@ type TestData[T] = Generator[T, Any, Any]
 # Fixtures for RDF Nodes
 # =============================================================================
 
-turtle_regex = re.compile(_TURTLE_ECMA_BLANK_NODE_PATTERN)
+turtle_regex = re.compile(TURTLE_ECMA_BLANK_NODE_PATTERN)
 
 # Fixtures for RDF Nodes - Valid terms
 # -----------------------------------------------------------------------------

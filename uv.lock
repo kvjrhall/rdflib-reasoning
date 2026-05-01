@@ -2330,6 +2330,8 @@ source = { editable = "rdflib-reasoning-axioms" }
 dependencies = [
     { name = "pydantic" },
     { name = "rdflib" },
+    { name = "regex" },
+    { name = "rfc3987-syntax" },
 ]
 
 [package.optional-dependencies]
@@ -2337,15 +2339,19 @@ dev = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "types-regex" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "mypy", marker = "extra == 'dev'" },
-    { name = "pydantic" },
+    { name = "pydantic", specifier = ">=2.12" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
     { name = "rdflib" },
+    { name = "regex" },
+    { name = "rfc3987-syntax" },
     { name = "ruff", marker = "extra == 'dev'" },
+    { name = "types-regex", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev"]
 

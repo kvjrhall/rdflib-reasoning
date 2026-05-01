@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from rdflib_reasoning.middleware.dataset_model import N3IRIRef
+from rdflib_reasoning.axiom.common import N3IRIRef
 from rdflib_reasoning.middleware.namespaces.common import VocabularyTermType
 
 

@@ -19,7 +19,7 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.types import Command
 from pydantic import NonNegativeInt
 from rdflib import BNode, Node, URIRef
-from rdflib_reasoning.axiom.common import Triple
+from rdflib_reasoning.axiom.common import TURTLE_BLANK_NODE, Triple
 
 from ._message_heuristics import (
     completed_turtle_answer_represents_empty_graph,
@@ -32,7 +32,6 @@ from ._message_heuristics import (
 )
 from .continuation_state import ContinuationMode
 from .dataset_model import (
-    TURTLE_BLANK_NODE,
     MutationResponse,
     N3Triple,
     NewResourceNodeResponse,
