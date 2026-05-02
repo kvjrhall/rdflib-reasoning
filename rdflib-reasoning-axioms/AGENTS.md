@@ -1,36 +1,144 @@
 # Axioms Guidance
 
-The `rdflib-reasoning-axioms` package defines graph-scoped domain models that SHOULD remain friendly to future runtime boundaries even when the immediate caller is a Development Agent or an internal package.
+The `rdflib-reasoning-axioms` package defines graph-scoped domain models for
+runtime callers, including Research Agents through package-exposed tools or
+middleware and other repository packages. Development Agents maintain this
+package, its source documentation, and its docstrings; they are not runtime
+callers of this package.
 
-That rationale is accurate: keeping axioms boundary-friendly preserves many later design options for proof models, Research Agent tools, retrieval surfaces, and other structured interactions without forcing a large redesign of the domain layer.
+Keeping axioms boundary-friendly preserves later design options for proof
+models, Research Agent tools, retrieval surfaces, structural representation, and
+other schema-driven interactions without forcing a redesign of the domain layer.
 
 ## Authoritative references
 
-- Treat [`docs/dev/architecture.md`](../docs/dev/architecture.md) as the authoritative architecture, especially:
+- Treat [`docs/dev/architecture.md`](../docs/dev/architecture.md) as the
+  authoritative architecture, especially:
   - `Structural elements and middleware`
+  - `Structural traversal and representation`
   - `Schema-facing RDF boundary models`
-- Treat [`docs/dev/decision-records/DR-002 Structural Elements and Middleware Integration.md`](../docs/dev/decision-records/DR-002%20Structural%20Elements%20and%20Middleware%20Integration.md) as the authoritative rationale for `GraphBacked` and `StructuralElement`.
-- Treat [`docs/dev/decision-records/DR-011 Schema-Facing RDF Boundary Models.md`](../docs/dev/decision-records/DR-011%20Schema-Facing%20RDF%20Boundary%20Models.md) as the authoritative rule set for schema-facing RDF boundary models.
+  - `Knowledge exchange and axiom authoring`
+- Treat
+  [`docs/dev/roadmap.md`](../docs/dev/roadmap.md) as the authoritative release
+  and priority plan, especially release `0.6.0` for structural traversal and
+  release `0.10.0` for knowledge exchange and axiom authoring.
+- Treat
+  [`docs/dev/decision-records/DR-002 Structural Elements and Middleware Integration.md`](../docs/dev/decision-records/DR-002%20Structural%20Elements%20and%20Middleware%20Integration.md)
+  as the authoritative rationale for `GraphBacked` and `StructuralElement`.
+- Treat
+  [`docs/dev/decision-records/DR-011 Schema-Facing RDF Boundary Models.md`](../docs/dev/decision-records/DR-011%20Schema-Facing%20RDF%20Boundary%20Models.md)
+  as the authoritative rule set for schema-facing RDF boundary models.
+- Treat
+  [`docs/dev/decision-records/DR-003 Research Agent and Development Agent Terminology.md`](../docs/dev/decision-records/DR-003%20Research%20Agent%20and%20Development%20Agent%20Terminology.md)
+  as the authoritative rule set for role terminology and visibility boundaries.
+- Treat
+  [`docs/dev/prospective-use-cases.md`](../docs/dev/prospective-use-cases.md)
+  as long-horizon planning input only. It MAY explain motivation, but it MUST
+  NOT override architecture, roadmap, decision records, local `AGENTS.md`, or
+  source code.
+
+## Documentation and runtime visibility
+
+- `AGENTS.md` and design docs are Development Agent-facing materials. Research
+  Agents MUST NOT see them.
+- Docstrings are rendered package documentation for client code and package
+  consumers. They MUST NOT cite repository-local specs, crosswalks, `AGENTS.md`,
+  design docs, or other Development Agent-only materials.
+- Source comments that cannot become part of generated documentation MAY cite
+  repository-local specs and crosswalks for Development Agents.
+- Generated JSON Schema, tool descriptions, serialized model fields, and
+  validation errors are the runtime surfaces Research Agents may see when axioms
+  are exposed through tools, middleware, or other package boundaries.
+- Schema-visible descriptions SHOULD stand alone at runtime and SHOULD prefer
+  official specification names, structural forms, field meanings, and compact
+  lexical examples over repository-internal documentation references.
 
 ## Core package purpose
 
-- The primary purpose of this package is round-trip `graph -> axiomatization -> graph` transformation through stable graph-scoped domain models.
-- Transformation inputs MUST be treated as immutable and MUST produce new instances or outputs rather than mutating caller-owned graph structures in place.
-- The OWL 2 Mapping to RDF Graphs specification MUST be treated as the authoritative mapping reference, together with the transitive specifications it relies upon.
+- Current package work centers on graph-scoped Pydantic structural models and
+  RDF projection through `as_triples` and `as_quads`.
+- The long-term round-trip goal is `graph -> axiomatization -> graph`, but
+  graph-to-structural traversal, stable representation, rendering, and
+  Research Agent-facing axiom-authoring surfaces are planned capabilities, not
+  assumptions that every current class or test may rely on.
+- Transformation inputs MUST be treated as immutable and MUST produce new
+  instances or outputs rather than mutating caller-owned graph structures in
+  place.
+
+## Structural element cookbook
+
+- Use [`docs/specs/owl2-mapping-to-rdf/INDEX.md`](../docs/specs/owl2-mapping-to-rdf/INDEX.md)
+  first when implementing or reviewing `as_triples` and `as_quads`. It is the
+  authoritative local lookup for exact OWL structural-element to RDF mapping
+  anchors and section spans.
+- Use [`docs/specs/owl2-crosswalks/INDEX.md`](../docs/specs/owl2-crosswalks/INDEX.md),
+  especially the StructuralElement-oriented master table, for semantic anchors,
+  OWL 2 RL rule links, optional RDFS support, proof-reconstruction context, and
+  coverage planning.
+- Keep the package [feature matrix](README.md#feature-matrix) aligned with
+  implementation coverage. The crosswalk row `status` field describes
+  crosswalk-row curation completeness, not the implementation maturity of this
+  package.
+- When mapping, crosswalk, README, and code disagree, treat the discrepancy as
+  design drift to resolve deliberately rather than copying whichever source is
+  closest at hand.
 
 ## Boundary-friendly model rules
 
-- `GraphBacked` is the universal base for graph-scoped Pydantic models in this package.
-- `StructuralElement` is the universal base for OWL 2 structural elements; each concrete OWL 2 structural element MUST subclass `StructuralElement`.
-- Schema-facing models MAY use RDFLib node-level terms such as `URIRef`, `BNode`, `Literal`, and `IdentifiedNode`.
-- Schema-facing models MUST NOT embed heavy container or session objects such as `rdflib.Graph`, `ConjunctiveGraph`, SPARQL result objects, or similar handles.
+- `GraphBacked` is the universal base for graph-scoped Pydantic models in this
+  package.
+- `StructuralElement` is the universal base for OWL 2 structural elements; each
+  concrete OWL 2 structural element MUST subclass `StructuralElement`.
+- Schema-facing models MAY use RDFLib node-level terms such as `URIRef`,
+  `BNode`, `Literal`, and `IdentifiedNode`.
+- Schema-facing models MUST NOT embed heavy container or session objects such as
+  `rdflib.Graph`, `ConjunctiveGraph`, SPARQL result objects, or similar handles.
 - Each instance MUST have a single required `context` graph identifier.
-- Any embedded `GraphBacked` or `StructuralElement` field MUST share the same `context`; cross-context relationships MUST be expressed only at the triple or quad level.
+- Any embedded `GraphBacked` or `StructuralElement` field MUST share the same
+  `context`; cross-context relationships MUST be expressed only at the triple or
+  quad level.
+
+## Docstring guidance
+
+- Concrete `StructuralElement` docstrings SHOULD name the OWL structural form,
+  such as `DataIntersectionOf( DR1 ... DRn )`, when a paired OWL form exists.
+- Docstrings SHOULD summarize key RDF node, blank-node, list, or ordering
+  assumptions when they affect the mapping or reconstruction story.
+- Docstrings SHOULD include a compact mapped-triples block when that block
+  materially helps verify `as_triples` or future traversal behavior.
+- Docstrings MUST use package-consumer-safe references: official specification
+  names, structural forms, and local API names are appropriate; repository-local
+  development docs, crosswalks, and `AGENTS.md` files are not.
+- Docstrings SHOULD avoid claiming traversal, inference, proof reconstruction,
+  Research Agent tool behavior, or full round-trip behavior unless that behavior
+  exists for the class being documented.
 
 ## Schema and validation guidance
 
-- Schema-visible descriptions SHOULD be concise, operational, and useful to a Research Agent that only sees generated JSON Schema.
-- Descriptions MAY cite official specification identifiers, but they SHOULD NOT depend on repository-local documents being visible at runtime.
-- Examples SHOULD be high-fidelity and sparse: include them when they materially reduce misuse.
-- Constrained types SHOULD be preferred wherever feasible so schema itself communicates useful limits.
-- Domain constraints SHOULD be enforced through Pydantic validation with error messages that identify the illegal value, the valid range or form when helpful, and the relevant specification when a normative constraint is violated.
+- Schema-visible descriptions SHOULD be concise, operational, and useful to a
+  Research Agent that only sees generated JSON Schema.
+- Descriptions MAY cite official specification identifiers, but they SHOULD NOT
+  depend on repository-local documents being visible at runtime.
+- Examples SHOULD be high-fidelity and sparse: include them when they materially
+  reduce misuse.
+- Constrained types SHOULD be preferred wherever feasible so schema itself
+  communicates useful limits.
+- Domain constraints SHOULD be enforced through Pydantic validation with error
+  messages that identify the illegal value, the valid range or form when
+  helpful, and the relevant specification when a normative constraint is
+  violated.
+
+## Testing expectations
+
+- Concrete structural elements SHOULD have focused tests for `as_triples`, and
+  for `as_quads` when context behavior is relevant to the change.
+- Schema-facing models SHOULD have Python round-trip tests using `model_dump`
+  and `model_validate`.
+- Schema-facing models SHOULD have JSON round-trip tests using `model_dump_json`
+  and `model_validate_json`.
+- Schema-facing models SHOULD have `model_json_schema()` smoke tests.
+- Add stronger schema assertions when field descriptions, aliases, examples,
+  lexical RDF forms, required fields, or JSON Schema shape are intended
+  Research Agent boundary contracts.
+- Tests SHOULD NOT over-specify incidental Pydantic schema layout unless that
+  layout is deliberately part of the runtime boundary contract.

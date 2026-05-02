@@ -28,8 +28,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
   source used for comparison and design awareness only. Their local `AGENTS.md`
   MUST explain the no-copy policy and SHOULD point to stable high-value entry
   points rather than static file listings.
-- One SHOULD use `make specs-normalize` [Makefile target](../../Makefile) to
-  fetch & normalize generated W3C specifications if they are absent.
+- Use `make specs` [Makefile target](../../Makefile) to fetch, normalize, and
+  index specification artifacts when generated W3C specs are absent.
+- Use `make specs-normalize` [Makefile target](../../Makefile) only when
+  `raw.html` files already exist and need to be re-normalized into
+  `optimized.html`.
 - Use the **Hint** column to identify which specs are relevant for a task; short-names do not always reflect content (e.g. RL forward rules live in `owl2-reasoning-profiles`, not in `owl2-semantics-rdf`).
 
 | Spec | Hint |
