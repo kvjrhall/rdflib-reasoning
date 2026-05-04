@@ -62,6 +62,13 @@ After making changes to Markdown documents, the Development Agent MUST run
 - Use `make check` to lint everything **except** type checking
 - Use `make validate` to lint everything **including** type checking
 
+Normative guidance for **static typing of unit tests** (pytest return types,
+local annotations, and Mypy vs Pyright suppressions) is duplicated under
+**Testing expectations** in `rdflib-reasoning-axioms/AGENTS.md`,
+`rdflib-reasoning-engine/AGENTS.md`, and `rdflib-reasoning-middleware/AGENTS.md`.
+When that policy changes, the Development Agent SHOULD update all three copies
+in the same change to avoid drift.
+
 ## Development Agent use of architecture and roadmap
 
 - The Development Agent SHOULD consult `docs/dev/roadmap.md` before starting substantial feature work, release planning work, or any task where implementation priority or intended scope is unclear.

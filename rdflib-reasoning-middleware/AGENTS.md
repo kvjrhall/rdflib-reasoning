@@ -74,3 +74,7 @@ Development Agents maintain this package and its Development Agent-facing docume
 - Prompt, tool-description, and validation-error text SHOULD have targeted assertions when exact Research Agent-facing guidance is part of the behavior.
 - Hook changes SHOULD have focused tests for state update shape, message transcript validity, and provider-safe repair behavior.
 - Tests SHOULD NOT over-specify incidental Pydantic schema layout unless that layout is deliberately part of the runtime boundary contract.
+- Test functions and helpers under this package's `tests/` tree SHOULD declare a return type (typically `-> None` for pytest tests) so local variable annotations are type-checked and IDE or Mypy `annotation-unchecked` notes on those annotations are avoided.
+- Test parameters SHOULD be annotated when the type is not obvious from a default or from a single obvious assignment.
+- Use `# type: ignore[error-code]` only for deliberate exceptions (for example negative tests that instantiate an abstract class); prefer the narrowest `error-code` Mypy prints with `--show-error-codes`. Pyright-only suppressions (`# pyright: ignore[...]`) do not satisfy Mypy.
+- `make validate` runs Mypy on this package's `src/` tree per root `pyproject.toml`; the Development Agent SHOULD still keep `tests/` type-clean for editors and for any later widening of Mypy `files`.
