@@ -20,7 +20,7 @@ from rdflib_reasoning.axiom.common import (
     N3Resource,
     Triple,
 )
-from rdflib_reasoning.axiom.n3_terms import _node_to_string, _parse_identified_node
+from rdflib_reasoning.axiom.n3_terms import _parse_identified_node
 
 
 def _parse_graph_context(value: str | Node) -> Graph:
@@ -32,28 +32,8 @@ def _parse_graph_context(value: str | Node) -> Graph:
         raise ValueError(f"Could not parse graph context from {value!r}.") from e
 
 
-def _graph_context_to_string(graph: Graph) -> str:
-    return _node_to_string(graph.identifier)
-
-
 # NOTE: This is _NOT_ part of the schema-facing API, but makes our development API consistent.
-type N3GraphContext = Annotated[Graph, SkipJsonSchema()]
-
-
-# RDF_BLANK_NODE: Final[str] = (
-#     "RDF Blank Node as defined by RDF 1.1 Concepts and Abstract Syntax § 3.4 Blank Nodes "
-#     + "(https://www.w3.org/TR/rdf11-concepts/#section-blank-nodes)"
-# )
-#
-# RDF_IRI: Final[str] = (
-#     "RFC 3987 IRI used as in RDF 1.1 Concepts and Abstract Syntax § 3.2 IRIs "
-#     "(https://www.w3.org/TR/rdf11-concepts/#section-IRIs)"
-# )
-#
-# RDF_LITERAL: Final[str] = (
-#     "RDF Literal as defined by RDF 1.1 Concepts and Abstract Syntax § 3.3 Literals "
-#     + "(https://www.w3.org/TR/rdf11-concepts/#section-Graph-Literal)"
-# )
+type N3GraphContext = Annotated[Graph, SkipJsonSchema()]  # pyright: ignore[reportCallIssue]
 
 
 # TODO: Somewhere, we need to make sure agents know to reword things that are temporal into atemporal.

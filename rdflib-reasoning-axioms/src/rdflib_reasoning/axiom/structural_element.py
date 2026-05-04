@@ -8,6 +8,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    SerializeAsAny,
     computed_field,
     model_validator,
 )
@@ -95,7 +96,18 @@ class StructuralElement(GraphBacked, ABC):
 
 
 class Seq[T: StructuralElement](StructuralElement):
-    """A Sequence of Structural Elements and their corresponding `rdf:List` nodes."""
+    """RDF list encoding ``T(SEQ E1 ... En)`` for a finite sequence of structural elements.
+
+    Each list cell ``names[i]`` links to ``elements[i].name`` via ``rdf:first``;
+    ``rdf:rest`` chains cells and ends with ``rdf:nil``. ``as_triples`` emits
+    only list structure edges and does not include nested elements' triples.
+
+    Triples (schematically, list heads ``L1 ... Ln``)::
+
+        Li rdf:first Ei.name .
+        Li rdf:rest L(i+1) .    # i < n
+        Ln rdf:rest rdf:nil .
+    """
 
     _require_concrete_kind: ClassVar[bool] = True
     kind: Literal["seq"] = "seq"
@@ -104,7 +116,7 @@ class Seq[T: StructuralElement](StructuralElement):
         ...,
         description="Identifiers for each `rdf:List` node in the sequence; typically blank nodes in the absence of skolemization.",
     )
-    elements: Sequence[T]
+    elements: Sequence[SerializeAsAny[T]]
 
     @computed_field  # type: ignore[prop-decorator]
     @property

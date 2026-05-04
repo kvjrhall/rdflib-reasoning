@@ -3,10 +3,11 @@ from collections.abc import Sequence
 from itertools import chain
 from typing import ClassVar, Literal, override
 
-from pydantic import computed_field
-from rdflib import OWL, RDF, RDFS, IdentifiedNode, URIRef
+from pydantic import AliasChoices, Field, SerializeAsAny, computed_field
+from rdflib import OWL, RDF, RDFS, IdentifiedNode
+from rdflib import Literal as RdfLiteral
 
-from .common import Triple
+from .common import N3IRIRef, N3Resource, Triple
 from .structural_element import DeclarationElement, Seq, StructuralElement
 
 
@@ -68,6 +69,16 @@ class DataIntersectionOf(DataRange):
 
 
 class DataUnionOf(DataRange):
+    """Element ``DataUnionOf( DR1 ... DRn )`` of the OWL 2 structural specification.
+
+    The main RDF node is an anonymous blank node (written ``_:x`` below).
+
+    Triples::
+
+        _:x rdf:type rdfs:Datatype .
+        _:x owl:unionOf T(SEQ DR1 ... DRn) .
+    """
+
     _require_concrete_kind: ClassVar[bool] = True
     kind: Literal["DataUnionOf"] = "DataUnionOf"
 
@@ -87,10 +98,22 @@ class DataUnionOf(DataRange):
 
 
 class DataComplementOf(DataRange):
+    """Element ``DataComplementOf( DR )`` of the OWL 2 structural specification.
+
+    The main RDF node is an anonymous blank node (written ``_:x`` below).
+    ``as_triples`` includes triples for ``DR`` before the declaration and
+    complement edge for ``_:x``.
+
+    Triples::
+
+        _:x rdf:type rdfs:Datatype .
+        _:x owl:complementOf DR .
+    """
+
     _require_concrete_kind: ClassVar[bool] = True
     kind: Literal["DataComplementOf"] = "DataComplementOf"
 
-    complement_of: DataRange
+    complement_of: SerializeAsAny[DataRange]
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -106,21 +129,27 @@ class DataComplementOf(DataRange):
 
 
 class DataOneOf(DataRange):
-    # TODO: figure out how to represent a list of literals.
-    pass
+    """Element ``DataOneOf( lt1 ... ltn )`` of the OWL 2 structural specification.
 
+    ``one_of`` holds the enumerated RDF literals. Full ``as_triples`` projection
+    (``owl:oneOf`` plus ``rdf:List`` structure per the OWL 2 RDF mapping) is not
+    implemented yet; callers currently receive only the ``rdfs:Datatype``
+    declaration triple for ``name``.
+    """
 
-class DatatypeRestriction(DataRange):
     _require_concrete_kind: ClassVar[bool] = True
-    kind: Literal["DatatypeRestriction"] = "DatatypeRestriction"
+    kind: Literal["DataOneOf"] = "DataOneOf"
 
-    on_datatype: IdentifiedNode
-    with_restrictions: Seq["DataRestriction"]
+    one_of: tuple[RdfLiteral, ...] = Field(
+        ...,
+        min_length=1,
+        description="Finite non-empty sequence of data literals in this enumeration.",
+    )
 
 
 # TODO: move to structural_element module
 class RestrictionFacet(StructuralElement, ABC):
-    pass
+    """Abstract base for facet expressions used in datatype restrictions (OWL 2)."""
 
 
 class DataRestriction(RestrictionFacet, ABC):
@@ -131,11 +160,33 @@ class DataRestriction(RestrictionFacet, ABC):
 
 
 class DataSomeValuesFrom(DataRestriction):
-    # _require_concrete_kind: ClassVar[bool] = True
+    """Element ``DataSomeValuesFrom`` (data existential restriction) in the OWL 2 structural specification.
+
+    The RDF subject is typically an anonymous blank node (written ``_:x`` below).
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty OP .
+        _:x owl:someValuesFrom CE .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
     kind: Literal["DataSomeValuesFrom"] = "DataSomeValuesFrom"
 
-    on_property: URIRef
-    some_values_from: IdentifiedNode
+    name_value: N3Resource = Field(
+        ...,
+        validation_alias=AliasChoices("name", "name_value"),
+        serialization_alias="name",
+    )
+
+    on_property: N3IRIRef
+    some_values_from: N3Resource
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def name(self) -> IdentifiedNode:
+        return self.name_value
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -150,3 +201,20 @@ class DataSomeValuesFrom(DataRestriction):
                 ],
             ),
         )
+
+
+class DatatypeRestriction(DataRange):
+    """Element ``DatatypeRestriction( DT F1 lt1 ... Fn ltn )`` in the OWL 2 structural specification.
+
+    Fields ``on_datatype`` and ``with_restrictions`` carry the structured form.
+    ``with_restrictions`` is typed as ``Seq[DataSomeValuesFrom]`` until further
+    OWL 2 datatype-facet classes are modeled.
+    ``as_triples`` currently emits only the ``rdfs:Datatype`` declaration for
+    ``name``; additional mapping triples may be added in a later revision.
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DatatypeRestriction"] = "DatatypeRestriction"
+
+    on_datatype: N3IRIRef
+    with_restrictions: Seq[DataSomeValuesFrom]

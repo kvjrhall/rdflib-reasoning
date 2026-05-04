@@ -1,8 +1,8 @@
 """Schema-facing N3 lexical validators and reusable type aliases for RDF terms.
 
-Design rules are governed by:
-- `docs/dev/architecture.md` under "Structural elements and middleware"
-- `docs/dev/decision-records/DR-011 Schema-Facing RDF Boundary Models.md`
+Validators normalize string inputs to RDFLib ``Node`` values; serializers emit
+canonical N3 for JSON Schema and round-trip fields. Description strings cite W3C
+specification titles and public URLs only.
 """
 
 from __future__ import annotations

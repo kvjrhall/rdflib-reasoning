@@ -1,8 +1,7 @@
 """Shared schema-facing RDF term aliases and graph-scoped tuple types.
 
-Design rules for schema-facing models are governed by:
-- `docs/dev/architecture.md` under "Structural elements and middleware"
-- `docs/dev/decision-records/DR-011 Schema-Facing RDF Boundary Models.md`
+Triple and quad aliases annotate ``(subject, predicate, object[, context])``
+tuples used in RDF projections from graph-scoped Pydantic models.
 """
 
 from typing import Annotated
