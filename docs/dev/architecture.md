@@ -26,9 +26,12 @@ Structural elements describe OWL 2 and related graph-scoped constructs in a way 
 - The `rdflib-reasoning-axioms` project defines a Pydantic model hierarchy:
   - `GraphBacked` is the universal base for graph-scoped Pydantic models.
   - `StructuralElement` is the universal base for OWL 2 structural elements and closely related extensions.
-- Each instance has a single required `context` (graph identifier). Related structural elements embedded in a field share the same `context`; cross-context relationships are expressed only at the triple/quad level.
-- Structural elements expose `as_triples` and `as_quads` methods whose output conforms to the OWL 2 mapping to RDF and related RDF semantics specifications.
-- Models avoid embedding heavy graph/session types (such as `rdflib.Graph` or SPARQL result objects) and instead rely on node-level terms and Pydantic-generated JSON Schema as the primary interface.
+- Each instance has a single required `context` (graph identifier).
+- `StructuralElement` instances MUST NOT compose or aggregate other `StructuralElement` or `GraphBacked` instances. Cross-element references MUST be expressed with RDF node-level terms (and literals where the mapping permits). Cross-axiom traversal is a graph-level helper concern, not an embedding concern.
+- `as_triples` MUST remain shallow: it MUST NOT recurse into related elements. Structural elements expose `as_triples` and `as_quads` methods whose output conforms to the OWL 2 mapping to RDF and related RDF semantics specifications; `as_quads` appends `context` to each triple from `as_triples`.
+- Cross-context relationships are expressed only at the triple/quad level.
+- An axiom artifact SHOULD correspond to the multiset (or set) of triples or quads actually present for that axiom's mapping, not to a closed subtree of interpreted OWL objects whose supporting triples may be missing elsewhere.
+- Models avoid embedding heavy graph/session types (such as `rdflib.Graph` or SPARQL result objects). Schema-facing fields MUST use package-defined annotated RDF aliases (for example `N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`) rather than raw rdflib node classes so generated JSON Schema remains boundary-safe; raw rdflib node classes remain acceptable for internal non-schema logic.
 - The `rdflib-reasoning-middleware` project uses `GraphBacked` and `StructuralElement` models as tool argument/response schemas and as values embedded in middleware state for Research Agents.
 
 ### Structural traversal and representation
@@ -67,7 +70,7 @@ These models require stricter guidance than ordinary developer-only helper class
 
 These rules are further elaborated in [DR-011 Schema-Facing RDF Boundary Models](decision-records/DR-011%20Schema-Facing%20RDF%20Boundary%20Models.md).
 
-These rules are aligned with, and further elaborated in, [DR-002 Structural Elements and Middleware Integration](decision-records/DR-002%20Structural%20Elements%20and%20Middleware%20Integration.md).
+These rules are aligned with, and further elaborated in, [DR-031 Standalone Structural Elements](decision-records/DR-031%20Standalone%20Structural%20Elements.md).
 
 ## Middleware composition and capability gating
 

@@ -1,7 +1,15 @@
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 from itertools import chain
-from typing import Any, ClassVar, Literal, Self, get_args, get_origin, get_type_hints
+from typing import (
+    Any,
+    ClassVar,
+    Literal,
+    Self,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from pydantic import (
     AliasChoices,
@@ -25,8 +33,10 @@ class GraphBacked(BaseModel, ABC):
     same context; cross-context relationships are expressed only at the
     triple/quad level, not by embedding foreign-context instances. Models MUST
     NOT embed rdflib.Graph, ConjunctiveGraph, SPARQL result objects, or other
-    container/session/handle types; they MAY use rdflib node types (URIRef,
-    BNode, Literal, IdentifiedNode, etc.).
+    container/session/handle types. Schema-facing fields MUST use package-defined
+    annotated RDF aliases (e.g. N3IRIRef, N3Resource, N3Node,
+    N3ContextIdentifier) rather than raw rdflib node classes; raw rdflib node
+    classes MAY still be used in internal non-schema logic.
     """
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:

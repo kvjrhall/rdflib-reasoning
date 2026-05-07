@@ -23,8 +23,9 @@ other schema-driven interactions without forcing a redesign of the domain layer.
   and priority plan, especially release `0.6.0` for structural traversal and
   release `0.10.0` for knowledge exchange and axiom authoring.
 - Treat
-  [`docs/dev/decision-records/DR-002 Structural Elements and Middleware Integration.md`](../docs/dev/decision-records/DR-002%20Structural%20Elements%20and%20Middleware%20Integration.md)
-  as the authoritative rationale for `GraphBacked` and `StructuralElement`.
+  [`docs/dev/decision-records/DR-031 Standalone Structural Elements.md`](../docs/dev/decision-records/DR-031%20Standalone%20Structural%20Elements.md)
+  as the authoritative rationale for `GraphBacked` and `StructuralElement`
+  (supersedes DR-002).
 - Treat
   [`docs/dev/decision-records/DR-011 Schema-Facing RDF Boundary Models.md`](../docs/dev/decision-records/DR-011%20Schema-Facing%20RDF%20Boundary%20Models.md)
   as the authoritative rule set for schema-facing RDF boundary models.
@@ -61,6 +62,10 @@ other schema-driven interactions without forcing a redesign of the domain layer.
   graph-to-structural traversal, stable representation, rendering, and
   Research Agent-facing axiom-authoring surfaces are planned capabilities, not
   assumptions that every current class or test may rely on.
+- An axiom artifact SHOULD correspond 1:1 to a defined multiset (or set) of
+  triples or quads actually present in the graph for that axiom's mapping, so a
+  chunk's shape and meaning do not depend on having carved sibling axioms for
+  every node it mentions.
 - Transformation inputs MUST be treated as immutable and MUST produce new
   instances or outputs rather than mutating caller-owned graph structures in
   place.
@@ -82,6 +87,10 @@ other schema-driven interactions without forcing a redesign of the domain layer.
 - When mapping, crosswalk, README, and code disagree, treat the discrepancy as
   design drift to resolve deliberately rather than copying whichever source is
   closest at hand.
+- **Design drift:** generic `Seq` over `StructuralElement` operands and several
+  datatype models that use it violate the no-composition rule in DR-031; treat
+  that as follow-up work (see DR-031 Consequences), not as a pattern for new
+  code.
 
 ## Boundary-friendly model rules
 
@@ -89,14 +98,32 @@ other schema-driven interactions without forcing a redesign of the domain layer.
   package.
 - `StructuralElement` is the universal base for OWL 2 structural elements; each
   concrete OWL 2 structural element MUST subclass `StructuralElement`.
-- Schema-facing models MAY use RDFLib node-level terms such as `URIRef`,
-  `BNode`, `Literal`, and `IdentifiedNode`.
+- Schema-facing models MUST use package-defined annotated aliases for RDF terms
+  (for example `N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`)
+  rather than raw RDFLib node classes so generated JSON Schema remains
+  boundary-safe.
+- Raw RDFLib node-level classes such as `URIRef`, `BNode`, `Literal`, and
+  `IdentifiedNode` MAY be used internally (helpers, locals, computed properties)
+  when they are not schema-facing fields.
 - Schema-facing models MUST NOT embed heavy container or session objects such as
   `rdflib.Graph`, `ConjunctiveGraph`, SPARQL result objects, or similar handles.
 - Each instance MUST have a single required `context` graph identifier.
-- Any embedded `GraphBacked` or `StructuralElement` field MUST share the same
-  `context`; cross-context relationships MUST be expressed only at the triple or
-  quad level.
+- `StructuralElement` instances MUST NOT compose or aggregate other
+  `StructuralElement` or `GraphBacked` instances. Cross-element references MUST
+  use RDF node-level types (`IdentifiedNode`, `URIRef`, `BNode`, `Literal`) and
+  schema-facing aliases such as `N3IRIRef` or `N3Resource` where appropriate.
+- Cross-axiom traversal is the responsibility of explicit graph-level helpers, not
+  embedded model fields.
+- `as_triples` MUST remain shallow (MUST NOT recurse into related elements).
+  The no-composition rule makes this structurally trivial for new code; the
+  shallow rule remains an explicit invariant and defense-in-depth.
+- Cross-context relationships MUST be expressed only at the triple or quad
+  level.
+- Schema-boundary alias mapping for Development Agents:
+  - `URIRef`-only field -> `N3IRIRef`
+  - `IdentifiedNode` field (`URIRef` or `BNode`) -> `N3Resource`
+  - Any RDF node (`URIRef`, `BNode`, `Literal`) -> `N3Node`
+  - Graph/context identifier (`URIRef` or `BNode`) -> `N3ContextIdentifier`
 
 ## Docstring guidance
 

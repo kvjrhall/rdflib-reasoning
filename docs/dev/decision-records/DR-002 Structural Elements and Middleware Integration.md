@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [DR-031 Standalone Structural Elements](DR-031%20Standalone%20Structural%20Elements.md)
 
 ## Context
 
