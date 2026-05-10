@@ -1,5 +1,5 @@
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from rdflib import OWL, RDF, RDFS, XSD, BNode, Literal, URIRef
 from rdflib_reasoning.axiom.datatype import (
     DataComplementOf,
@@ -12,7 +12,7 @@ from rdflib_reasoning.axiom.datatype import (
     DeclarationDatatype,
     RestrictionFacet,
 )
-from rdflib_reasoning.axiom.structural_element import Seq, StructuralElement
+from rdflib_reasoning.axiom.structural_element import Seq, SeqEntry, StructuralElement
 
 
 def _assert_model_json_schema_smoke(model_cls: type[BaseModel], title: str) -> None:
@@ -116,7 +116,13 @@ def test_seq_list_triples_via_intersection() -> None:
     dr = DeclarationDatatype(
         context=ctx, name_value=URIRef("http://example.com/InnerDatatype")
     )
-    seq = Seq[DataRange](context=ctx, names=(head,), elements=(dr,))
+    seq = Seq(
+        context=ctx,
+        entries=(
+            SeqEntry(cell=head, value=dr.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
     intersection = DataIntersectionOf(context=ctx, name_value=x, intersection_of=seq)
 
     assert seq.as_triples == (
@@ -136,7 +142,13 @@ def test_data_union_of_as_triples() -> None:
     dr = DeclarationDatatype(
         context=ctx, name_value=URIRef("http://example.com/InnerDatatype")
     )
-    seq = Seq[DataRange](context=ctx, names=(head,), elements=(dr,))
+    seq = Seq(
+        context=ctx,
+        entries=(
+            SeqEntry(cell=head, value=dr.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
     union = DataUnionOf(context=ctx, name_value=x, union_of=seq)
 
     assert union.as_triples == (
@@ -152,10 +164,9 @@ def test_data_complement_of_as_triples() -> None:
     inner_dt = DeclarationDatatype(
         context=ctx, name_value=URIRef("http://example.com/InnerDatatype")
     )
-    comp = DataComplementOf(context=ctx, name_value=x, complement_of=inner_dt)
+    comp = DataComplementOf(context=ctx, name_value=x, complement_of=inner_dt.name)
 
     assert comp.as_triples == (
-        *inner_dt.as_triples,
         (x, RDF.type, RDFS.Datatype),
         (x, OWL.complementOf, inner_dt.name),
     )
@@ -204,7 +215,13 @@ def test_datatype_restriction_emits_datatype_declaration() -> None:
         on_property=prop,
         some_values_from=rng,
     )
-    facets = Seq[DataSomeValuesFrom](context=ctx, names=(list_head,), elements=(facet,))
+    facets = Seq(
+        context=ctx,
+        entries=(
+            SeqEntry(cell=list_head, value=facet.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
     dr = DatatypeRestriction(
         context=ctx,
         name_value=main,
@@ -234,7 +251,13 @@ def test_datatype_restriction_as_triples_matches_owl_mapping_spec() -> None:
         on_property=prop,
         some_values_from=rng,
     )
-    facets = Seq[DataSomeValuesFrom](context=ctx, names=(list_head,), elements=(facet,))
+    facets = Seq(
+        context=ctx,
+        entries=(
+            SeqEntry(cell=list_head, value=facet.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
     dr = DatatypeRestriction(
         context=ctx,
         name_value=main,
@@ -269,7 +292,13 @@ def test_data_intersection_of_round_trips_and_schema() -> None:
         context=ctx, name_value=URIRef("http://example.com/innerDT")
     )
     list_head = URIRef("http://example.com/listHead")
-    seq = Seq[DataRange](context=ctx, names=(list_head,), elements=(inner,))
+    seq = Seq(
+        context=ctx,
+        entries=(
+            SeqEntry(cell=list_head, value=inner.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
     inst = DataIntersectionOf(
         context=ctx,
         name_value=URIRef("http://example.com/intersectionDT"),
@@ -285,7 +314,13 @@ def test_data_intersection_of_as_quads() -> None:
         context=ctx, name_value=URIRef("http://example.com/innerDT")
     )
     list_head = URIRef("http://example.com/listHead")
-    seq = Seq[DataRange](context=ctx, names=(list_head,), elements=(inner,))
+    seq = Seq(
+        context=ctx,
+        entries=(
+            SeqEntry(cell=list_head, value=inner.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
     inst = DataIntersectionOf(
         context=ctx,
         name_value=URIRef("http://example.com/intersectionDT"),
@@ -294,13 +329,41 @@ def test_data_intersection_of_as_quads() -> None:
     assert inst.as_quads == tuple((*t, ctx) for t in inst.as_triples)
 
 
+def test_data_intersection_of_rejects_mismatched_fragment_context() -> None:
+    owner_ctx = URIRef("http://example.com/g-owner")
+    fragment_ctx = URIRef("http://example.com/g-other")
+    inner = DeclarationDatatype(
+        context=fragment_ctx, name_value=URIRef("http://example.com/innerDT")
+    )
+    list_head = URIRef("http://example.com/listHead")
+    seq = Seq(
+        context=fragment_ctx,
+        entries=(
+            SeqEntry(cell=list_head, value=inner.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
+    with pytest.raises(ValidationError, match="StructuralFragment"):
+        DataIntersectionOf(
+            context=owner_ctx,
+            name_value=URIRef("http://example.com/intersectionDT"),
+            intersection_of=seq,
+        )
+
+
 def test_data_union_of_round_trips_and_schema() -> None:
     ctx = URIRef("http://example.com/g")
     inner = DeclarationDatatype(
         context=ctx, name_value=URIRef("http://example.com/innerDT")
     )
     list_head = URIRef("http://example.com/listHeadU")
-    seq = Seq[DataRange](context=ctx, names=(list_head,), elements=(inner,))
+    seq = Seq(
+        context=ctx,
+        entries=(
+            SeqEntry(cell=list_head, value=inner.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
     inst = DataUnionOf(
         context=ctx,
         name_value=URIRef("http://example.com/unionDT"),
@@ -316,7 +379,13 @@ def test_data_union_of_as_quads() -> None:
         context=ctx, name_value=URIRef("http://example.com/innerDT")
     )
     list_head = URIRef("http://example.com/listHeadU")
-    seq = Seq[DataRange](context=ctx, names=(list_head,), elements=(inner,))
+    seq = Seq(
+        context=ctx,
+        entries=(
+            SeqEntry(cell=list_head, value=inner.name),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
     inst = DataUnionOf(
         context=ctx,
         name_value=URIRef("http://example.com/unionDT"),
@@ -333,7 +402,7 @@ def test_data_complement_of_round_trips_and_schema() -> None:
     inst = DataComplementOf(
         context=ctx,
         name_value=URIRef("http://example.com/complementDT"),
-        complement_of=inner,
+        complement_of=inner.name,
     )
     _assert_round_trips_preserve_as_triples(DataComplementOf, inst)
     _assert_model_json_schema_smoke(DataComplementOf, "DataComplementOf")
@@ -347,7 +416,7 @@ def test_data_complement_of_as_quads() -> None:
     inst = DataComplementOf(
         context=ctx,
         name_value=URIRef("http://example.com/complementDT"),
-        complement_of=inner,
+        complement_of=inner.name,
     )
     assert inst.as_quads == tuple((*t, ctx) for t in inst.as_triples)
 
@@ -360,10 +429,15 @@ def test_datatype_restriction_round_trips_and_schema() -> None:
         on_property=URIRef("http://example.com/p"),
         some_values_from=URIRef("http://example.com/range"),
     )
-    seq = Seq[DataSomeValuesFrom](
+    seq = Seq(
         context=ctx,
-        names=(URIRef("http://example.com/facetListHead"),),
-        elements=(facet,),
+        entries=(
+            SeqEntry(
+                cell=URIRef("http://example.com/facetListHead"),
+                value=facet.name,
+            ),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
     )
     inst = DatatypeRestriction(
         context=ctx,
@@ -375,6 +449,34 @@ def test_datatype_restriction_round_trips_and_schema() -> None:
     _assert_model_json_schema_smoke(DatatypeRestriction, "DatatypeRestriction")
 
 
+def test_datatype_restriction_rejects_mismatched_fragment_context() -> None:
+    owner_ctx = URIRef("http://example.com/g-owner")
+    fragment_ctx = URIRef("http://example.com/g-other")
+    facet = DataSomeValuesFrom(
+        context=fragment_ctx,
+        name_value=URIRef("http://example.com/facetNode"),
+        on_property=URIRef("http://example.com/p"),
+        some_values_from=URIRef("http://example.com/range"),
+    )
+    seq = Seq(
+        context=fragment_ctx,
+        entries=(
+            SeqEntry(
+                cell=URIRef("http://example.com/facetListHead"),
+                value=facet.name,
+            ),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
+    with pytest.raises(ValidationError, match="StructuralFragment"):
+        DatatypeRestriction(
+            context=owner_ctx,
+            name_value=URIRef("http://example.com/dtRestriction"),
+            on_datatype=URIRef("http://www.w3.org/2001/XMLSchema#string"),
+            with_restrictions=seq,
+        )
+
+
 def test_datatype_restriction_as_quads() -> None:
     ctx = URIRef("http://example.com/g")
     facet = DataSomeValuesFrom(
@@ -383,10 +485,15 @@ def test_datatype_restriction_as_quads() -> None:
         on_property=URIRef("http://example.com/p"),
         some_values_from=URIRef("http://example.com/range"),
     )
-    seq = Seq[DataSomeValuesFrom](
+    seq = Seq(
         context=ctx,
-        names=(URIRef("http://example.com/facetListHead"),),
-        elements=(facet,),
+        entries=(
+            SeqEntry(
+                cell=URIRef("http://example.com/facetListHead"),
+                value=facet.name,
+            ),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
     )
     inst = DatatypeRestriction(
         context=ctx,

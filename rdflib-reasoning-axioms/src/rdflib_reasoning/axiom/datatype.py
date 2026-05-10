@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from itertools import chain
 from typing import ClassVar, Literal, override
 
-from pydantic import AliasChoices, Field, SerializeAsAny, computed_field
+from pydantic import AliasChoices, Field, computed_field
 from rdflib import OWL, RDF, RDFS, IdentifiedNode
 from rdflib import Literal as RdfLiteral
 
@@ -53,7 +53,7 @@ class DataIntersectionOf(DataRange):
     _require_concrete_kind: ClassVar[bool] = True
     kind: Literal["DataIntersectionOf"] = "DataIntersectionOf"
 
-    intersection_of: Seq[DataRange]
+    intersection_of: Seq
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -82,7 +82,7 @@ class DataUnionOf(DataRange):
     _require_concrete_kind: ClassVar[bool] = True
     kind: Literal["DataUnionOf"] = "DataUnionOf"
 
-    union_of: Seq[DataRange]
+    union_of: Seq
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -101,8 +101,10 @@ class DataComplementOf(DataRange):
     """Element ``DataComplementOf( DR )`` of the OWL 2 structural specification.
 
     The main RDF node is an anonymous blank node (written ``_:x`` below).
-    ``as_triples`` includes triples for ``DR`` before the declaration and
-    complement edge for ``_:x``.
+    ``complement_of`` is the RDF subject of the complemented datatype description
+    (IRI or blank node); ``as_triples`` emits only this axiom's triples (shallow
+    projection per DR-031). Declaration and other triples for ``DR`` belong in
+    a separate axiom instance or graph partition, not inlined here.
 
     Triples::
 
@@ -113,7 +115,7 @@ class DataComplementOf(DataRange):
     _require_concrete_kind: ClassVar[bool] = True
     kind: Literal["DataComplementOf"] = "DataComplementOf"
 
-    complement_of: SerializeAsAny[DataRange]
+    complement_of: N3Resource
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -121,9 +123,8 @@ class DataComplementOf(DataRange):
     def as_triples(self) -> Sequence[Triple]:
         return tuple(
             chain(
-                self.complement_of.as_triples,
                 super().as_triples,
-                [(self.name, OWL.complementOf, self.complement_of.name)],
+                [(self.name, OWL.complementOf, self.complement_of)],
             ),
         )
 
@@ -207,8 +208,10 @@ class DatatypeRestriction(DataRange):
     """Element ``DatatypeRestriction( DT F1 lt1 ... Fn ltn )`` in the OWL 2 structural specification.
 
     Fields ``on_datatype`` and ``with_restrictions`` carry the structured form.
-    ``with_restrictions`` is typed as ``Seq[DataSomeValuesFrom]`` until further
-    OWL 2 datatype-facet classes are modeled.
+    ``with_restrictions`` is a ``Seq`` whose ``rdf:first`` objects are the RDF
+    subjects of facet restrictions (typically blank nodes or IRIs); facet triples
+    are not inlined inside ``Seq.as_triples`` (shallow projection per DR-031).
+    Additional OWL 2 datatype-facet classes may be modeled later.
     ``as_triples`` currently emits only the ``rdfs:Datatype`` declaration for
     ``name``; additional mapping triples may be added in a later revision.
     """
@@ -217,4 +220,4 @@ class DatatypeRestriction(DataRange):
     kind: Literal["DatatypeRestriction"] = "DatatypeRestriction"
 
     on_datatype: N3IRIRef
-    with_restrictions: Seq[DataSomeValuesFrom]
+    with_restrictions: Seq

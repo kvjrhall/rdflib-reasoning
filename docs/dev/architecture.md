@@ -25,14 +25,18 @@ Structural elements describe OWL 2 and related graph-scoped constructs in a way 
 
 - The `rdflib-reasoning-axioms` project defines a Pydantic model hierarchy:
   - `GraphBacked` is the universal base for graph-scoped Pydantic models.
-  - `StructuralElement` is the universal base for OWL 2 structural elements and closely related extensions.
+  - `StructuralElement` is the universal base for OWL 2 structural element axiom heads and closely related extensions.
+  - `StructuralFragment` is the sibling base for owned scaffolding (graph fragments co-essential to a single axiom's RDF mapping, such as the `rdf:List` carrying `owl:intersectionOf` members).
 - Each instance has a single required `context` (graph identifier).
-- `StructuralElement` instances MUST NOT compose or aggregate other `StructuralElement` or `GraphBacked` instances. Cross-element references MUST be expressed with RDF node-level terms (and literals where the mapping permits). Cross-axiom traversal is a graph-level helper concern, not an embedding concern.
-- `as_triples` MUST remain shallow: it MUST NOT recurse into related elements. Structural elements expose `as_triples` and `as_quads` methods whose output conforms to the OWL 2 mapping to RDF and related RDF semantics specifications; `as_quads` appends `context` to each triple from `as_triples`.
+- The model hierarchy partitions references into three roles (DR-031):
+  - `StructuralElement` axiom heads MUST NOT compose or aggregate other `StructuralElement` instances. Cross-axiom references MUST be expressed only through RDF node-level identity. Cross-axiom traversal is a graph-level helper concern, not an embedding concern.
+  - `StructuralFragment` instances MAY be embedded as Pydantic fields on a single owning `StructuralElement`. The fragment's triples are part of the owner's partition; the fragment MUST share the owner's `context` (enforced by a centralized validator on `StructuralElement`).
+  - Node references at the schema boundary MUST use the package-defined annotated RDF aliases (for example `N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`) rather than raw rdflib node classes; raw rdflib node classes remain acceptable for internal non-schema logic.
+- A `StructuralElement.as_triples` MUST remain shallow with respect to other axiom heads: it MUST NOT recurse into other `StructuralElement` instances. Triples emitted by owned `StructuralFragment` fields legitimately appear in the owner's `as_triples` because they belong to the same partition. Structural elements expose `as_triples` and `as_quads` methods whose output conforms to the OWL 2 mapping to RDF and related RDF semantics specifications; `as_quads` appends `context` to each triple from `as_triples`.
 - Cross-context relationships are expressed only at the triple/quad level.
-- An axiom artifact SHOULD correspond to the multiset (or set) of triples or quads actually present for that axiom's mapping, not to a closed subtree of interpreted OWL objects whose supporting triples may be missing elsewhere.
-- Models avoid embedding heavy graph/session types (such as `rdflib.Graph` or SPARQL result objects). Schema-facing fields MUST use package-defined annotated RDF aliases (for example `N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`) rather than raw rdflib node classes so generated JSON Schema remains boundary-safe; raw rdflib node classes remain acceptable for internal non-schema logic.
-- The `rdflib-reasoning-middleware` project uses `GraphBacked` and `StructuralElement` models as tool argument/response schemas and as values embedded in middleware state for Research Agents.
+- An axiom artifact (a `StructuralElement` plus any owned `StructuralFragment` fields) SHOULD correspond to the multiset (or set) of triples or quads actually present for that axiom's mapping, not to a closed subtree of interpreted axiom heads whose supporting triples may be missing elsewhere.
+- Models avoid embedding heavy graph/session types (such as `rdflib.Graph` or SPARQL result objects).
+- The `rdflib-reasoning-middleware` project uses `GraphBacked` (both `StructuralElement` and `StructuralFragment`) models as tool argument/response schemas and as values embedded in middleware state for Research Agents.
 
 ### Structural traversal and representation
 

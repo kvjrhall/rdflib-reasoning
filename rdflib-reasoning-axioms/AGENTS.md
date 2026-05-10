@@ -87,17 +87,29 @@ other schema-driven interactions without forcing a redesign of the domain layer.
 - When mapping, crosswalk, README, and code disagree, treat the discrepancy as
   design drift to resolve deliberately rather than copying whichever source is
   closest at hand.
-- **Design drift:** generic `Seq` over `StructuralElement` operands and several
-  datatype models that use it violate the no-composition rule in DR-031; treat
-  that as follow-up work (see DR-031 Consequences), not as a pattern for new
-  code.
+- **Composition (three-role rule, DR-031):** Every non-trivial reference inside a
+  ``StructuralElement`` MUST be one of three roles:
+  1. Axiom heads do not compose other ``StructuralElement`` instances; cross-axiom
+     references are RDF node identifiers only.
+  2. Owned ``StructuralFragment`` instances (e.g. ``Seq``) MAY be embedded as
+     fields and MUST share the owner's ``context``; their ``as_triples`` belong
+     to the owner's partition.
+  3. Cross-axiom links go through the package-defined annotated RDF aliases
+     (``N3IRIRef``, ``N3Resource``, ``N3Node``, ``N3ContextIdentifier``).
+  ``Seq`` / ``SeqEntry`` list ``value`` positions are role 3 nodes, not nested
+  axiom instances.
 
 ## Boundary-friendly model rules
 
 - `GraphBacked` is the universal base for graph-scoped Pydantic models in this
   package.
-- `StructuralElement` is the universal base for OWL 2 structural elements; each
-  concrete OWL 2 structural element MUST subclass `StructuralElement`.
+- `StructuralElement` is the universal base for OWL 2 structural element axiom
+  heads; each concrete OWL 2 structural element MUST subclass
+  `StructuralElement`.
+- `StructuralFragment` is the sibling base for owned scaffolding co-essential to
+  a single axiom's RDF mapping (canonical example: `Seq`). Concrete owned
+  scaffolding models MUST subclass `StructuralFragment` rather than `GraphBacked`
+  directly.
 - Schema-facing models MUST use package-defined annotated aliases for RDF terms
   (for example `N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`)
   rather than raw RDFLib node classes so generated JSON Schema remains
@@ -109,14 +121,17 @@ other schema-driven interactions without forcing a redesign of the domain layer.
   `rdflib.Graph`, `ConjunctiveGraph`, SPARQL result objects, or similar handles.
 - Each instance MUST have a single required `context` graph identifier.
 - `StructuralElement` instances MUST NOT compose or aggregate other
-  `StructuralElement` or `GraphBacked` instances. Cross-element references MUST
-  use RDF node-level types (`IdentifiedNode`, `URIRef`, `BNode`, `Literal`) and
-  schema-facing aliases such as `N3IRIRef` or `N3Resource` where appropriate.
+  `StructuralElement` instances. Cross-axiom references MUST use schema-facing
+  RDF node aliases (`N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`).
+- Owned `StructuralFragment` fields MUST share the owning `StructuralElement`'s
+  `context`; this is enforced by a centralized validator on `StructuralElement`.
+  A fragment instantiated against a different `context` MUST be rebuilt against
+  the owner's `context` before composition.
 - Cross-axiom traversal is the responsibility of explicit graph-level helpers, not
   embedded model fields.
-- `as_triples` MUST remain shallow (MUST NOT recurse into related elements).
-  The no-composition rule makes this structurally trivial for new code; the
-  shallow rule remains an explicit invariant and defense-in-depth.
+- `StructuralElement.as_triples` MUST remain shallow with respect to other axiom
+  heads (MUST NOT recurse into other `StructuralElement` instances). Owned
+  `StructuralFragment` triples legitimately appear in the owner's `as_triples`.
 - Cross-context relationships MUST be expressed only at the triple or quad
   level.
 - Schema-boundary alias mapping for Development Agents:

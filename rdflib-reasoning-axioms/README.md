@@ -23,8 +23,9 @@ The authoritative reference for this matrix is the local cached specification in
 | Feature | Spec reference | Status | Notes |
 | --- | --- | --- | --- |
 | `GraphBacked` base model | package base infrastructure | Implemented | Common graph-scoped base for Pydantic models |
-| `StructuralElement` base model | package base infrastructure | Implemented | Abstract OWL 2 structural element base with `name`, `as_triples`, and `as_quads` |
-| `SEQ` / RDF list helper | `SEQ` | Implemented | Generic `Seq[T]` helper for mapped RDF lists |
+| `StructuralElement` base model | package base infrastructure | Implemented | Abstract OWL 2 structural element (axiom head) base with `name`, `as_triples`, and `as_quads`; enforces shared `context` for owned `StructuralFragment` fields |
+| `StructuralFragment` base model | package base infrastructure | Implemented | Abstract base for owned scaffolding co-essential to a single `StructuralElement`'s RDF mapping; shares the owner's `context` |
+| `SEQ` / RDF list helper | `SEQ` | Implemented | `Seq` (a `StructuralFragment`) plus `SeqEntry`: RDF list scaffolding with node-level `rdf:first` members |
 
 ### Ontology header and declarations
 
