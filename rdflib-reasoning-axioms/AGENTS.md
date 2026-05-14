@@ -140,6 +140,30 @@ other schema-driven interactions without forcing a redesign of the domain layer.
   - Any RDF node (`URIRef`, `BNode`, `Literal`) -> `N3Node`
   - Graph/context identifier (`URIRef` or `BNode`) -> `N3ContextIdentifier`
 
+The mapping above only applies to schema-facing fields; raw rdflib nodes remain
+acceptable in internal helpers and computed properties.
+
+```mermaid
+graph LR
+    URI["rdflib.URIRef"]
+    BN["rdflib.BNode"]
+    LT["rdflib.Literal"]
+    subgraph aliases ["package-defined annotated aliases"]
+        N3I["N3IRIRef"]
+        N3R["N3Resource"]
+        N3C["N3ContextIdentifier"]
+        N3N["N3Node"]
+    end
+    URI --> N3I
+    URI --> N3R
+    BN --> N3R
+    URI --> N3N
+    BN --> N3N
+    LT --> N3N
+    URI --> N3C
+    BN --> N3C
+```
+
 ## Docstring guidance
 
 - Concrete `StructuralElement` docstrings SHOULD name the OWL structural form,

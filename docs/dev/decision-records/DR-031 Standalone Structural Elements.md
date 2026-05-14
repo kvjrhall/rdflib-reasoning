@@ -25,6 +25,61 @@ The Pydantic class hierarchy under `GraphBacked` partitions models into three ro
 2. **`StructuralFragment` (owned scaffolding).** Sibling of `StructuralElement` under `GraphBacked`. A `StructuralFragment` models a graph fragment co-essential to one axiom's RDF mapping (canonical example: `Seq` for `rdf:List` operand lists). Fragments MAY be embedded as Pydantic fields on a single owning `StructuralElement`. A fragment's `as_triples` belongs to the owner's partition, not to a separate one. A fragment MUST share its owner's `context`; this is enforced by a centralized validator on `StructuralElement`. Fragments are not partition units on their own and are not OWL axioms.
 3. **Node references via package-defined annotated aliases (`N3Resource`, `N3IRIRef`, `N3Node`, `N3ContextIdentifier`).** Used for cross-axiom links by identity. Schema-facing fields MUST use these aliases rather than raw rdflib node classes; raw rdflib node-level classes (`URIRef`, `BNode`, `Literal`, `IdentifiedNode`, etc.) MAY still be used internally in helpers, computed properties, and local logic that does not define schema-facing fields.
 
+```mermaid
+classDiagram
+    class GraphBacked {
+        <<abstract>>
+        +context: ContextIdentifier
+    }
+    class StructuralElement {
+        <<abstract>>
+        +name: IdentifiedNode
+        +as_triples()
+        +as_quads()
+    }
+    class StructuralFragment {
+        <<abstract>>
+        +as_triples()
+        +as_quads()
+    }
+    class Seq {
+        +entries: Sequence~SeqEntry~
+    }
+    class DataIntersectionOf {
+        +intersection_of: Seq
+        +complement_of: N3Resource
+    }
+    class N3Aliases {
+        <<type aliases>>
+        N3IRIRef
+        N3Resource
+        N3Node
+        N3ContextIdentifier
+    }
+    GraphBacked <|-- StructuralElement
+    GraphBacked <|-- StructuralFragment
+    StructuralFragment <|-- Seq
+    StructuralElement <|-- DataIntersectionOf
+    DataIntersectionOf "1" *-- "1" Seq : owns (shared context)
+    DataIntersectionOf ..> N3Aliases : node ref
+```
+
+```mermaid
+flowchart LR
+    subgraph rejected ["Rejected: nested axiom heads"]
+        A1["axiom head A"]
+        B1["axiom head B"]
+        A1 -->|"composes (Pydantic field)"| B1
+    end
+    subgraph sanctioned ["Sanctioned: fragment + node ref"]
+        A2["axiom head A"]
+        F2["StructuralFragment<br/>(shared context)"]
+        N2["B's identity<br/>(N3Resource / N3IRIRef)"]
+        A2 -->|"owns"| F2
+        A2 -.->|"node ref"| N2
+    end
+```
+
 The remaining DR-002 constraints carry forward, refined to this framing:
 
 - **Pydantic hierarchy.** All domain data models at the interface of `rdflib-reasoning-middleware` MUST be Pydantic models. Strong reasons to deviate MUST be documented. `GraphBacked` is the universal base for graph-scoped Pydantic models; `StructuralElement` and `StructuralFragment` are siblings beneath it. Non-OWL graph-scoped constructs (e.g. RDF-star triple-statements per RDF 1.2) MAY be `GraphBacked` directly without subclassing either.
@@ -42,6 +97,31 @@ The remaining DR-002 constraints carry forward, refined to this framing:
 - Research Agents and tools retain a stable, schema-driven interface to axioms and graph-scoped data; JSON Schema stays small and guidance-oriented.
 - Partial ontologies and incremental authoring are modeled honestly: cross-axiom operands are nodes unless and until traversal materializes separate axiom objects from the graph.
 - Partitioning and deletion semantics improve: chunk shape does not depend on sibling axioms being present; parents do not retain nested axiom-head objects for absent subgraphs.
+
+```mermaid
+flowchart LR
+    subgraph before ["Before: two axiom partitions"]
+        subgraph p1 ["Partition 1: axiom A"]
+            A1head["A head"]
+            A1frag["A's owned Seq cells"]
+            A1head -->|"as_triples"| A1frag
+        end
+        subgraph p2 ["Partition 2: axiom B"]
+            B1head["B head"]
+        end
+        A1head -.->|"node ref to B"| B1head
+    end
+    subgraph after ["After: partition 2 deleted"]
+        subgraph p1b ["Partition 1: axiom A (unchanged)"]
+            A2head["A head"]
+            A2frag["A's owned Seq cells"]
+            A2head -->|"as_triples"| A2frag
+        end
+        Bnode["B (just a node identity)"]
+        A2head -.->|"node ref still valid"| Bnode
+    end
+```
+
 - Owned `rdf:List` and similar scaffolding remain expressible as first-class Pydantic structure (`StructuralFragment`) without violating the no-axiom-composition rule. The shared-context invariant is enforced centrally on `StructuralElement`, not duplicated per axiom class.
 - **Tradeoff:** JSON Schema loses discriminated-union strength for cross-axiom operands when those operands are bare node identifiers instead of nested axiom types; reusable schema aliases and field descriptions SHOULD mitigate misuse. Owned-fragment fields keep their typed Pydantic schema, so this tradeoff applies only to operand references.
 - Stricter OWL alignment, shallow `as_triples` for axiom heads, and aliases-only schema-facing fields remain required for new structural elements. Error message conventions remain as in DR-002; a future DR may standardize machine-readable error shape.

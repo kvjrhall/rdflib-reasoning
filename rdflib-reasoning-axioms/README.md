@@ -18,6 +18,45 @@ Status values:
 
 The authoritative reference for this matrix is the local cached specification index at [`docs/specs/owl2-mapping-to-rdf/INDEX.md`](../docs/specs/owl2-mapping-to-rdf/INDEX.md).
 
+```mermaid
+classDiagram
+    class GraphBacked {
+        <<abstract>>
+        +context: ContextIdentifier
+    }
+    class StructuralElement {
+        <<abstract>>
+        +name: IdentifiedNode
+        +as_triples()
+        +as_quads()
+    }
+    class StructuralFragment {
+        <<abstract>>
+        +as_triples()
+        +as_quads()
+    }
+    class Seq {
+        +entries: Sequence~SeqEntry~
+    }
+    class DataIntersectionOf {
+        +intersection_of: Seq
+        +complement_of: N3Resource
+    }
+    class N3Aliases {
+        <<type aliases>>
+        N3IRIRef
+        N3Resource
+        N3Node
+        N3ContextIdentifier
+    }
+    GraphBacked <|-- StructuralElement
+    GraphBacked <|-- StructuralFragment
+    StructuralFragment <|-- Seq
+    StructuralElement <|-- DataIntersectionOf
+    DataIntersectionOf "1" *-- "1" Seq : owns (shared context)
+    DataIntersectionOf ..> N3Aliases : node ref
+```
+
 ### Core infrastructure
 
 | Feature | Spec reference | Status | Notes |
@@ -26,6 +65,27 @@ The authoritative reference for this matrix is the local cached specification in
 | `StructuralElement` base model | package base infrastructure | Implemented | Abstract OWL 2 structural element (axiom head) base with `name`, `as_triples`, and `as_quads`; enforces shared `context` for owned `StructuralFragment` fields |
 | `StructuralFragment` base model | package base infrastructure | Implemented | Abstract base for owned scaffolding co-essential to a single `StructuralElement`'s RDF mapping; shares the owner's `context` |
 | `SEQ` / RDF list helper | `SEQ` | Implemented | `Seq` (a `StructuralFragment`) plus `SeqEntry`: RDF list scaffolding with node-level `rdf:first` members |
+
+#### Seq layout
+
+`Seq` exposes its RDF cons-cell chain as a flat `entries: Sequence[SeqEntry]`; each `SeqEntry` pairs the cell node with its `rdf:first` value. The terminal sentinel row uses `cell == rdf:nil` and `value is None` and emits no `rdf:first` triple.
+
+```mermaid
+graph LR
+    H["entries[0].cell<br/>(Seq.name)"]
+    C1["entries[1].cell"]
+    Cn["entries[n-1].cell"]
+    Nil["rdf:nil<br/>(sentinel; value=None)"]
+    V0["entries[0].value"]
+    V1["entries[1].value"]
+    Vn["entries[n-1].value"]
+    H -->|"rdf:first"| V0
+    C1 -->|"rdf:first"| V1
+    Cn -->|"rdf:first"| Vn
+    H -->|"rdf:rest"| C1
+    C1 -.->|"rdf:rest ..."| Cn
+    Cn -->|"rdf:rest"| Nil
+```
 
 ### Ontology header and declarations
 

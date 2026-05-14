@@ -32,16 +32,86 @@ Structural elements describe OWL 2 and related graph-scoped constructs in a way 
   - `StructuralElement` axiom heads MUST NOT compose or aggregate other `StructuralElement` instances. Cross-axiom references MUST be expressed only through RDF node-level identity. Cross-axiom traversal is a graph-level helper concern, not an embedding concern.
   - `StructuralFragment` instances MAY be embedded as Pydantic fields on a single owning `StructuralElement`. The fragment's triples are part of the owner's partition; the fragment MUST share the owner's `context` (enforced by a centralized validator on `StructuralElement`).
   - Node references at the schema boundary MUST use the package-defined annotated RDF aliases (for example `N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`) rather than raw rdflib node classes; raw rdflib node classes remain acceptable for internal non-schema logic.
+
+```mermaid
+classDiagram
+    class GraphBacked {
+        <<abstract>>
+        +context: ContextIdentifier
+    }
+    class StructuralElement {
+        <<abstract>>
+        +name: IdentifiedNode
+        +as_triples()
+        +as_quads()
+    }
+    class StructuralFragment {
+        <<abstract>>
+        +as_triples()
+        +as_quads()
+    }
+    class Seq {
+        +entries: Sequence~SeqEntry~
+    }
+    class DataIntersectionOf {
+        +intersection_of: Seq
+        +complement_of: N3Resource
+    }
+    class N3Aliases {
+        <<type aliases>>
+        N3IRIRef
+        N3Resource
+        N3Node
+        N3ContextIdentifier
+    }
+    GraphBacked <|-- StructuralElement
+    GraphBacked <|-- StructuralFragment
+    StructuralFragment <|-- Seq
+    StructuralElement <|-- DataIntersectionOf
+    DataIntersectionOf "1" *-- "1" Seq : owns (shared context)
+    DataIntersectionOf ..> N3Aliases : node ref
+```
+
 - A `StructuralElement.as_triples` MUST remain shallow with respect to other axiom heads: it MUST NOT recurse into other `StructuralElement` instances. Triples emitted by owned `StructuralFragment` fields legitimately appear in the owner's `as_triples` because they belong to the same partition. Structural elements expose `as_triples` and `as_quads` methods whose output conforms to the OWL 2 mapping to RDF and related RDF semantics specifications; `as_quads` appends `context` to each triple from `as_triples`.
 - Cross-context relationships are expressed only at the triple/quad level.
 - An axiom artifact (a `StructuralElement` plus any owned `StructuralFragment` fields) SHOULD correspond to the multiset (or set) of triples or quads actually present for that axiom's mapping, not to a closed subtree of interpreted axiom heads whose supporting triples may be missing elsewhere.
 - Models avoid embedding heavy graph/session types (such as `rdflib.Graph` or SPARQL result objects).
 - The `rdflib-reasoning-middleware` project uses `GraphBacked` (both `StructuralElement` and `StructuralFragment`) models as tool argument/response schemas and as values embedded in middleware state for Research Agents.
 
+```mermaid
+flowchart LR
+    subgraph dev ["Repository (Development Agent visibility)"]
+        Pkg["axioms package<br/>(StructuralElement + StructuralFragment)"]
+        Schema["Pydantic JSON Schema"]
+        Pkg -->|"model_json_schema"| Schema
+    end
+    subgraph mw ["Middleware"]
+        Tools["tool argument /<br/>response models"]
+        State["values in agent state"]
+    end
+    subgraph ra ["Research Agent visibility"]
+        ToolSurface["sees: schema +<br/>serialized values only"]
+    end
+    Pkg --> Tools
+    Pkg --> State
+    Schema --> ToolSurface
+    Tools --> ToolSurface
+    State --> ToolSurface
+```
+
 ### Structural traversal and representation
 
 Structural traversal is the inverse-facing companion to structural-element serialization.
 Where `as_triples` and `as_quads` project a structural element into RDF, traversal lifts RDF graph content back into structural elements and related graph-backed objects.
+
+```mermaid
+flowchart LR
+    G1[("RDF Graph<br/>(input)")]
+    SE["StructuralElement<br/>+ owned StructuralFragment"]
+    G2[("RDF Graph<br/>(projected)")]
+    G1 -.->|"traversal (planned)"| SE
+    SE -->|"as_triples / as_quads<br/>(implemented)"| G2
+```
 
 - Structural traversal SHOULD partition supported graph content into explicit `StructuralElement` or `GraphBacked` objects rather than forcing downstream agents to recover structural intent from raw triples alone.
 - Traversal over OWL 2 content SHOULD use the local OWL 2 Mapping to RDF specification artifacts and crosswalks as the primary Development Agent-facing references.
@@ -78,6 +148,25 @@ These rules are aligned with, and further elaborated in, [DR-031 Standalone Stru
 
 ## Middleware composition and capability gating
 
+```mermaid
+flowchart TD
+    Compose[harness composes middleware stack] --> Inf{include InferenceMiddleware?}
+    Inf -- no --> NoInf[no inference / explanation tools]
+    Inf -- yes --> Ret{include RetrievalMiddleware?}
+    NoInf --> Ret
+    Ret -- no --> NoRet[no remote entity resolution / import]
+    Ret -- yes --> Vocab{include RDFVocabularyMiddleware?}
+    NoRet --> Vocab
+    Vocab -- no --> OpenVocab[no whitelist enforcement; no vocab tools]
+    Vocab -- yes --> Whitelisted[term-level enforcement + suggestions]
+    OpenVocab --> Guard{include ContinuationGuardMiddleware?}
+    Whitelisted --> Guard
+    Guard -- no --> ConvAgent[multi-round conversational agent allowed]
+    Guard -- yes --> SingleRun[single-run completion-oriented agent with finalize/stop modes]
+    ConvAgent --> Build[build agent with tool surface and prompt enumeration]
+    SingleRun --> Build
+```
+
 Middleware composition is the primary mechanism by which runtime capabilities are exposed to, or withheld from, a Research Agent.
 This is an architectural constraint for both correctness and experimental control.
 
@@ -86,6 +175,35 @@ This is an architectural constraint for both correctness and experimental contro
 - Knowledge retrieval capabilities MUST be enabled or disabled by inclusion or exclusion of retrieval middleware. A Research Agent without retrieval middleware MUST NOT be able to access remote entity-resolution or remote import functionality accidentally through some alternate path.
 - Knowledge retrieval middleware and inference middleware depend on dataset middleware because they operate on dataset-backed runtime state. If the concrete state shape or dataset-session abstraction changes, that dependency MUST remain explicit at the architectural level.
 - Middleware that exposes capabilities to a Research Agent SHOULD do so through explicit tool/state surfaces with clear schemas rather than through hidden side effects.
+
+```mermaid
+sequenceDiagram
+    actor Agent as Research Agent
+    participant Guard as ContinuationGuardMiddleware
+    participant Vocab as RDFVocabularyMiddleware
+    participant Dataset as DatasetMiddleware
+    participant Infer as InferenceMiddleware
+    participant Tool as tool adapter
+    participant Internal as internal middleware method
+    participant Runtime as DatasetRuntime
+
+    Agent->>Guard: tool_call(name, args)
+    Guard->>Vocab: forward (continuation policy ok)
+    Vocab->>Dataset: namespace whitelist check
+    alt rejected term
+        Vocab-->>Agent: structured rejection + nearest-term hint
+    else accepted
+        Dataset->>Tool: dispatch to tool adapter
+        Tool->>Internal: validated payload
+        Internal->>Runtime: read or write dataset state
+        opt inference required
+            Internal->>Infer: trigger materialization (events)
+            Infer-->>Runtime: derived triples
+        end
+        Internal-->>Tool: typed result
+        Tool-->>Agent: ToolMessage(result)
+    end
+```
 
 ### Middleware stack layering and hook-role boundaries
 
@@ -264,6 +382,37 @@ single-run, completion-oriented Research Agent harnesses.
 
 These rules are aligned with [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md).
 
+```mermaid
+sequenceDiagram
+    actor Agent as Research Agent
+    participant Guard as ContinuationGuardMiddleware
+    participant Stack as Other middleware
+    participant Model as LLM provider
+    participant Runtime as DatasetRuntime
+
+    Agent->>Guard: turn_start (before_model)
+    Guard->>Guard: read state machine (normal / finalize_only / stop_now)
+    alt mode == stop_now
+        Guard-->>Agent: deterministic stop
+    else mode == finalize_only
+        Guard->>Stack: inject HumanMessage finalize reminder
+    else mode == normal
+        Guard->>Stack: pass-through
+    end
+    Stack->>Model: wrap_model_call(messages)
+    Model-->>Stack: assistant or tool_calls
+    Stack->>Guard: after_model(response)
+    Guard->>Runtime: inspect serialization or correctness signals
+    alt valid completed answer
+        Guard-->>Agent: terminate run
+    else repeated unchanged rejection
+        Guard->>Guard: transition to finalize_only
+        Guard-->>Agent: continue with corrective HumanMessage
+    else still working
+        Guard-->>Agent: continue normal mode
+    end
+```
+
 #### Dataset middleware internal methods and tool adapters
 
 Dataset middleware MUST maintain a clear separation between internal implementation methods and Research Agent-facing tool adapters.
@@ -302,6 +451,36 @@ telemetry.
 - Middleware that needs vocabulary policy or indexed vocabulary visibility
   SHOULD consume one shared `VocabularyContext` rather than separately injected
   whitelist and cache objects.
+
+```mermaid
+flowchart LR
+    subgraph Config[Declarative configuration]
+        VCfg[VocabularyConfiguration]
+        DCfg[DatasetConfiguration]
+    end
+    subgraph Shared[Shared runtime services]
+        DR[DatasetRuntime]
+        VC[VocabularyContext]
+        Tel[Run-local telemetry]
+    end
+    subgraph Mw[Middleware]
+        Dataset[DatasetMiddleware]
+        Vocab[RDFVocabularyMiddleware]
+        Retrieval[Retrieval/import middleware]
+        Infer[InferenceMiddleware]
+        Guard[ContinuationGuardMiddleware]
+    end
+    VCfg --> VC
+    DCfg --> DR
+    Dataset --> DR
+    Retrieval --> DR
+    Infer --> DR
+    Vocab --> VC
+    Dataset --> VC
+    Dataset --> Tel
+    Vocab --> Tel
+    Guard --> Tel
+```
 
 These rules are aligned with [DR-020 Middleware Stack Layering and Hook-Role Boundaries](decision-records/DR-020%20Middleware%20Stack%20Layering%20and%20Hook-Role%20Boundaries.md).
 
@@ -459,10 +638,48 @@ Contradiction handling is related to, but distinct from, inference execution and
 - The behavior of the system after contradiction detection (for example `silent`, `warn`, or `error`) MUST be independently configurable from contradiction detection itself.
 - Contradiction explanation SHOULD be reconstructed from contradiction diagnostics records and supporting premise/derivation context. It MUST NOT require materializing synthetic contradiction triples into logical closure.
 
+```mermaid
+sequenceDiagram
+    participant Engine as RETEEngine
+    participant Rule as OWL 2 RL false-rule (e.g. eq-diff1)
+    participant Diag as ContradictionDiagnostics
+    participant Caller as Inference middleware / API
+    actor Agent as Research Agent
+
+    Engine->>Rule: match terminal
+    Rule-->>Engine: contradiction witness (premises, kind)
+    Engine->>Diag: record(diagnostic_record)
+    Note right of Engine: NO mutation of working memory; closure unaffected
+    Caller->>Diag: query diagnostics(read-only)
+    Diag-->>Caller: list of records
+    alt policy = silent
+        Caller-->>Agent: continue
+    else policy = warn
+        Caller-->>Agent: continue + structured warning
+    else policy = error
+        Caller-->>Agent: structured contradiction explanation
+    end
+```
+
 ## Proof evaluation harness
 
 The repository SHOULD provide a reusable proof evaluation harness for baseline and follow-on experiments.
 This harness is Development Agent evaluation infrastructure for assessing Research Agent outputs; it is not itself a capability that a Research Agent must see at runtime.
+
+```mermaid
+flowchart TB
+    Add[stated triples added] --> Rule[RETE rule fires]
+    Rule --> Just[TMS records Justification: PartialMatch + premises]
+    Just --> Cache[derivation cache: derived FactID -> set of justifications]
+    Cache --> Recon{client requests proof?}
+    Recon -- yes --> Walk[walk justification DAG to stated leaves]
+    Walk --> DP[build DirectProof: claim + steps + supports]
+    DP --> Render{rendering target}
+    Render -- canonical --> Wire[machine-facing payload via DirectProof]
+    Render -- markdown --> MD[markdown render w/ NamespaceManager]
+    Render -- mermaid --> Mer[mermaid render]
+    Render -- harness --> Harness[ProofEvaluationHarness assesses DirectProof + input]
+```
 
 - The proof evaluation harness SHOULD live in `rdflib-reasoning-middleware`, because that package is the integration point between Research Agent-facing schemas, orchestration glue, and the reasoning packages.
 - The proof evaluation harness MUST expose framework-agnostic structured inputs and outputs using Pydantic models so that notebooks, scripts, and multiple orchestration frameworks can consume the same contract.
@@ -531,6 +748,33 @@ The design diverges from classic RETE by treating RDF triples as first-class obj
 - **Callbacks / hooks** MAY use Python functions for observability or integration, but they MUST NOT add triples, retract triples, or otherwise mutate graph state.
 - **RDF data-model enforcement** MUST remain part of engine correctness, not just caller-side validation. The engine MUST refuse to admit or materialize triples that violate the RDF 1.1 triple constraints, especially literal subjects and non-IRI predicates.
 
+```mermaid
+sequenceDiagram
+    actor Caller as RDFLib caller
+    participant Store as RETEStore
+    participant Factory as RETEEngineFactory
+    participant Engine as RETEEngine
+    participant Compiler as NetworkBuilder
+    participant Backing as backing store
+    participant ContextG as context graph
+
+    Caller->>Store: open or first context use
+    Store->>Store: _ensure_engine(context_id)
+    Store->>Factory: new_engine(context)
+    Factory->>Engine: __init__(rules)
+    Engine->>Compiler: compile rules + build network
+    Compiler-->>Engine: terminals + matcher
+
+    Note over Store,ContextG: warmstart over existing triples
+    Store->>Backing: triples((None, None, None), context)
+    Backing-->>Store: existing_data
+    Store->>Engine: warmup(existing_data)
+    Engine->>Engine: _run_bootstrap_rules() (saturate, no materialize)
+    Engine->>Engine: add_triples(existing_data) (saturate + materialize)
+    Engine-->>Store: warmup_deductions
+    Store->>ContextG: addN(deductions)
+```
+
 ### Rule Matching & Network Topology
 
 The engine SHOULD employ a **Left-Deep** join tree by default but MUST support **Structural Node Sharing** through a canonicalizing `NodeRegistry`.
@@ -539,6 +783,36 @@ The engine SHOULD employ a **Left-Deep** join tree by default but MUST support *
 - **Beta Layer**: MUST maintain memories of `PartialMatch` objects. The `JoinOptimizer` SHOULD use basic selectivity heuristics (e.g., specific properties are more selective than `rdf:type`) to order joins.
 - **Terminal Layer**: Upon a full match, the engine MUST produce an engine-managed logical production and MAY additionally enqueue non-mutating callbacks.
 - **Specialized relation indexes**: The architecture MAY later incorporate specialized relation indexes for selected reachability-oriented relations when that is more efficient than routing the same work exclusively through generic rule matching. Current intent is limited to schema-lattice relations such as `rdfs:subClassOf` and `rdfs:subPropertyOf`; concrete algorithms and integration boundaries remain future design work.
+
+```mermaid
+sequenceDiagram
+    actor Caller
+    participant Store as RETEStore
+    participant Disp as BatchDispatcher
+    participant Engine as RETEEngine
+    participant Matcher as NetworkMatcher
+    participant Agenda
+    participant TMS
+    participant ContextG as context graph
+
+    Caller->>Store: add(triple, ctx)
+    Store->>Disp: TripleAddedEvent (raw)
+    Disp->>Disp: dedupe + coalesce
+    Disp->>Store: TripleAddedBatchEvent
+    Store->>Engine: add_triples(batch)
+    Engine->>TMS: register_stated(fresh)
+    loop saturation fixed point
+        Engine->>Matcher: match_terminals
+        Matcher->>Matcher: alpha then beta join then predicate filter
+        Matcher-->>Engine: ActionInstances
+        Engine->>Agenda: order activations
+        Agenda-->>Engine: sorted activations
+        Engine->>TMS: record_derivation(triple, premises)
+        Engine->>Engine: materialize unless silent or duplicate
+    end
+    Engine-->>Store: derived triples
+    Store->>ContextG: addN(derived)
+```
 
 ### Truth Maintenance System (TMS)
 
@@ -553,6 +827,35 @@ The engine MUST provide a **Justification-based Truth Maintenance System (JTMS)*
 - **Removal propagation contract**: Low-level remove event forwarding MAY mirror add forwarding through `BatchDispatcher`, `RETEStore`, and `RETEEngine`, but logical removal MUST be governed by support validity rather than event arrival alone. A remove event MAY invalidate one support path without implying that the corresponding derived Fact is no longer present.
 - **Staged implementation plan**: The intended Development Agent sequence is: (1) record support objects at production time for newly derived and already-known conclusions; (2) expose support verification APIs that can answer whether a Fact remains supported after one support path is invalidated; (3) implement recursive **Mark-Verify-Sweep** over the dependency graph; and only then (4) wire full triple removal through `RETEEngine`, `RETEStore`, and `BatchDispatcher`. All four stages are implemented. The support verification API surface is captured in [DR-023 JTMS Support Verification API Surface](decision-records/DR-023%20JTMS%20Support%20Verification%20API%20Surface.md), the recursive retraction primitive in [DR-024 TMSController Recursive Retraction](decision-records/DR-024%20TMSController%20Recursive%20Retraction.md), and the store/engine wiring with its re-materialization-with-warning policy in [DR-025 RETE Store Removal Wiring and Re-Materialization Policy](decision-records/DR-025%20RETE%20Store%20Removal%20Wiring%20and%20Re-Materialization%20Policy.md).
 
+```mermaid
+sequenceDiagram
+    actor Caller
+    participant Store as RETEStore
+    participant Disp as BatchDispatcher
+    participant Engine as RETEEngine
+    participant TMS as TMSController
+    participant Matcher as NetworkMatcher
+    participant ContextG as context graph
+
+    Caller->>Store: remove(pattern, ctx)
+    Store->>Disp: TripleRemovedEvent (raw)
+    Disp->>Store: TripleRemovedBatchEvent
+    Store->>Engine: retract_triples(batch)
+    loop per fact
+        Engine->>TMS: retract_triple(triple)
+        alt has surviving justifications
+            TMS-->>Engine: unstated only (fact still derived)
+        else stated and no justifications
+            TMS->>TMS: _mark_verify_sweep
+            TMS-->>Engine: removed_facts + cascade triples
+        end
+    end
+    Engine->>Matcher: evict_partial_matches_referencing(removed_fact_ids)
+    Engine-->>Store: cascade triples
+    Store->>ContextG: remove cascade
+    Store->>Store: re-materialize logically sticky removals
+```
+
 ### Execution & Side Effects
 
 Rule execution MUST be decoupled from matching via an `Agenda`.
@@ -561,6 +864,33 @@ Rule execution MUST be decoupled from matching via an `Agenda`.
 - **Logical Production Path**: Logical triple production MUST occur only through engine-managed rule heads. Python callbacks MUST NOT be an alternate inference channel or graph-mutation path.
 - **Callbacks**: Callbacks MUST interact with the engine only through a read-only `RuleContext` or equivalent hook context. They MAY emit logs, metrics, traces, or other external signals, but they MUST NOT modify graph state.
 - **Retraction Compatibility**: Because callbacks are non-logical and non-mutating, `RetractionNotImplemented` MUST be interpreted as meaning that no callback reversal is required for logical consistency. Logical triple removal is handled by the JTMS-backed retraction path described above, including support verification and recursive Mark-Verify-Sweep behavior.
+
+```mermaid
+flowchart LR
+    Start([derived triple<br/>candidate]) --> A
+    subgraph Admission["Admission filters"]
+        direction TB
+        A{term policy<br/>permits?} -- yes --> B{stated<br/>duplicate?}
+        B -- no --> C{predicate<br/>filter ok?}
+        C -- yes --> D{join<br/>matches?}
+    end
+    subgraph Materialization["Materialization decision"]
+        direction TB
+        E{silent<br/>action?} -- no --> F{bootstrap-only<br/>off-phase?}
+        F -- no --> G{already<br/>materialized?}
+        G -- no --> H{justification<br/>duplicate?}
+        H -- no --> Done([materialize +<br/>record<br/>justification])
+    end
+    D -- yes --> E
+    A -- no --> Drop1[drop:<br/>term policy]
+    B -- yes --> Drop2[drop:<br/>dup stated]
+    C -- no --> Drop3[drop:<br/>predicate filter]
+    D -- no --> Drop4[drop:<br/>empty join]
+    E -- yes --> Log1[log silent;<br/>not materialized]
+    F -- yes --> Drop5[drop:<br/>off-phase]
+    G -- yes --> Drop6[drop:<br/>dup materialized]
+    H -- yes --> Skip[skip:<br/>dup justification]
+```
 
 ### RDF Data-Model Enforcement
 
