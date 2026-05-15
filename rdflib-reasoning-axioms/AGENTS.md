@@ -27,6 +27,11 @@ other schema-driven interactions without forcing a redesign of the domain layer.
   as the authoritative rationale for `GraphBacked` and `StructuralElement`
   (supersedes DR-002).
 - Treat
+  [`docs/dev/decision-records/DR-032 Authoring-Layer Composition and Persistence Lowering.md`](../docs/dev/decision-records/DR-032%20Authoring-Layer%20Composition%20and%20Persistence%20Lowering.md)
+  as the authoritative rationale for the authoring vs persistence layering,
+  typed operand reference (`*Ref`) types, the `lower()` operation, and
+  bundle-level declaration validation. Layers on top of DR-031.
+- Treat
   [`docs/dev/decision-records/DR-011 Schema-Facing RDF Boundary Models.md`](../docs/dev/decision-records/DR-011%20Schema-Facing%20RDF%20Boundary%20Models.md)
   as the authoritative rule set for schema-facing RDF boundary models.
 - Treat
@@ -123,6 +128,10 @@ other schema-driven interactions without forcing a redesign of the domain layer.
 - `StructuralElement` instances MUST NOT compose or aggregate other
   `StructuralElement` instances. Cross-axiom references MUST use schema-facing
   RDF node aliases (`N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`).
+  A cross-axiom reference MAY be carried by an authoring-layer typed Pydantic
+  wrapper (`*Ref`) that decays to a bare node in `as_triples`; persistence-layer
+  code MUST NOT depend on the wrapper's `kind` field being present in the graph
+  (DR-032).
 - Owned `StructuralFragment` fields MUST share the owning `StructuralElement`'s
   `context`; this is enforced by a centralized validator on `StructuralElement`.
   A fragment instantiated against a different `context` MUST be rebuilt against

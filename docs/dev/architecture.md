@@ -31,7 +31,7 @@ Structural elements describe OWL 2 and related graph-scoped constructs in a way 
 - The model hierarchy partitions references into three roles (DR-031):
   - `StructuralElement` axiom heads MUST NOT compose or aggregate other `StructuralElement` instances. Cross-axiom references MUST be expressed only through RDF node-level identity. Cross-axiom traversal is a graph-level helper concern, not an embedding concern.
   - `StructuralFragment` instances MAY be embedded as Pydantic fields on a single owning `StructuralElement`. The fragment's triples are part of the owner's partition; the fragment MUST share the owner's `context` (enforced by a centralized validator on `StructuralElement`).
-  - Node references at the schema boundary MUST use the package-defined annotated RDF aliases (for example `N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`) rather than raw rdflib node classes; raw rdflib node classes remain acceptable for internal non-schema logic.
+  - Node references at the schema boundary MUST use the package-defined annotated RDF aliases (for example `N3IRIRef`, `N3Resource`, `N3Node`, `N3ContextIdentifier`) rather than raw rdflib node classes; raw rdflib node classes remain acceptable for internal non-schema logic. A node reference MAY be carried by a typed Pydantic wrapper (an authoring-layer `*Ref`) that decays to a bare node in `as_triples`; see "Composition layering" below.
 
 ```mermaid
 classDiagram
@@ -98,6 +98,35 @@ flowchart LR
     Tools --> ToolSurface
     State --> ToolSurface
 ```
+
+### Composition layering
+
+The axioms package separates the **authoring layer** (agent-facing Pydantic schemas used to compose and interpret axioms) from the **persistence layer** (DR-031 partition-pure `StructuralElement` instances and their `as_triples` projections). The two layers are joined by a mechanical lowering operation and supported by bundle-level validation of operand declarations.
+
+- **Authoring layer.** Operand fields MAY be typed as **operand references** (per-family Pydantic wrappers, working names `DataRangeRef`, `ClassExpressionRef`, `FacetRef`, and similar) carrying a `name: N3Resource` identity plus a `kind` discriminator. Operand fields MAY also be typed as discriminated authoring unions admitting either a `*Ref` or a nested `StructuralElement` body for inline composition.
+- **Persistence layer.** Operands MUST be RDF node identities; `as_triples` MUST remain shallow with respect to other axiom heads per DR-031. The `*Ref` wrappers decay to bare nodes at the RDF and wire boundary; persistence-layer code MUST NOT depend on the `kind` field being present in the graph.
+- **Lowering.** A `lower()` operation rewrites any authoring-layer artifact into a bundle of role-3-only `StructuralElement` instances plus their owned `StructuralFragment` fields. Nested operand bodies are minted as separate partitions; operand slots are rewritten to `*Ref` identities. `lower()` MUST preserve owned-fragment `context` invariants and MUST be idempotent.
+- **Bundle validation.** Every operand identity in a bundle MUST either correspond to a `StructuralElement` declared in the same bundle or be explicitly marked as external by the authoring tool. Cross-bundle and graph-wide resolution remain graph-level helper concerns.
+- **Where operand kind comes from on the wire.** Operand kind is carried by the OWL 2 `Declaration*` axioms already part of the OWL 2 RDF mapping. The authoring layer's `kind` discriminator is a schema-layer type witness, not an additional wire claim.
+
+```mermaid
+flowchart LR
+    subgraph authoring [Authoring layer]
+        Ah["axiom A"]
+        Bbody["nested body B<br/>(StructuralElement)"]
+        Ah -->|"typed operand"| Bbody
+    end
+    subgraph persistence [Persistence layer]
+        Ap["axiom A"]
+        Bref["ref(B)<br/>(N3Resource + kind)"]
+        Bp["axiom B<br/>(separate partition)"]
+        Ap -.->|"node ref"| Bref
+        Bref -.->|"identity"| Bp
+    end
+    authoring -->|"lower()"| persistence
+```
+
+This layering preserves DR-031's persistence invariants while recovering compile-time operand-family discipline at the authoring boundary, so authoring agents and ML/persistence consumers can share a single underlying RDF representation. It is further elaborated in [DR-032 Authoring-Layer Composition and Persistence Lowering](decision-records/DR-032%20Authoring-Layer%20Composition%20and%20Persistence%20Lowering.md).
 
 ### Structural traversal and representation
 

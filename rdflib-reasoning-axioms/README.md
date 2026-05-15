@@ -40,6 +40,8 @@ classDiagram
     }
     class DataIntersectionOf {
         +intersection_of: Seq
+    }
+    class DataComplementOf {
         +complement_of: N3Resource
     }
     class N3Aliases {
@@ -53,8 +55,9 @@ classDiagram
     GraphBacked <|-- StructuralFragment
     StructuralFragment <|-- Seq
     StructuralElement <|-- DataIntersectionOf
+    StructuralElement <|-- DataComplementOf
     DataIntersectionOf "1" *-- "1" Seq : owns (shared context)
-    DataIntersectionOf ..> N3Aliases : node ref
+    DataComplementOf ..> N3Aliases : node ref
 ```
 
 ### Core infrastructure
@@ -65,6 +68,7 @@ classDiagram
 | `StructuralElement` base model | package base infrastructure | Implemented | Abstract OWL 2 structural element (axiom head) base with `name`, `as_triples`, and `as_quads`; enforces shared `context` for owned `StructuralFragment` fields |
 | `StructuralFragment` base model | package base infrastructure | Implemented | Abstract base for owned scaffolding co-essential to a single `StructuralElement`'s RDF mapping; shares the owner's `context` |
 | `SEQ` / RDF list helper | `SEQ` | Implemented | `Seq` (a `StructuralFragment`) plus `SeqEntry`: RDF list scaffolding with node-level `rdf:first` members |
+| Facet list helper | (extension; supports `DatatypeRestriction`) | Implemented | `FacetList` (a `StructuralFragment`) plus `FacetEntry`: per-row `(cell, anchor, facet, value)` carrying both the cons-cell chain and the per-facet anchor triple |
 
 #### Seq layout
 
@@ -101,31 +105,31 @@ graph LR
 
 ### Data ranges and class expressions
 
-| Feature | Spec reference | Status |
-| --- | --- | --- |
-| Object inverse | `ObjectInverseOf` | Not started |
-| Data intersection | `DataIntersectionOf` | Not started |
-| Data union | `DataUnionOf` | Not started |
-| Data complement | `DataComplementOf` | Not started |
-| Data enumeration | `DataOneOf` | Not started |
-| Datatype restriction | `DatatypeRestriction` | Not started |
-| Object intersection | `ObjectIntersectionOf` | Not started |
-| Object union | `ObjectUnionOf` | Not started |
-| Object complement | `ObjectComplementOf` | Not started |
-| Object enumeration | `ObjectOneOf` | Not started |
-| Object existential restriction | `ObjectSomeValuesFrom` | Not started |
-| Object universal restriction | `ObjectAllValuesFrom` | Not started |
-| Object value restriction | `ObjectHasValue` | Not started |
-| Object self restriction | `ObjectHasSelf` | Not started |
-| Object min cardinality | `ObjectMinCardinality`, `ObjectMinCardinalityQualified` | Not started |
-| Object max cardinality | `ObjectMaxCardinality`, `ObjectMaxCardinalityQualified` | Not started |
-| Object exact cardinality | `ObjectExactCardinality`, `ObjectExactCardinalityQualified` | Not started |
-| Data existential restriction | `DataSomeValuesFrom`, `DataSomeValuesFromNary` | Not started |
-| Data universal restriction | `DataAllValuesFrom`, `DataAllValuesFromNary` | Not started |
-| Data value restriction | `DataHasValue` | Not started |
-| Data min cardinality | `DataMinCardinality`, `DataMinCardinalityQualified` | Not started |
-| Data max cardinality | `DataMaxCardinality`, `DataMaxCardinalityQualified` | Not started |
-| Data exact cardinality | `DataExactCardinality`, `DataExactCardinalityQualified` | Not started |
+| Feature | Spec reference | Status | Notes |
+| --- | --- | --- | --- |
+| Object inverse | `ObjectInverseOf` | Not started | |
+| Data intersection | `DataIntersectionOf` | Implemented | Owned `Seq` operand list (n >= 2) |
+| Data union | `DataUnionOf` | Implemented | Owned `Seq` operand list (n >= 2) |
+| Data complement | `DataComplementOf` | Implemented | Cross-axiom operand via `N3Resource` node reference |
+| Data enumeration | `DataOneOf` | Implemented | Owned `Seq` operand list of literals (n >= 1) |
+| Datatype restriction | `DatatypeRestriction` | Implemented | Owned `FacetList` carrying per-facet anchor, predicate, and value |
+| Object intersection | `ObjectIntersectionOf` | Not started | |
+| Object union | `ObjectUnionOf` | Not started | |
+| Object complement | `ObjectComplementOf` | Not started | |
+| Object enumeration | `ObjectOneOf` | Not started | |
+| Object existential restriction | `ObjectSomeValuesFrom` | Not started | |
+| Object universal restriction | `ObjectAllValuesFrom` | Not started | |
+| Object value restriction | `ObjectHasValue` | Not started | |
+| Object self restriction | `ObjectHasSelf` | Not started | |
+| Object min cardinality | `ObjectMinCardinality`, `ObjectMinCardinalityQualified` | Not started | |
+| Object max cardinality | `ObjectMaxCardinality`, `ObjectMaxCardinalityQualified` | Not started | |
+| Object exact cardinality | `ObjectExactCardinality`, `ObjectExactCardinalityQualified` | Not started | |
+| Data existential restriction | `DataSomeValuesFrom`, `DataSomeValuesFromNary` | Implemented | Both unary and n-ary (n >= 2) forms |
+| Data universal restriction | `DataAllValuesFromNary` | Implemented | N-ary form only (n >= 2); unary `DataAllValuesFrom` not started |
+| Data value restriction | `DataHasValue` | Not started | |
+| Data min cardinality | `DataMinCardinality`, `DataMinCardinalityQualified` | Not started | |
+| Data max cardinality | `DataMaxCardinality`, `DataMaxCardinalityQualified` | Not started | |
+| Data exact cardinality | `DataExactCardinality`, `DataExactCardinalityQualified` | Not started | |
 
 ### Class axioms
 
