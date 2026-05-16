@@ -18,48 +18,6 @@ Status values:
 
 The authoritative reference for this matrix is the local cached specification index at [`docs/specs/owl2-mapping-to-rdf/INDEX.md`](../docs/specs/owl2-mapping-to-rdf/INDEX.md).
 
-```mermaid
-classDiagram
-    class GraphBacked {
-        <<abstract>>
-        +context: ContextIdentifier
-    }
-    class StructuralElement {
-        <<abstract>>
-        +name: IdentifiedNode
-        +as_triples()
-        +as_quads()
-    }
-    class StructuralFragment {
-        <<abstract>>
-        +as_triples()
-        +as_quads()
-    }
-    class Seq {
-        +entries: Sequence~SeqEntry~
-    }
-    class DataIntersectionOf {
-        +intersection_of: Seq
-    }
-    class DataComplementOf {
-        +complement_of: N3Resource
-    }
-    class N3Aliases {
-        <<type aliases>>
-        N3IRIRef
-        N3Resource
-        N3Node
-        N3ContextIdentifier
-    }
-    GraphBacked <|-- StructuralElement
-    GraphBacked <|-- StructuralFragment
-    StructuralFragment <|-- Seq
-    StructuralElement <|-- DataIntersectionOf
-    StructuralElement <|-- DataComplementOf
-    DataIntersectionOf "1" *-- "1" Seq : owns (shared context)
-    DataComplementOf ..> N3Aliases : node ref
-```
-
 ### Core infrastructure
 
 | Feature | Spec reference | Status | Notes |
@@ -69,6 +27,7 @@ classDiagram
 | `StructuralFragment` base model | package base infrastructure | Implemented | Abstract base for owned scaffolding co-essential to a single `StructuralElement`'s RDF mapping; shares the owner's `context` |
 | `SEQ` / RDF list helper | `SEQ` | Implemented | `Seq` (a `StructuralFragment`) plus `SeqEntry`: RDF list scaffolding with node-level `rdf:first` members |
 | Facet list helper | (extension; supports `DatatypeRestriction`) | Implemented | `FacetList` (a `StructuralFragment`) plus `FacetEntry`: per-row `(cell, anchor, facet, value)` carrying both the cons-cell chain and the per-facet anchor triple |
+| `axiomatize` graph traversal | RDF graph to structural elements | Implemented | Strict graph lifting for current datatype structural elements; unsupported or unclaimed triples fail the whole traversal |
 
 #### Seq layout
 
@@ -93,15 +52,15 @@ graph LR
 
 ### Ontology header and declarations
 
-| Feature | Spec reference | Status |
-| --- | --- | --- |
-| Ontology header | `Ontology`, `imports`, `version` | Not started |
-| Datatype declaration | `DeclarationDatatype` | Not started |
-| Class declaration | `DeclarationClass` | Not started |
-| Object property declaration | `DeclarationObjectProperty` | Not started |
-| Data property declaration | `DeclarationDataProperty` | Not started |
-| Annotation property declaration | `DeclarationAnnotationProperty` | Not started |
-| Named individual declaration | `NamedIndividual` | Not started |
+| Feature | Spec reference | Status | Notes |
+| --- | --- | --- | --- |
+| Ontology header | `Ontology`, `imports`, `version` | Not started | |
+| Datatype declaration | `DeclarationDatatype` | Implemented | `axiomatize` constructs this fallback for remaining `(DT, rdf:type, rdfs:Datatype)` triples not consumed by richer datatype patterns |
+| Class declaration | `DeclarationClass` | Not started | |
+| Object property declaration | `DeclarationObjectProperty` | Not started | |
+| Data property declaration | `DeclarationDataProperty` | Not started | |
+| Annotation property declaration | `DeclarationAnnotationProperty` | Not started | |
+| Named individual declaration | `NamedIndividual` | Not started | |
 
 ### Data ranges and class expressions
 
@@ -130,6 +89,21 @@ graph LR
 | Data min cardinality | `DataMinCardinality`, `DataMinCardinalityQualified` | Not started | |
 | Data max cardinality | `DataMaxCardinality`, `DataMaxCardinalityQualified` | Not started | |
 | Data exact cardinality | `DataExactCardinality`, `DataExactCardinalityQualified` | Not started | |
+
+#### Graph traversal coverage
+
+`axiomatize(graph)` lifts supported RDF graph content into a deterministic
+`tuple[StructuralElement, ...]`. The current traversal coverage follows the
+implemented datatype structural elements above:
+`DeclarationDatatype`, `DataIntersectionOf`, `DataUnionOf`, `DataComplementOf`,
+`DataOneOf`, `DatatypeRestriction`, `DataSomeValuesFrom`,
+`DataSomeValuesFromNary`, and `DataAllValuesFromNary`.
+
+Traversal is strict in this baseline. If any input triple cannot be claimed by a
+currently supported datatype pattern, `axiomatize` raises `UnsupportedGraphError`
+instead of returning a partial structural view. If a recognized pattern is
+present but malformed, such as a broken RDF list or invalid facet list,
+`axiomatize` raises `MalformedGraphError`.
 
 ### Class axioms
 

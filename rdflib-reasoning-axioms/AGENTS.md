@@ -207,6 +207,11 @@ graph LR
 
 - Concrete structural elements SHOULD have focused tests for `as_triples`, and
   for `as_quads` when context behavior is relevant to the change.
+- When adding or expanding concrete `StructuralElement` coverage, feature slices
+  SHOULD add or update axiomatization tests covering graph lifting with
+  `axiomatize`. These tests SHOULD include successful round-trip behavior from
+  the new element's `as_triples` projection and relevant unsupported or
+  malformed graph cases.
 - Schema-facing models SHOULD have Python round-trip tests using `model_dump`
   and `model_validate`.
 - Schema-facing models SHOULD have JSON round-trip tests using `model_dump_json`
