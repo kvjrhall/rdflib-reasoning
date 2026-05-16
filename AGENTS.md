@@ -15,29 +15,45 @@ Local `AGENTS.md` files SHOULD assume a Development Agent audience unless they e
 
 ---
 
-This repository MUST support research into agents and their interoperability with formal logic. This repository SHOULD support the wider research community studying agents as the monorepo for the `rdflib-reasoning` python libraries:
+This repository MUST support research into agents and their interoperability
+with formal logic. It SHOULD support the wider research community studying
+agents as the monorepo for the `rdflib-reasoning` Python libraries:
 
 - Development MUST use the `rdflib-reasoning` conda environment.
 - All use [src-layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
 - All use the `rdflib_reasoning` [namespace package](https://packaging.python.org/en/latest/guides/packaging-namespace-packages/) with a shared **PEP 420** implicit namespace at the `rdflib_reasoning` root (no root `__init__.py` in published wheels; subpackages merge at runtime across distributions)
 
-| Project Path                   | Description                                                                                                                                 |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/`                        | Reference materials for humans and machines                                                                                                 |
-| `docs/dev/`                    | Design, Architecture, Decisions, and Development Status                                                                                     |
-| `docs/dev/decision-records/`   | Rationale driving design & architecture                                                                                                     |
-| `docs/specs/`                  | Cached copies of specifications optimized for Development Agent and tooling                                                                 |
-| `notebooks/`                   | Notebooks for research and development into Research Agents using formal                                                                    |
-| `rdflib-reasoning-middleware/` | Exposes GraphBacked/StructuralElement as tool and state payloads for Custom Middleware; see [README](rdflib-reasoning-middleware/README.md) |
-| `rdflib-reasoning-axioms/`     | Sub-project for axiomatizing RDF graphs; see its AGENTS.md for GraphBacked/StructuralElement rules and JSON Schema/error conventions        |
-| `rdflib-reasoning-engine/`     | Sub-project for RETE-based RDFS and OWL 2 RL Entailment                                                                                     |
-| `script-helpers.sh`            | A set of bash helper functions to use when writing bash scripts                                                                             |
+Repository map:
+
+- `docs/`: Reference materials for humans and machines.
+- `docs/dev/`: Authoritative architecture, roadmap, decision records, and
+  development status.
+- `docs/dev/decision-records/`: Rationale and history for architecture and
+  planning.
+- `docs/specs/`: Cached specifications optimized for Development Agent and
+  tooling use.
+- `notebooks/`: Research, demonstration, tutorial, and evaluation notebooks.
+- `rdflib-reasoning-middleware/`: Research Agent-facing middleware and
+  capability gating; see its `AGENTS.md` and
+  [README](rdflib-reasoning-middleware/README.md).
+- `rdflib-reasoning-axioms/`: Structural RDF/OWL models and graph-backed schema
+  contracts; see its `AGENTS.md` for local modeling and schema rules.
+- `rdflib-reasoning-engine/`: RDFLib-integrated RETE-based RDFS and OWL 2 RL
+  entailment, proof, and contradiction diagnostics; see its `AGENTS.md` for
+  engine-specific rules.
+- `script-helpers.sh`: Bash helper functions for repository scripts.
 
 ## Development Agent Commands
 
-The Development Agent MUST check that `uv` and `pre-commit` are available in their environment; if they are not, the Development Agent SHOULD use `conda run -n rdflib-reasoning make` in lieu of `make`.
-After making significant python changes, the Development Agent MUST run `make validate test` and correct any errors.
-After making changes to Markdown documents, the Developtment Agent MUST run `make check` and correct any markdownlint errors.
+Before first validation in a session, the Development Agent MUST check that
+`uv` and `pre-commit` are available in the active environment. If they are not,
+the Development Agent SHOULD run validation commands through
+`conda run -n rdflib-reasoning make`.
+
+After making significant Python changes, the Development Agent MUST run
+`make validate test` and correct any errors.
+After making changes to Markdown documents, the Development Agent MUST run
+`make check` and correct any markdownlint errors.
 
 - `make` commands may require usage of a conda environment (i.e., `conda run -n rdflib-reasoning make`)
 - Use `make test` to run unit tests (should automatically use the virtual environment of `.venv`)
@@ -45,6 +61,13 @@ After making changes to Markdown documents, the Developtment Agent MUST run `mak
 - Use `make install-all` when a `.venv` environment does not exist or when dependencies change
 - Use `make check` to lint everything **except** type checking
 - Use `make validate` to lint everything **including** type checking
+
+Normative guidance for **static typing of unit tests** (pytest return types,
+local annotations, and Mypy vs Pyright suppressions) is duplicated under
+**Testing expectations** in `rdflib-reasoning-axioms/AGENTS.md`,
+`rdflib-reasoning-engine/AGENTS.md`, and `rdflib-reasoning-middleware/AGENTS.md`.
+When that policy changes, the Development Agent SHOULD update all three copies
+in the same change to avoid drift.
 
 ## Development Agent use of architecture and roadmap
 

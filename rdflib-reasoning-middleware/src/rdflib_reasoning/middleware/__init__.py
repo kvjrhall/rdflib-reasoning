@@ -1,12 +1,15 @@
+from rdflib_reasoning.axiom.common import (
+    N3ContextIdentifier,
+    N3IRIRef,
+    N3Node,
+    N3Resource,
+)
+
 from .continuation_guard_middleware import ContinuationGuardMiddleware
 from .dataset_middleware import DatasetMiddleware, DatasetMiddlewareConfig
 from .dataset_model import (
     MutationResponse,
-    N3ContextIdentifier,
-    N3IRIRef,
-    N3Node,
     N3Quad,
-    N3Resource,
     N3Triple,
     NewResourceNodeResponse,
     SerializationResponse,

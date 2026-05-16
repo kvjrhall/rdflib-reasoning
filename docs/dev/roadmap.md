@@ -17,6 +17,30 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 - The current pre-`1.0.0` rebaseline toward OWL system integration is captured in [DR-028 Roadmap Rebaseline Toward OWL System Integration](decision-records/DR-028%20Roadmap%20Rebaseline%20Toward%20OWL%20System%20Integration.md).
 - Prospective use cases are formal planning input, but they do not override this roadmap or the authoritative architecture. This posture is captured in [DR-029 Prospective Use Cases as Non-Authoritative Planning Input](decision-records/DR-029%20Prospective%20Use%20Cases%20as%20Non-Authoritative%20Planning%20Input.md).
 
+The chart below is a *planning sketch* of release ordering and relative scope.
+Release durations are illustrative and do NOT represent a committed schedule;
+authoritative status is the prose under each release section.
+
+```mermaid
+gantt
+    title rdflib-reasoning release ordering (planning sketch)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %Y
+    section Released
+    0.1.0 Reasoning + proof baseline      :done,    r010, 2025-01-01, 60d
+    0.2.0 Dataset middleware              :done,    r020, after r010, 45d
+    0.3.0 Vocabulary middleware           :done,    r030, after r020, 45d
+    0.4.0 Deductive RDFLib dataset        :done,    r040, after r030, 45d
+    section Planned
+    0.5.0 Inference middleware            :active,  r050, after r040, 45d
+    0.6.0 Structural traversal baseline   :         r060, after r050, 45d
+    0.7.0 Complete OWL 2 RL profile       :         r070, after r060, 45d
+    0.8.0 OWL system integration          :         r080, after r070, 45d
+    0.9.0 Graph import + provenance       :         r090, after r080, 45d
+    0.10.0 Knowledge exchange + authoring :         r100, after r090, 45d
+    1.0.0 Stable core release             :crit,    r1, after r100, 45d
+```
+
 ## 3. Release `0.1.0`: Reasoning and proof baseline (released)
 
 Priority: highest
@@ -460,6 +484,30 @@ structural axioms, prose, proof objects, and schema-driven payloads.
    - Demonstrate a Research Agent creating or revising structured knowledge and
      exchanging it through at least two representation channels.
    - Prospective use case: [Knowledge Exchange](prospective-use-cases.md#knowledge-exchange)
+
+The flowchart below is a *planned* axiom-authoring round-trip. It describes the
+intended developer/Research Agent experience for this release; the implementation
+does not yet exist and the diagram MUST be treated as planning intent rather than
+authoritative current behavior.
+
+```mermaid
+flowchart LR
+    Agent[Research Agent or Development Agent] --> Schema[schema-driven authoring tool]
+    Schema --> Build[build StructuralElement / StructuralFragment]
+    Build --> Validate{validate}
+    Validate -- structural --> Pyd[Pydantic + DR-031 fragment context check]
+    Validate -- vocabulary --> WL[VocabularyContext whitelist + closed-namespace term check]
+    Validate -- groundedness --> Ground[graph + provenance preconditions]
+    Pyd & WL & Ground --> Triples[as_quads -> dataset insert]
+    Triples --> Engine[RETE saturate + materialize]
+    Engine --> Render{exchange channel}
+    Render -- RDF --> Turtle[serialize Turtle/JSON-LD]
+    Render -- structural --> StructOut[StructuralElement payload]
+    Render -- prose --> Prose[NL summary]
+    Render -- proof --> DP[DirectProof payload]
+```
+
+> Planned only: depicts release `0.10.0` intent; not implemented today.
 
 ### 12.2. Exit criteria
 

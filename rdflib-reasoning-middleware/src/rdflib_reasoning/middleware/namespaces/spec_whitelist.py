@@ -7,7 +7,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field
 from rdflib import Namespace, URIRef
 from rdflib.namespace import DefinedNamespace
-from rdflib_reasoning.middleware.dataset_model import N3IRIRef
+from rdflib_reasoning.axiom.common import N3IRIRef
 
 # SCHEMA FACING RESULT TYPES
 # -----------------------------------------------------------------------------

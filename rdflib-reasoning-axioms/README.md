@@ -23,54 +23,94 @@ The authoritative reference for this matrix is the local cached specification in
 | Feature | Spec reference | Status | Notes |
 | --- | --- | --- | --- |
 | `GraphBacked` base model | package base infrastructure | Implemented | Common graph-scoped base for Pydantic models |
-| `StructuralElement` base model | package base infrastructure | Implemented | Abstract OWL 2 structural element base with `name`, `as_triples`, and `as_quads` |
-| `SEQ` / RDF list helper | `SEQ` | Implemented | Generic `Seq[T]` helper for mapped RDF lists |
+| `StructuralElement` base model | package base infrastructure | Implemented | Abstract OWL 2 structural element (axiom head) base with `name`, `as_triples`, and `as_quads`; enforces shared `context` for owned `StructuralFragment` fields |
+| `StructuralFragment` base model | package base infrastructure | Implemented | Abstract base for owned scaffolding co-essential to a single `StructuralElement`'s RDF mapping; shares the owner's `context` |
+| `SEQ` / RDF list helper | `SEQ` | Implemented | `Seq` (a `StructuralFragment`) plus `SeqEntry`: RDF list scaffolding with node-level `rdf:first` members |
+| Facet list helper | (extension; supports `DatatypeRestriction`) | Implemented | `FacetList` (a `StructuralFragment`) plus `FacetEntry`: per-row `(cell, anchor, facet, value)` carrying both the cons-cell chain and the per-facet anchor triple |
+| `axiomatize` graph traversal | RDF graph to structural elements | Implemented | Strict graph lifting for current datatype structural elements; unsupported or unclaimed triples fail the whole traversal |
+
+#### Seq layout
+
+`Seq` exposes its RDF cons-cell chain as a flat `entries: Sequence[SeqEntry]`; each `SeqEntry` pairs the cell node with its `rdf:first` value. The terminal sentinel row uses `cell == rdf:nil` and `value is None` and emits no `rdf:first` triple.
+
+```mermaid
+graph LR
+    H["entries[0].cell<br/>(Seq.name)"]
+    C1["entries[1].cell"]
+    Cn["entries[n-1].cell"]
+    Nil["rdf:nil<br/>(sentinel; value=None)"]
+    V0["entries[0].value"]
+    V1["entries[1].value"]
+    Vn["entries[n-1].value"]
+    H -->|"rdf:first"| V0
+    C1 -->|"rdf:first"| V1
+    Cn -->|"rdf:first"| Vn
+    H -->|"rdf:rest"| C1
+    C1 -.->|"rdf:rest ..."| Cn
+    Cn -->|"rdf:rest"| Nil
+```
 
 ### Ontology header and declarations
 
-| Feature | Spec reference | Status |
-| --- | --- | --- |
-| Ontology header | `Ontology`, `imports`, `version` | Not started |
-| Datatype declaration | `DeclarationDatatype` | Not started |
-| Class declaration | `DeclarationClass` | Not started |
-| Object property declaration | `DeclarationObjectProperty` | Not started |
-| Data property declaration | `DeclarationDataProperty` | Not started |
-| Annotation property declaration | `DeclarationAnnotationProperty` | Not started |
-| Named individual declaration | `NamedIndividual` | Not started |
+| Feature | Spec reference | Status | Notes |
+| --- | --- | --- | --- |
+| Ontology header | `Ontology`, `imports`, `version` | Not started | |
+| Datatype declaration | `DeclarationDatatype` | Implemented | `axiomatize` constructs this fallback for remaining `(DT, rdf:type, rdfs:Datatype)` triples not consumed by richer datatype patterns |
+| Class declaration | `DeclarationClass` | Implemented | `axiomatize` constructs this fallback for remaining `(C, rdf:type, owl:Class)` triples |
+| Object property declaration | `DeclarationObjectProperty` | Not started | |
+| Data property declaration | `DeclarationDataProperty` | Not started | |
+| Annotation property declaration | `DeclarationAnnotationProperty` | Not started | |
+| Named individual declaration | `NamedIndividual` | Not started | |
 
 ### Data ranges and class expressions
 
-| Feature | Spec reference | Status |
-| --- | --- | --- |
-| Object inverse | `ObjectInverseOf` | Not started |
-| Data intersection | `DataIntersectionOf` | Not started |
-| Data union | `DataUnionOf` | Not started |
-| Data complement | `DataComplementOf` | Not started |
-| Data enumeration | `DataOneOf` | Not started |
-| Datatype restriction | `DatatypeRestriction` | Not started |
-| Object intersection | `ObjectIntersectionOf` | Not started |
-| Object union | `ObjectUnionOf` | Not started |
-| Object complement | `ObjectComplementOf` | Not started |
-| Object enumeration | `ObjectOneOf` | Not started |
-| Object existential restriction | `ObjectSomeValuesFrom` | Not started |
-| Object universal restriction | `ObjectAllValuesFrom` | Not started |
-| Object value restriction | `ObjectHasValue` | Not started |
-| Object self restriction | `ObjectHasSelf` | Not started |
-| Object min cardinality | `ObjectMinCardinality`, `ObjectMinCardinalityQualified` | Not started |
-| Object max cardinality | `ObjectMaxCardinality`, `ObjectMaxCardinalityQualified` | Not started |
-| Object exact cardinality | `ObjectExactCardinality`, `ObjectExactCardinalityQualified` | Not started |
-| Data existential restriction | `DataSomeValuesFrom`, `DataSomeValuesFromNary` | Not started |
-| Data universal restriction | `DataAllValuesFrom`, `DataAllValuesFromNary` | Not started |
-| Data value restriction | `DataHasValue` | Not started |
-| Data min cardinality | `DataMinCardinality`, `DataMinCardinalityQualified` | Not started |
-| Data max cardinality | `DataMaxCardinality`, `DataMaxCardinalityQualified` | Not started |
-| Data exact cardinality | `DataExactCardinality`, `DataExactCardinalityQualified` | Not started |
+| Feature | Spec reference | Status | Notes |
+| --- | --- | --- | --- |
+| Object inverse | `ObjectInverseOf` | Not started | |
+| Data intersection | `DataIntersectionOf` | Implemented | Owned `Seq` operand list (n >= 2) |
+| Data union | `DataUnionOf` | Implemented | Owned `Seq` operand list (n >= 2) |
+| Data complement | `DataComplementOf` | Implemented | Cross-axiom operand via `N3Resource` node reference |
+| Data enumeration | `DataOneOf` | Implemented | Owned `Seq` operand list of literals (n >= 1) |
+| Datatype restriction | `DatatypeRestriction` | Implemented | Owned `FacetList` carrying per-facet anchor, predicate, and value |
+| Object intersection | `ObjectIntersectionOf` | Not started | |
+| Object union | `ObjectUnionOf` | Not started | |
+| Object complement | `ObjectComplementOf` | Not started | |
+| Object enumeration | `ObjectOneOf` | Not started | |
+| Object existential restriction | `ObjectSomeValuesFrom` | Not started | |
+| Object universal restriction | `ObjectAllValuesFrom` | Not started | |
+| Object value restriction | `ObjectHasValue` | Not started | |
+| Object self restriction | `ObjectHasSelf` | Not started | |
+| Object min cardinality | `ObjectMinCardinality`, `ObjectMinCardinalityQualified` | Not started | |
+| Object max cardinality | `ObjectMaxCardinality`, `ObjectMaxCardinalityQualified` | Not started | |
+| Object exact cardinality | `ObjectExactCardinality`, `ObjectExactCardinalityQualified` | Not started | |
+| Data existential restriction | `DataSomeValuesFrom`, `DataSomeValuesFromNary` | Implemented | Both unary and n-ary (n >= 2) forms |
+| Data universal restriction | `DataAllValuesFromNary` | Implemented | N-ary form only (n >= 2); unary `DataAllValuesFrom` not started |
+| Data value restriction | `DataHasValue` | Not started | |
+| Data min cardinality | `DataMinCardinality`, `DataMinCardinalityQualified` | Not started | |
+| Data max cardinality | `DataMaxCardinality`, `DataMaxCardinalityQualified` | Not started | |
+| Data exact cardinality | `DataExactCardinality`, `DataExactCardinalityQualified` | Not started | |
+
+#### Graph traversal coverage
+
+`axiomatize(graph)` lifts supported RDF graph content into a deterministic
+`tuple[StructuralElement, ...]`. The current traversal coverage follows the
+implemented datatype and class structural elements above:
+`DeclarationDatatype`, `DeclarationClass`, `DataIntersectionOf`,
+`DataUnionOf`, `DataComplementOf`, `DataOneOf`, `DatatypeRestriction`,
+`DataSomeValuesFrom`, `DataSomeValuesFromNary`, `DataAllValuesFromNary`, and
+`SubClassOf`.
+
+Traversal is strict in this baseline. If any input triple cannot be claimed by a
+currently supported pattern, `axiomatize` raises `UnsupportedGraphError`
+instead of returning a partial structural view. If a recognized pattern is
+present but malformed, such as a broken RDF list or invalid facet list,
+`axiomatize` raises `MalformedGraphError`.
 
 ### Class axioms
 
 | Feature | Spec reference | Status |
 | --- | --- | --- |
-| Subclass axiom | `SubClassOf` | Not started |
+| Subclass axiom | `SubClassOf` | Implemented |
 | Equivalent classes | `EquivalentClasses` | Not started |
 | Disjoint classes | `DisjointClasses`, `DisjointClassesNary` | Not started |
 | Disjoint union | `DisjointUnion` | Not started |

@@ -2,17 +2,37 @@
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 
-- `docs/specs/<specname>/` subdirectories are dynamically-retrieved files for some set of specifications
-- Each `docs/specs/<specname>/` directory SHOULD contain an `AGENTS.md`.
-- If a `docs/specs/<specname>/` directory contains `create-index.py`, it MUST contain an `AGENTS.md`.
-- `docs/specs/<specname>/AGENTS.md` is the primary static Development Agent-facing summary artifact for the directory. It MUST be brief, dense, hand-maintained, explain the purpose of the local `INDEX.md`, and refer Development Agents to `INDEX.md` for dynamic references.
-- `docs/specs/<specname>/AGENTS.md` MUST NOT be dynamically generated.
-- `docs/specs/<specname>/AGENTS.md` MUST NOT be ignored by `.gitignore`.
-- If a `docs/specs/<specname>/` directory contains `create-index.py`, then that script MUST generate both `INDEX.md` and `index-data.json`.
-- `docs/specs/<specname>/INDEX.md` is the primary dynamic Development Agent-facing index artifact. It SHOULD present the indexed information directly, using markdown structure or tables as appropriate for the content.
-- `docs/specs/<specname>/index-data.json` is the machine-readable sidecar intended for joins, crosswalk generation, and other tooling.
-- `docs/specs/<specname>/optimized.html` MUST be optimized for Development Agent and script/tooling understanding, if it is present. Elements SHOULD be pruned of presentational content, retaining/adding elements where the semantics of the data become more clear. Element `class` attributes can serve as a way to denote the category of an item.
-- One SHOULD use `make specs-normalize` [Makefile target](../../Makefile) to fetch & normalize these specifications if they are absent.
+- Specification directories MAY be generated W3C spec caches, curated
+  repository crosswalks, or external inspiration references. Local `AGENTS.md`
+  files SHOULD be tailored to the artifact class of their directory.
+- Each `docs/specs/<specname>/` directory SHOULD contain a brief, dense,
+  hand-maintained `AGENTS.md` that explains when to use the directory and how
+  to reach its highest-value local artifacts quickly.
+- Local `AGENTS.md` files MUST NOT be dynamically generated and MUST NOT be
+  ignored by `.gitignore`.
+- Generated W3C spec directories use `optimized.html` as the Development
+  Agent- and tooling-oriented copy of the source specification. If present,
+  `optimized.html` MUST prune presentational content while preserving or adding
+  semantic structure that helps agents and scripts understand the specification.
+- Generated W3C spec directories with `create-index.py` MUST contain an
+  `AGENTS.md`; `create-index.py` MUST regenerate both `INDEX.md` and
+  `index-data.json`. `INDEX.md` is the primary dynamic Development
+  Agent-facing lookup artifact, and `index-data.json` is the machine-readable
+  sidecar for joins, crosswalks, and other tooling.
+- Curated repository crosswalk directories use authored lookup tables and
+  sidecar data to connect multiple specifications. Their local `AGENTS.md`
+  SHOULD identify generated artifacts, hand-maintained authoring inputs, and
+  any non-normative status fields that must not be confused with implementation
+  maturity.
+- External inspiration reference directories contain fetched documentation or
+  source used for comparison and design awareness only. Their local `AGENTS.md`
+  MUST explain the no-copy policy and SHOULD point to stable high-value entry
+  points rather than static file listings.
+- Use `make specs` [Makefile target](../../Makefile) to fetch, normalize, and
+  index specification artifacts when generated W3C specs are absent.
+- Use `make specs-normalize` [Makefile target](../../Makefile) only when
+  `raw.html` files already exist and need to be re-normalized into
+  `optimized.html`.
 - Use the **Hint** column to identify which specs are relevant for a task; short-names do not always reflect content (e.g. RL forward rules live in `owl2-reasoning-profiles`, not in `owl2-semantics-rdf`).
 
 | Spec | Hint |
