@@ -10,11 +10,8 @@ help:  # show this help (targets and descriptions)
 check: install-dev  # install dev deps, then execute all pre-commit hooks
 	uv run pre-commit run --all-files
 
-audit: install-dev  # audit the resolved Python environment for known vulnerabilities
-	# Temporary exception for pip's CVE-2026-3219 until upstream ships pip 26.1.
-	# As of 2026-04-26, PyPI's latest release is 26.0.1 while the fix is merged
-	# upstream in pypa/pip#13870 but not yet published.
-	uv run pip-audit --ignore-vuln CVE-2026-3219
+audit: install-all  # audit base + dev + research dependencies for known vulnerabilities
+	uv run pip-audit
 
 clean:  # remove generated docs, test, coverage, and build artifacts
 	rm -rf .pytest_cache
