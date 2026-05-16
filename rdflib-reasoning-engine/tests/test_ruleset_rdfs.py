@@ -2,7 +2,7 @@ import textwrap
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, cast
 
 import pytest
 from rdflib import OWL, RDF, RDFS, Dataset, Graph, Namespace
@@ -17,6 +17,7 @@ from rdflib_reasoning.engine import (
     RETEEngineFactory,
 )
 from rdflib_reasoning.engine.rete_store import RETEStore
+from rdflib_reasoning.engine.rules import Rule, TripleConsequent
 
 from .conftest import RDFS_AXIOMS, TestData
 
@@ -50,6 +51,13 @@ class RecordingLoggerSpy(DerivationLogger):
 type LoggerAndDataset = tuple[RecordingLoggerSpy, Dataset]
 
 
+def _dataset_for_rules(rules: Sequence[Rule]) -> LoggerAndDataset:
+    logger = RecordingLoggerSpy()
+    factory = RETEEngineFactory(rules=rules, derivation_logger=logger)
+    store = RETEStore(Memory(), factory)
+    return logger, Dataset(store=store)
+
+
 @contextmanager
 def graph_under_test(
     dataset: Dataset, graph_name: str | None = None
@@ -71,13 +79,18 @@ def graph_under_test(
         raise AssertionError(error_message) from cause
 
 
-@pytest.fixture
-def rdfs_dataset() -> TestData[LoggerAndDataset]:
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    dataset = Dataset(store=store)
-    yield logger, dataset
+def _axiom_triples(rules: Sequence[Rule]) -> set[Triple]:
+    triples: set[Triple] = set()
+    for rule in rules:
+        if rule.body:
+            continue
+        for consequent in rule.head:
+            if isinstance(consequent, TripleConsequent):
+                pattern = consequent.pattern
+                triples.add(
+                    cast(Triple, (pattern.subject, pattern.predicate, pattern.object))
+                )
+    return triples
 
 
 def test_conftest_immutable_rdfs_axioms(rdfs_axioms: Graph) -> None:
@@ -111,9 +124,22 @@ _RDFS_RULE_SPECS: Final[dict[str, str]] = {
     "rdfs13": "https://www.w3.org/TR/rdf11-mt/#dfn-rdfs13",
 }
 
-_IMPLEMENTED_RDFS_RULE_IDS: Final[set[str]] = {
-    rule.id.rule_id for rule in CONFORMANT_RDFS_RULES
+_RDFS_AXIOM_FIXTURE_NON_BOOTSTRAP_TRIPLES: Final[set[Triple]] = {
+    (RDF.Statement, RDF.type, RDFS.Class),
+    (RDF.XMLLiteral, RDF.type, RDFS.Datatype),
+    (RDFS.Literal, RDF.type, RDFS.Class),
+    (RDFS.Resource, RDF.type, RDFS.Class),
 }
+
+_CONFORMANT_RDFS_RULES_BY_ID: Final[dict[str, Rule]] = {
+    rule.id.rule_id: rule for rule in CONFORMANT_RDFS_RULES if rule.id.ruleset == "rdfs"
+}
+
+_IMPLEMENTED_RDFS_RULE_IDS: Final[set[str]] = set(_CONFORMANT_RDFS_RULES_BY_ID)
+
+
+def _rdfs_rules(*rule_ids: str) -> tuple[Rule, ...]:
+    return tuple(_CONFORMANT_RDFS_RULES_BY_ID[rule_id] for rule_id in rule_ids)
 
 
 RDFS_TEST_CASES: Final[Sequence[RdfsTestCase]] = (
@@ -277,7 +303,6 @@ def test_case(request) -> TestData[RdfsTestCase]:
 
 
 def test_rdfs_entailment_micro(
-    rdfs_dataset: LoggerAndDataset,
     test_case: RdfsTestCase,
 ) -> None:
     if test_case.rule_id not in _IMPLEMENTED_RDFS_RULE_IDS:
@@ -285,7 +310,7 @@ def test_rdfs_entailment_micro(
             f"RDFS rule {test_case.rule_id} is not yet implemented in CONFORMANT_RDFS_RULES"
         )
 
-    logger, dataset = rdfs_dataset
+    logger, dataset = _dataset_for_rules(_rdfs_rules(test_case.rule_id))
     with graph_under_test(dataset) as graph:
         for input in test_case.inputs:
             graph.add(input)
@@ -331,10 +356,7 @@ def test_rdfs_rule_ids_are_known_to_spec_index() -> None:
 def test_rdfs_transitive_subproperty_chain() -> None:
     """Integration: transitive closure for subPropertyOf chains of length > 2."""
 
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    dataset = Dataset(store=store)
+    _, dataset = _dataset_for_rules(_rdfs_rules("rdfs5"))
 
     with graph_under_test(dataset, graph_name="transitive-subproperty") as graph:
         graph.add((NS.a, RDFS.subPropertyOf, NS.b))
@@ -347,10 +369,7 @@ def test_rdfs_transitive_subproperty_chain() -> None:
 def test_rdfs_transitive_subclass_chain() -> None:
     """Integration: transitive closure for subClassOf chains of length > 2."""
 
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    dataset = Dataset(store=store)
+    _, dataset = _dataset_for_rules(_rdfs_rules("rdfs9", "rdfs11"))
 
     with graph_under_test(dataset, graph_name="transitive-subclass") as graph:
         graph.add((NS.A, RDFS.subClassOf, NS.B))
@@ -364,10 +383,7 @@ def test_rdfs_transitive_subclass_chain() -> None:
 def test_rdfs_subproperty_cycle_terminates() -> None:
     """Integration: subPropertyOf cycles do not cause non-terminating inference."""
 
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    dataset = Dataset(store=store)
+    _, dataset = _dataset_for_rules(_rdfs_rules("rdfs5", "rdfs7"))
 
     with graph_under_test(dataset, graph_name="subproperty-cycle") as graph:
         graph.add((NS.p, RDFS.subPropertyOf, NS.q))
@@ -381,10 +397,7 @@ def test_rdfs_subproperty_cycle_terminates() -> None:
 def test_rdfs_multiple_domain_entailment() -> None:
     """Integration: multiple rdfs:domain declarations yield multiple type assertions."""
 
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    dataset = Dataset(store=store)
+    _, dataset = _dataset_for_rules(_rdfs_rules("rdfs2"))
 
     with graph_under_test(dataset, graph_name="multiple-domain") as graph:
         graph.add((NS.p, RDFS.domain, NS.C1))
@@ -398,10 +411,7 @@ def test_rdfs_multiple_domain_entailment() -> None:
 def test_rdfs_multiple_range_entailment() -> None:
     """Integration: multiple rdfs:range declarations yield multiple type assertions."""
 
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    dataset = Dataset(store=store)
+    _, dataset = _dataset_for_rules(_rdfs_rules("rdfs3"))
 
     with graph_under_test(dataset, graph_name="multiple-range") as graph:
         graph.add((NS.p, RDFS.range, NS.C1))
@@ -415,10 +425,7 @@ def test_rdfs_multiple_range_entailment() -> None:
 def test_rdfs_non_entailment_without_domain_or_range() -> None:
     """Negative test: no domain/range declarations means no type entailments."""
 
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    dataset = Dataset(store=store)
+    _, dataset = _dataset_for_rules(_rdfs_rules("rdfs2", "rdfs3"))
 
     with graph_under_test(dataset, graph_name="no-domain-or-range") as graph:
         graph.add((NS.x, NS.p, NS.y))
@@ -427,24 +434,18 @@ def test_rdfs_non_entailment_without_domain_or_range() -> None:
         assert (NS.y, RDF.type, NS.C1) not in graph
 
 
-def test_rdfs_axioms_inventory_is_subset_of_closure() -> None:
-    """Treat the RDFS axioms fixture as an inventory of axioms on the empty graph."""
+def test_rdfs_axioms_fixture_matches_bootstrap_inventory() -> None:
+    """Keep the curated RDFS axiom fixture aligned with bundled bootstrap rules."""
 
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=CONFORMANT_RDFS_RULES, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    dataset = Dataset(store=store)
+    bootstrap_triples = _axiom_triples(CONFORMANT_RDFS_RULES)
 
-    with graph_under_test(dataset, graph_name="axioms-inventory") as graph:
-        for triple in RDFS_AXIOMS:
-            graph.add(triple)
-
-        for triple in RDFS_AXIOMS:
-            assert triple in graph
+    assert RDFS_AXIOMS - bootstrap_triples == (
+        _RDFS_AXIOM_FIXTURE_NON_BOOTSTRAP_TRIPLES
+    )
 
 
-def test_rdfs_profile_selection_changes_materialization_for_silent_rules() -> None:
-    """Conformant profile materializes triples that remain silent in production."""
+def test_rdfs_profile_selection_materialization_policy() -> None:
+    """Production suppresses selected closure while conformant materializes it."""
 
     # Predicate typing (rdfs1) is silent in production, but rdfs2 can still
     # materialize ``(predicate rdf:type rdf:Property)`` once ``(rdf:type,
@@ -466,22 +467,6 @@ def test_rdfs_profile_selection_changes_materialization_for_silent_rules() -> No
     production_graph.add(input_triple)
     conformant_graph.add(input_triple)
 
-    assert target_triple not in production_graph
-    assert target_triple in conformant_graph
-
-
-def test_rdfs_profile_selection_suppresses_schema_term_range_noise_in_production() -> (
-    None
-):
-    production_store = RETEStore(
-        Memory(), RETEEngineFactory(rules=PRODUCTION_RDFS_RULES)
-    )
-    conformant_store = RETEStore(
-        Memory(), RETEEngineFactory(rules=CONFORMANT_RDFS_RULES)
-    )
-    production_graph = Dataset(store=production_store).default_graph
-    conformant_graph = Dataset(store=conformant_store).default_graph
-
     production_graph.add((NS.alice, RDF.type, NS.Person))
     production_graph.add((NS.Person, RDFS.subClassOf, NS.Mammal))
     production_graph.add((NS.Mammal, RDFS.subClassOf, NS.Animal))
@@ -490,6 +475,8 @@ def test_rdfs_profile_selection_suppresses_schema_term_range_noise_in_production
     conformant_graph.add((NS.Person, RDFS.subClassOf, NS.Mammal))
     conformant_graph.add((NS.Mammal, RDFS.subClassOf, NS.Animal))
 
+    assert target_triple not in production_graph
+    assert target_triple in conformant_graph
     assert (RDFS.Class, RDF.type, RDFS.Class) not in production_graph
     assert (RDFS.Resource, RDF.type, RDFS.Class) not in production_graph
     assert (RDFS.Class, RDF.type, RDFS.Class) in conformant_graph
