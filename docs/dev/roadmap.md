@@ -27,10 +27,10 @@ gantt
     dateFormat  YYYY-MM-DD
     axisFormat  %b %Y
     section Released
-    0.1.0 Reasoning + proof baseline      :done,    r010, 2025-01-01, 60d
-    0.2.0 Dataset middleware              :done,    r020, after r010, 45d
-    0.3.0 Vocabulary middleware           :done,    r030, after r020, 45d
-    0.4.0 Deductive RDFLib dataset        :done,    r040, after r030, 45d
+    0.1.0 Reasoning + proof baseline      :done,    r010, 2026-02-01, 2026-03-13
+    0.2.0 Dataset middleware              :done,    r020, 2026-03-14, 2026-03-22
+    0.3.0 Vocabulary middleware           :done,    r030, 2026-03-23, 2026-04-26
+    0.4.0 Deductive RDFLib dataset        :done,    r040, 2026-04-27, 2026-04-30
     section Planned
     0.5.0 Inference middleware            :active,  r050, after r040, 45d
     0.6.0 Structural traversal baseline   :         r060, after r050, 45d

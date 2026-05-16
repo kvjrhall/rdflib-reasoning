@@ -49,9 +49,6 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Build documentation site
-        run: make docs
-
       - name: Publish coverage comment and badge data
         if: always()
         uses: py-cov-action/python-coverage-comment-action@v3
@@ -183,6 +180,58 @@ jobs:
 
       - name: Check documentation links
         run: make docs-linkcheck
+
+  docs-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install workspace
+        run: make install-all
+
+      - name: Build documentation site
+        run: make docs
+
+      - name: Upload documentation site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'docs-build/html'
+
+  docs-deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [validate-test, docs-upload]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.docs-deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: docs-deployment
+        uses: actions/deploy-pages@v5
 
   security-audit:
     continue-on-error: true
