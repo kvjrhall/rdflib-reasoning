@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Generator
-from typing import Any
+from typing import Any, Final
 from xml.dom.minidom import Document
 
 import pytest
@@ -15,20 +15,28 @@ from rdflib_reasoning.axiom.common import N3ContextIdentifier
 type TestData[T] = Generator[T, Any, Any]
 
 
-@pytest.fixture(
-    params=[
-        URIRef("http://example.com/valid-graph-context"),
-        URIRef("http://example.com/valid-graph-context#fragment"),
-        URIRef("urn:example:text:subpart"),
-        BNode(value="g"),
-        BNode(value="g1"),
-        BNode(value="pascalCaseBlankGraph"),
-        BNode(value="snake_case_blank_graph"),
-    ],
-    ids=lambda param: param.n3(),
+VALID_GRAPH_CONTEXTS: Final[tuple[N3ContextIdentifier, ...]] = (
+    URIRef("http://example.com/valid-graph-context"),
+    URIRef("http://example.com/valid-graph-context#fragment"),
+    URIRef("urn:example:text:subpart"),
+    BNode(value="g"),
+    BNode(value="g1"),
+    BNode(value="pascalCaseBlankGraph"),
+    BNode(value="snake_case_blank_graph"),
 )
-def valid_graph_context(request: FixtureRequest) -> TestData[N3ContextIdentifier]:
-    yield request.param
+
+VALID_PREDICATES: Final[tuple[URIRef, ...]] = (
+    URIRef("http://example.com/valid-predicate"),
+)
+
+VALID_SUBJECTS: Final[tuple[IdentifiedNode, ...]] = (
+    URIRef("http://example.com/valid-subject"),
+    URIRef("http://example.com/valid-subject#fragment"),
+    BNode(value="s"),
+    BNode(value="b1"),
+    BNode(value="pascalCaseBlankSubject"),
+    BNode(value="snake_case_blank_subject"),
+)
 
 
 def _create_html_literal() -> Literal:
@@ -61,30 +69,41 @@ def _create_xml_literal() -> Literal:
     return Literal(doc, datatype=RDF.XMLLiteral)
 
 
+VALID_OBJECTS: Final[tuple[Node, ...]] = (
+    URIRef("http://example.com/valid-object"),
+    BNode(value="o"),
+    Literal("Nicholas"),
+    Literal(39, datatype=XSD.integer),
+    Literal("Nicholas", lang="en"),
+    Literal(datetime.date(1987, 1, 1), datatype=XSD.date),
+    Literal(datetime.datetime(1987, 1, 1, 12, 0, 0), datatype=XSD.dateTime),
+    Literal(
+        datetime.datetime(1987, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc),
+        datatype=XSD.dateTimeStamp,
+    ),
+    Literal(True, datatype=XSD.boolean),
+    Literal(False, datatype=XSD.boolean),
+    Literal(1.0, datatype=XSD.float),
+    Literal(1.0, datatype=XSD.double),
+    Literal(1.0, datatype=XSD.decimal),
+    Literal(1, datatype=XSD.integer),
+    Literal(0, datatype=XSD.nonNegativeInteger),
+    Literal(2, datatype=XSD.positiveInteger),
+    _create_xml_literal(),
+    _create_html_literal(),
+)
+
+
 @pytest.fixture(
-    params=[
-        URIRef("http://example.com/valid-object"),
-        BNode(value="o"),
-        Literal("Nicholas"),
-        Literal(39, datatype=XSD.integer),
-        Literal("Nicholas", lang="en"),
-        Literal(datetime.date(1987, 1, 1), datatype=XSD.date),
-        Literal(datetime.datetime(1987, 1, 1, 12, 0, 0), datatype=XSD.dateTime),
-        Literal(
-            datetime.datetime(1987, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc),
-            datatype=XSD.dateTimeStamp,
-        ),
-        Literal(True, datatype=XSD.boolean),
-        Literal(False, datatype=XSD.boolean),
-        Literal(1.0, datatype=XSD.float),
-        Literal(1.0, datatype=XSD.double),
-        Literal(1.0, datatype=XSD.decimal),
-        Literal(1, datatype=XSD.integer),
-        Literal(0, datatype=XSD.nonNegativeInteger),
-        Literal(2, datatype=XSD.positiveInteger),
-        _create_xml_literal(),
-        _create_html_literal(),
-    ],
+    params=VALID_GRAPH_CONTEXTS,
+    ids=lambda param: param.n3(),
+)
+def valid_graph_context(request: FixtureRequest) -> TestData[N3ContextIdentifier]:
+    yield request.param
+
+
+@pytest.fixture(
+    params=VALID_OBJECTS,
     ids=lambda param: param.n3(),
 )
 def valid_object(request: FixtureRequest) -> TestData[Node]:
@@ -92,7 +111,7 @@ def valid_object(request: FixtureRequest) -> TestData[Node]:
 
 
 @pytest.fixture(
-    params=[URIRef("http://example.com/valid-predicate")],
+    params=VALID_PREDICATES,
     ids=lambda param: param.n3(),
 )
 def valid_predicate(request: FixtureRequest) -> TestData[URIRef]:
@@ -100,14 +119,7 @@ def valid_predicate(request: FixtureRequest) -> TestData[URIRef]:
 
 
 @pytest.fixture(
-    params=[
-        URIRef("http://example.com/valid-subject"),
-        URIRef("http://example.com/valid-subject#fragment"),
-        BNode(value="s"),
-        BNode(value="b1"),
-        BNode(value="pascalCaseBlankSubject"),
-        BNode(value="snake_case_blank_subject"),
-    ],
+    params=VALID_SUBJECTS,
     ids=lambda param: param.n3(),
 )
 def valid_subject(request: FixtureRequest) -> TestData[IdentifiedNode]:
