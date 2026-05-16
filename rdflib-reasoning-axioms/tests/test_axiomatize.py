@@ -1,10 +1,22 @@
 import pytest
-from rdflib import OWL, RDF, RDFS, XSD, Graph, IdentifiedNode, Literal, Node, URIRef
+from rdflib import (
+    OWL,
+    RDF,
+    RDFS,
+    XSD,
+    BNode,
+    Graph,
+    IdentifiedNode,
+    Literal,
+    Node,
+    URIRef,
+)
 from rdflib_reasoning.axiom.axiomatize import (
     MalformedGraphError,
     UnsupportedGraphError,
     axiomatize,
 )
+from rdflib_reasoning.axiom.class_axiom import DeclarationClass, SubClassOf
 from rdflib_reasoning.axiom.datatype import (
     DataAllValuesFromNary,
     DataComplementOf,
@@ -138,8 +150,30 @@ def _current_datatype_elements() -> tuple[StructuralElement, ...]:
     )
 
 
+def _current_class_elements() -> tuple[StructuralElement, ...]:
+    return (
+        DeclarationClass(context=CTX, name_value=_uri("DeclaredClass")),
+        SubClassOf(
+            context=CTX,
+            sub_class_expression=_uri("ChildClass"),
+            super_class_expression=_uri("ParentClass"),
+        ),
+    )
+
+
 @pytest.mark.parametrize("element", _current_datatype_elements())
 def test_axiomatize_round_trips_current_datatype_elements(
+    element: StructuralElement,
+) -> None:
+    actual = axiomatize(_graph_from_element(element))
+
+    assert len(actual) == 1
+    assert type(actual[0]) is type(element)
+    assert actual[0] == element
+
+
+@pytest.mark.parametrize("element", _current_class_elements())
+def test_axiomatize_round_trips_current_class_elements(
     element: StructuralElement,
 ) -> None:
     actual = axiomatize(_graph_from_element(element))
@@ -190,7 +224,6 @@ def test_axiomatize_does_not_mutate_caller_graph() -> None:
 @pytest.mark.parametrize(
     "triples",
     (
-        ((_uri("Class"), RDF.type, OWL.Class),),
         (
             (_uri("restriction"), RDF.type, OWL.Restriction),
             (_uri("restriction"), OWL.onProperty, _uri("object-property")),
@@ -209,6 +242,56 @@ def test_axiomatize_fails_for_unsupported_structures(
 ) -> None:
     with pytest.raises(UnsupportedGraphError):
         axiomatize(_graph_from_triples(triples))
+
+
+def test_axiomatize_lifts_multiple_subclass_axioms_with_same_subject() -> None:
+    subclass_a = SubClassOf(
+        context=CTX,
+        sub_class_expression=_uri("ChildClass"),
+        super_class_expression=_uri("ParentA"),
+    )
+    subclass_b = SubClassOf(
+        context=CTX,
+        sub_class_expression=_uri("ChildClass"),
+        super_class_expression=_uri("ParentB"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (subclass_b, subclass_a):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    assert axiomatize(graph) == (subclass_a, subclass_b)
+
+
+def test_axiomatize_lifts_subclass_of_data_restriction_as_separate_partition() -> None:
+    restriction_node = BNode("ageRestriction")
+    declaration = DeclarationClass(context=CTX, name_value=_uri("Adult"))
+    restriction = DataSomeValuesFrom(
+        context=CTX,
+        name_value=restriction_node,
+        on_property=_uri("age"),
+        some_values_from=_uri("adultAgeDatatype"),
+    )
+    subclass = SubClassOf(
+        context=CTX,
+        sub_class_expression=declaration.name,
+        super_class_expression=restriction.name,
+    )
+    graph = Graph(identifier=CTX)
+    for element in (declaration, restriction, subclass):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    assert axiomatize(graph) == (subclass, declaration, restriction)
+
+
+def test_axiomatize_fails_for_literal_subclass_target() -> None:
+    graph = _graph_from_triples(
+        ((_uri("ChildClass"), RDFS.subClassOf, Literal("not-a-class-node")),)
+    )
+
+    with pytest.raises(MalformedGraphError, match="super class expression"):
+        axiomatize(graph)
 
 
 def test_axiomatize_fails_for_broken_rdf_list() -> None:

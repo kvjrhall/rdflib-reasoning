@@ -56,7 +56,7 @@ graph LR
 | --- | --- | --- | --- |
 | Ontology header | `Ontology`, `imports`, `version` | Not started | |
 | Datatype declaration | `DeclarationDatatype` | Implemented | `axiomatize` constructs this fallback for remaining `(DT, rdf:type, rdfs:Datatype)` triples not consumed by richer datatype patterns |
-| Class declaration | `DeclarationClass` | Not started | |
+| Class declaration | `DeclarationClass` | Implemented | `axiomatize` constructs this fallback for remaining `(C, rdf:type, owl:Class)` triples |
 | Object property declaration | `DeclarationObjectProperty` | Not started | |
 | Data property declaration | `DeclarationDataProperty` | Not started | |
 | Annotation property declaration | `DeclarationAnnotationProperty` | Not started | |
@@ -94,13 +94,14 @@ graph LR
 
 `axiomatize(graph)` lifts supported RDF graph content into a deterministic
 `tuple[StructuralElement, ...]`. The current traversal coverage follows the
-implemented datatype structural elements above:
-`DeclarationDatatype`, `DataIntersectionOf`, `DataUnionOf`, `DataComplementOf`,
-`DataOneOf`, `DatatypeRestriction`, `DataSomeValuesFrom`,
-`DataSomeValuesFromNary`, and `DataAllValuesFromNary`.
+implemented datatype and class structural elements above:
+`DeclarationDatatype`, `DeclarationClass`, `DataIntersectionOf`,
+`DataUnionOf`, `DataComplementOf`, `DataOneOf`, `DatatypeRestriction`,
+`DataSomeValuesFrom`, `DataSomeValuesFromNary`, `DataAllValuesFromNary`, and
+`SubClassOf`.
 
 Traversal is strict in this baseline. If any input triple cannot be claimed by a
-currently supported datatype pattern, `axiomatize` raises `UnsupportedGraphError`
+currently supported pattern, `axiomatize` raises `UnsupportedGraphError`
 instead of returning a partial structural view. If a recognized pattern is
 present but malformed, such as a broken RDF list or invalid facet list,
 `axiomatize` raises `MalformedGraphError`.
@@ -109,7 +110,7 @@ present but malformed, such as a broken RDF list or invalid facet list,
 
 | Feature | Spec reference | Status |
 | --- | --- | --- |
-| Subclass axiom | `SubClassOf` | Not started |
+| Subclass axiom | `SubClassOf` | Implemented |
 | Equivalent classes | `EquivalentClasses` | Not started |
 | Disjoint classes | `DisjointClasses`, `DisjointClassesNary` | Not started |
 | Disjoint union | `DisjointUnion` | Not started |

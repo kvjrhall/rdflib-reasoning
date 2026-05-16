@@ -1,9 +1,9 @@
 """Lift supported RDF graph patterns into structural elements.
 
 The public entry point is :func:`axiomatize`, which partitions a graph into the
-currently implemented datatype-oriented ``StructuralElement`` models. The
-implementation uses RDFLib graph triple-pattern lookup rather than SPARQL or a
-secondary in-memory index.
+currently implemented ``StructuralElement`` models. The implementation uses
+RDFLib graph triple-pattern lookup rather than SPARQL or a secondary in-memory
+index.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import Final
 from pydantic import ValidationError
 from rdflib import OWL, RDF, RDFS, Graph, IdentifiedNode, Literal, Node, URIRef
 
+from .class_axiom import DeclarationClass, SubClassOf
 from .common import Triple
 from .datatype import (
     DataAllValuesFromNary,
@@ -70,7 +71,9 @@ class _Axiomatizer:
         self._parse_datatype_restrictions()
         self._parse_data_some_values_froms()
         self._parse_data_all_values_from_narys()
+        self._parse_subclass_axioms()
         self._parse_declaration_datatypes()
+        self._parse_declaration_classes()
         self._raise_if_unconsumed_triples()
         return tuple(sorted(self.elements, key=_element_sort_key))
 
@@ -409,6 +412,41 @@ class _Axiomatizer:
             )
             self._add_element(element, triple)
 
+    def _parse_subclass_axioms(self) -> None:
+        triples = sorted(self._match(predicate=RDFS.subClassOf), key=_triple_key)
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "SubClassOf super class expression MUST be an RDF resource; "
+                    f"got {_format_node(object_)}."
+                )
+            element = self._build_element(
+                "SubClassOf",
+                SubClassOf,
+                context=self.context,
+                sub_class_expression=subject,
+                super_class_expression=object_,
+            )
+            self._add_element(element, triple)
+
+    def _parse_declaration_classes(self) -> None:
+        triples = sorted(
+            self._match(predicate=RDF.type, object_=OWL.Class),
+            key=_triple_key,
+        )
+        for triple in triples:
+            if triple in self.consumed:
+                continue
+            subject = triple[0]
+            element = self._build_element(
+                "DeclarationClass",
+                DeclarationClass,
+                context=self.context,
+                name_value=subject,
+            )
+            self._add_element(element, triple)
+
     def _parse_seq(
         self,
         head: IdentifiedNode,
@@ -656,13 +694,13 @@ class _Axiomatizer:
         )
         raise UnsupportedGraphError(
             f"Unsupported RDF graph content: {len(leftovers)} triple(s) were not "
-            f"matched by current datatype axiomatization patterns. First unmatched: "
+            f"matched by current axiomatization patterns. First unmatched: "
             f"{examples}."
         )
 
 
 def axiomatize(graph: Graph) -> tuple[StructuralElement, ...]:
-    """Lift supported datatype RDF patterns from ``graph`` into structural elements.
+    """Lift supported RDF graph patterns from ``graph`` into structural elements.
 
     The caller is expected not to mutate ``graph`` while axiomatization is in
     progress. V1 is strict: any initial input triple that cannot be assigned to
@@ -705,7 +743,9 @@ def _validate_triple(subject: Node, predicate: Node, object_: Node) -> Triple:
 
 
 def _element_sort_key(element: StructuralElement) -> tuple[tuple[str, str], int, str]:
-    fallback_rank = 1 if isinstance(element, DeclarationDatatype) else 0
+    fallback_rank = (
+        1 if isinstance(element, DeclarationDatatype | DeclarationClass) else 0
+    )
     return (_node_key(element.name), fallback_rank, element.__class__.__name__)
 
 
