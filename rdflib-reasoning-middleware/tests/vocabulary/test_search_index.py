@@ -1,3 +1,5 @@
+from functools import cache
+
 import pytest
 from rdflib import FOAF, OWL, RDF, RDFS, Graph, Literal, Namespace, URIRef
 from rdflib_reasoning.middleware import (
@@ -14,6 +16,12 @@ from rdflib_reasoning.middleware.vocabulary.search_index import (
 )
 
 
+@cache
+def _bundled_context() -> VocabularyContext:
+    return VocabularyConfiguration.bundled_plus().build_context()
+
+
+@cache
 def _build_homo_sapiens_context() -> tuple[VocabularyContext, URIRef]:
     ex = Namespace("https://example.com/ontology#")
     graph = Graph(identifier=ex)
@@ -40,9 +48,7 @@ def _build_homo_sapiens_context() -> tuple[VocabularyContext, URIRef]:
 
 
 def test_search_index_preserves_cross_vocabulary_related_term_labels() -> None:
-    context = VocabularyConfiguration.bundled_plus().build_context()
-
-    search_index = VocabularySearchIndex.build(context)
+    search_index = _bundled_context().search_index
     maker = search_index.terms_by_uri[str(FOAF.maker)]
     made = search_index.terms_by_uri[str(FOAF.made)]
 
@@ -53,8 +59,7 @@ def test_search_index_preserves_cross_vocabulary_related_term_labels() -> None:
 
 
 def test_search_prefers_exact_label_matches() -> None:
-    context = VocabularyConfiguration.bundled_plus().build_context()
-    search_index = VocabularySearchIndex.build(context)
+    search_index = _bundled_context().search_index
 
     response = search_index.search("Person", vocabularies=(str(FOAF),), limit=5)
 
@@ -63,8 +68,7 @@ def test_search_prefers_exact_label_matches() -> None:
 
 
 def test_search_matches_uri_local_name_tokens() -> None:
-    context = VocabularyConfiguration.bundled_plus().build_context()
-    search_index = VocabularySearchIndex.build(context)
+    search_index = _bundled_context().search_index
 
     response = search_index.search("img", vocabularies=(str(FOAF),), limit=5)
 
@@ -73,8 +77,7 @@ def test_search_matches_uri_local_name_tokens() -> None:
 
 
 def test_search_supports_vocabulary_and_term_type_filters() -> None:
-    context = VocabularyConfiguration.bundled_plus().build_context()
-    search_index = VocabularySearchIndex.build(context)
+    search_index = _bundled_context().search_index
 
     response = search_index.search(
         "Class",
@@ -89,8 +92,7 @@ def test_search_supports_vocabulary_and_term_type_filters() -> None:
 
 
 def test_search_uses_structural_labels_from_related_terms() -> None:
-    context = VocabularyConfiguration.bundled_plus().build_context()
-    search_index = VocabularySearchIndex.build(context)
+    search_index = _bundled_context().search_index
 
     response = search_index.search(
         "Thing agent",
@@ -106,8 +108,7 @@ def test_search_uses_structural_labels_from_related_terms() -> None:
 
 
 def test_search_returns_empty_hits_for_blank_query() -> None:
-    context = VocabularyConfiguration.bundled_plus().build_context()
-    search_index = VocabularySearchIndex.build(context)
+    search_index = _bundled_context().search_index
 
     response = search_index.search("   ")
 
@@ -185,7 +186,7 @@ def test_normalize_text_supports_common_identifier_variants(
 )
 def test_search_matches_common_identifier_variants(query: str) -> None:
     context, homo_sapiens = _build_homo_sapiens_context()
-    search_index = VocabularySearchIndex.build(context)
+    search_index = context.search_index
 
     response = search_index.search(
         query,

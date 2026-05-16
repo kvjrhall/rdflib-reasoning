@@ -48,6 +48,18 @@ def test_build_context_exposes_cached_whitelist_and_specification_cache() -> Non
     assert context.whitelist.allows_namespace(str(RDF)) is True
     assert context.specification_cache.get_vocabulary(ex).namespace == URIRef(str(ex))
     assert context.specification_cache.get_vocabulary(RDF).namespace == URIRef(str(RDF))
+    assert context.search_index is context.search_index
+    assert str(RDF.type) in context.search_index.terms_by_uri
+
+    second_context = VocabularyConfiguration(
+        declarations=(VocabularyDeclaration(prefix="rdf", namespace=RDF),)
+    ).build_context()
+    assert context.specification_cache.get_spec(
+        RDF
+    ) is second_context.specification_cache.get_spec(RDF)
+    assert context.specification_cache.get_vocabulary(
+        RDF
+    ) is second_context.specification_cache.get_vocabulary(RDF)
 
 
 def test_context_indexes_only_declared_bundled_vocabularies() -> None:

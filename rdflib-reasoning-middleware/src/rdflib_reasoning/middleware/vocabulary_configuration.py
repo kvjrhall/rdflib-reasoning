@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import TypeAlias, cast
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, TypeAlias, cast
 
 from rdflib import Namespace, URIRef
 from rdflib.namespace import VANN, DefinedNamespace
@@ -12,6 +12,9 @@ from .namespaces._bundled import (
 )
 from .namespaces.spec_cache import SpecificationCache, UserVocabularySource
 from .namespaces.spec_whitelist import RestrictedNamespaceWhitelist, WhitelistEntry
+
+if TYPE_CHECKING:
+    from .vocabulary.search_index import VocabularySearchIndex
 
 VocabularyNamespace: TypeAlias = Namespace | type[DefinedNamespace] | URIRef | str
 ResolvedVocabularyNamespace: TypeAlias = Namespace | type[DefinedNamespace]
@@ -103,6 +106,9 @@ class VocabularyContext:
     _whitelist: RestrictedNamespaceWhitelist
     _specification_cache: SpecificationCache
     _indexed_vocabularies: tuple[str, ...]
+    _search_index: "VocabularySearchIndex | None" = field(
+        default=None, init=False, repr=False, compare=False
+    )
 
     @property
     def whitelist(self) -> RestrictedNamespaceWhitelist:
@@ -115,6 +121,16 @@ class VocabularyContext:
     @property
     def indexed_vocabularies(self) -> tuple[str, ...]:
         return self._indexed_vocabularies
+
+    @property
+    def search_index(self) -> "VocabularySearchIndex":
+        cached = self._search_index
+        if cached is None:
+            from .vocabulary.search_index import VocabularySearchIndex
+
+            cached = VocabularySearchIndex.build(self)
+            object.__setattr__(self, "_search_index", cached)
+        return cached
 
 
 @dataclass(frozen=True, slots=True)
