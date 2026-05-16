@@ -443,7 +443,7 @@ class RDFVocabularyMiddlewareConfig:
 
 class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
     vocabulary_context: VocabularyContext
-    search_index: VocabularySearchIndex
+    _search_index: VocabularySearchIndex | None
     tools: Sequence[BaseTool]
     run_term_telemetry: RunTermTelemetry
     _has_listed_vocabularies: bool
@@ -455,11 +455,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
     def __init__(self, config: RDFVocabularyMiddlewareConfig) -> None:
         self.config = config
         self.vocabulary_context = self.config.vocabulary_context
-        self.search_index = (
-            self.config.search_index
-            if self.config.search_index is not None
-            else VocabularySearchIndex.build(self.vocabulary_context)
-        )
+        self._search_index = self.config.search_index
         self.run_term_telemetry = self.config.run_term_telemetry or RunTermTelemetry()
         self.tools = self._build_tools()
         self._has_listed_vocabularies = False
@@ -467,6 +463,12 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         self._seen_list_terms_signatures = set()
         self._seen_inspect_term_signatures = set()
         self._indexed_term_not_found_suggestion_limit = 3
+
+    @property
+    def search_index(self) -> VocabularySearchIndex:
+        if self._search_index is None:
+            self._search_index = self.vocabulary_context.search_index
+        return self._search_index
 
     @override
     def wrap_model_call(

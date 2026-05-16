@@ -1,3 +1,4 @@
+from functools import cache
 from importlib.util import module_from_spec, spec_from_file_location
 from json import loads as json_loads
 from pathlib import Path
@@ -32,10 +33,12 @@ def _load_demo_utils() -> object:
     return module
 
 
+@cache
 def _bundled_context() -> VocabularyContext:
     return VocabularyConfiguration.bundled_plus().build_context()
 
 
+@cache
 def _restricted_context() -> VocabularyContext:
     return VocabularyConfiguration(
         declarations=(
@@ -71,6 +74,41 @@ def _mark_list_vocabularies_called(middleware: RDFVocabularyMiddleware) -> None:
     middleware.wrap_tool_call(
         list_request, lambda req: req.tool.invoke(req.tool_call["args"])
     )
+
+
+def test_search_index_is_built_lazily_for_middleware() -> None:
+    domain_ns = Namespace("urn:example:lazy#")
+    graph = Graph(identifier=domain_ns)
+    graph.add((URIRef(str(domain_ns)), RDF.type, OWL.Ontology))
+    graph.add((URIRef(f"{domain_ns}Thing"), RDF.type, RDFS.Class))
+    graph.add((URIRef(f"{domain_ns}Thing"), RDFS.isDefinedBy, URIRef(str(domain_ns))))
+    graph.add((URIRef(f"{domain_ns}Thing"), RDFS.label, Literal("Thing")))
+    graph.add((URIRef(f"{domain_ns}Thing"), RDFS.comment, Literal("A test term.")))
+    context = VocabularyConfiguration(
+        declarations=(
+            VocabularyDeclaration(
+                prefix="lazy",
+                namespace=domain_ns,
+                user_spec=UserVocabularySource(
+                    graph=graph,
+                    vocabulary=URIRef(str(domain_ns)),
+                    label="Lazy Test Vocabulary",
+                    description="Terms used for lazy index construction tests.",
+                ),
+            ),
+        )
+    ).build_context()
+    middleware = _middleware(context)
+
+    assert middleware._search_index is None
+
+    middleware.list_vocabularies()
+    assert middleware._search_index is None
+
+    response = middleware.search_terms("thing", vocabularies=(str(domain_ns),))
+
+    assert response.hits[0].uri == URIRef(f"{domain_ns}Thing")
+    assert middleware._search_index is context.search_index
 
 
 def test_list_terms_filters_classes() -> None:

@@ -3,6 +3,7 @@ from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
+from threading import RLock
 from types import MappingProxyType
 from typing import Final
 
@@ -25,6 +26,10 @@ _BUNDLED_SPEC_FILENAMES: Final[Mapping[str, str]] = MappingProxyType(
         for vocabulary in ALL_BUNDLED_VOCABULARIES
     }
 )
+_BUNDLED_CACHE_LOCK: Final = RLock()
+_BUNDLED_SPEC_CACHE: Final[MutableMapping[str, ReadOnlyGraphAggregate]] = {}
+_BUNDLED_METADATA_CACHE: Final[MutableMapping[str, "OntologyDescription"]] = {}
+_BUNDLED_VOCABULARY_CACHE: Final[MutableMapping[str, RDFVocabulary]] = {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +63,7 @@ class SpecificationCache:
     _specs: MutableMapping[str, ReadOnlyGraphAggregate]
     _metadata: MutableMapping[str, OntologyDescription]
     _vocabularies: MutableMapping[str, RDFVocabulary]
+    _user_spec_keys: frozenset[str]
 
     def __init__(
         self,
@@ -76,6 +82,9 @@ class SpecificationCache:
         self._specs = {}
         self._metadata = {}
         self._vocabularies = {}
+        self._user_spec_keys = frozenset(
+            str(source.vocabulary) for source in user_specs
+        )
         for user_spec in user_specs:
             # We make a read-only copy of the graph to avoid external modifications
             g = Graph(identifier=user_spec.vocabulary)
@@ -104,26 +113,12 @@ class SpecificationCache:
         if key not in self._bundled_specs:
             raise ValueError(f"Namespace is not bundled or cached: {key}")
 
-        filename = bundled_vocabulary_by_namespace(key).filename
-        match Path(filename).suffix:
-            case ".jsonld":
-                format = "json-ld"
-            case ".n3":
-                format = "n3"
-            case ".nt":
-                format = "n"
-            case ".rdf":
-                format = "xml"
-            case ".ttl":
-                format = "turtle"
-            case _:
-                raise ValueError(f"Unknown file extension: {filename}")
-
-        assert __package__ is not None
-        with resources.path(__package__, filename) as bundled_path:
-            graph = Graph()
-            graph.parse(bundled_path, format=format)
-            self._specs[key] = ReadOnlyGraphAggregate([graph])
+        with _BUNDLED_CACHE_LOCK:
+            spec = _BUNDLED_SPEC_CACHE.get(key)
+            if spec is None:
+                spec = _load_bundled_spec(key)
+                _BUNDLED_SPEC_CACHE[key] = spec
+            self._specs[key] = spec
 
         return self._specs[key]
 
@@ -133,6 +128,17 @@ class SpecificationCache:
         key = str(namespace)
         if key in self._vocabularies:
             return self._vocabularies[key]
+
+        if key in self._bundled_specs and key not in self._user_spec_keys:
+            with _BUNDLED_CACHE_LOCK:
+                vocabulary = _BUNDLED_VOCABULARY_CACHE.get(key)
+                if vocabulary is None:
+                    vocabulary = RDFVocabulary.from_graph(
+                        URIRef(key), self.get_spec(key)
+                    )
+                    _BUNDLED_VOCABULARY_CACHE[key] = vocabulary
+            self._vocabularies[key] = vocabulary
+            return vocabulary
 
         vocabulary = RDFVocabulary.from_graph(namespace, self.get_spec(namespace))
         self._vocabularies[key] = vocabulary
@@ -144,6 +150,17 @@ class SpecificationCache:
         key = str(namespace)
         if key in self._metadata:
             return self._metadata[key]
+
+        if key in self._bundled_specs and key not in self._user_spec_keys:
+            with _BUNDLED_CACHE_LOCK:
+                metadata = _BUNDLED_METADATA_CACHE.get(key)
+                if metadata is None:
+                    metadata = self._build_ontology_description(
+                        URIRef(key), self.get_spec(key)
+                    )
+                    _BUNDLED_METADATA_CACHE[key] = metadata
+            self._metadata[key] = metadata
+            return metadata
 
         # NOTE: No mechanism currently exists to fetch specs dynamically, so
         #       this would raise an error out of `get_spec`.
@@ -198,6 +215,29 @@ class SpecificationCache:
             preferred_namespace_prefix=resolved_prefix,
             preferred_namespace_uri=resolved_namespace_uri,
         )
+
+
+def _load_bundled_spec(key: str) -> ReadOnlyGraphAggregate:
+    filename = bundled_vocabulary_by_namespace(key).filename
+    match Path(filename).suffix:
+        case ".jsonld":
+            format = "json-ld"
+        case ".n3":
+            format = "n3"
+        case ".nt":
+            format = "n"
+        case ".rdf":
+            format = "xml"
+        case ".ttl":
+            format = "turtle"
+        case _:
+            raise ValueError(f"Unknown file extension: {filename}")
+
+    assert __package__ is not None
+    with resources.path(__package__, filename) as bundled_path:
+        graph = Graph()
+        graph.parse(bundled_path, format=format)
+        return ReadOnlyGraphAggregate([graph])
 
 
 @dataclass(frozen=True, slots=True)

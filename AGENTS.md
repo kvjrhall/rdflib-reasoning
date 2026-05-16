@@ -48,7 +48,7 @@ Repository map:
 Before first validation in a session, the Development Agent MUST check that
 `uv` and `pre-commit` are available in the active environment. If they are not,
 the Development Agent SHOULD run validation commands through
-`conda run -n rdflib-reasoning make`.
+`conda run --live-stream -n rdflib-reasoning make`.
 
 After making significant Python changes, the Development Agent MUST run
 `make validate test` and correct any errors.
