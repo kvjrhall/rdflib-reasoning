@@ -1,7 +1,7 @@
 import textwrap
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Final, cast
 
 import pytest
@@ -12,8 +12,8 @@ from rdflib_reasoning.axiom.common import Triple
 from rdflib_reasoning.engine import (
     CONFORMANT_RDFS_RULES,
     PRODUCTION_RDFS_RULES,
-    DerivationLogger,
-    DerivationRecord,
+    RDFS_RETE_MATERIALIZED,
+    InMemoryDerivationLogger,
     RETEEngineFactory,
 )
 from rdflib_reasoning.engine.rete_store import RETEStore
@@ -40,22 +40,31 @@ class RdfsTestCase:
     example_number: int = 0
 
 
-class RecordingLoggerSpy(DerivationLogger):
-    def __init__(self) -> None:
-        self.records: list[DerivationRecord] = []
-
-    def record(self, record: DerivationRecord) -> None:
-        self.records.append(record)
-
-
-type LoggerAndDataset = tuple[RecordingLoggerSpy, Dataset]
+type LoggerAndDataset = tuple[InMemoryDerivationLogger, Dataset]
 
 
 def _dataset_for_rules(rules: Sequence[Rule]) -> LoggerAndDataset:
-    logger = RecordingLoggerSpy()
-    factory = RETEEngineFactory(rules=rules, derivation_logger=logger)
-    store = RETEStore(Memory(), factory)
-    return logger, Dataset(store=store)
+    logger = InMemoryDerivationLogger()
+    dataset = replace(
+        RDFS_RETE_MATERIALIZED,
+        rules=rules,
+        derivation_logger_factory=lambda _context: logger,
+    ).dataset()
+
+    return logger, dataset
+
+
+def _factory(rules: Sequence[Rule]) -> RETEEngineFactory:
+    return replace(RDFS_RETE_MATERIALIZED, rules=rules).engine_factory()
+    # return RETEEngineFactory(
+    #     config=RETEEngineFactoryConfig(
+    #         rules=tuple(rules),
+    #         contradiction_recorder_factory=lambda _context: (
+    #             RaiseOnContradictionRecorder()
+    #         ),
+    #         derivation_logger_factory=lambda _context: DropDerivationLogger(),
+    #     )
+    # )
 
 
 @contextmanager
@@ -455,12 +464,8 @@ def test_rdfs_profile_selection_materialization_policy() -> None:
     target_triple = (NS.p, RDFS.subPropertyOf, NS.p)
     input_triple = (NS.s, NS.p, NS.o)
 
-    production_store = RETEStore(
-        Memory(), RETEEngineFactory(rules=PRODUCTION_RDFS_RULES)
-    )
-    conformant_store = RETEStore(
-        Memory(), RETEEngineFactory(rules=CONFORMANT_RDFS_RULES)
-    )
+    production_store = RETEStore(Memory(), _factory(PRODUCTION_RDFS_RULES))
+    conformant_store = RETEStore(Memory(), _factory(CONFORMANT_RDFS_RULES))
     production_graph = Dataset(store=production_store).default_graph
     conformant_graph = Dataset(store=conformant_store).default_graph
 

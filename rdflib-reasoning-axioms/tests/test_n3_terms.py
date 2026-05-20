@@ -187,3 +187,33 @@ def test_single_token_plain_text_error_mentions_literal_recovery_hint() -> None:
 
     assert 'literal like "\\"Person\\""' in str(exc_info.value)
     assert "bare RFC 3987 IRI" in str(exc_info.value)
+
+
+def test_parse_error_no_bare_iri_recovery_for_n3_graph_syntax() -> None:
+    # Line 55 + 108: N3 graph syntax, no bare-IRI recovery
+    with pytest.raises(ValueError, match=r"Could not parse RDF term from \[\]"):
+        object_adapter.validate_python("[]")
+
+
+def test_parse_error_when_from_n3_returns_none() -> None:
+    # Lines 57–59 + 108: from_n3 returns None
+    with pytest.raises(ValueError, match="Could not parse RDF term from \\."):
+        object_adapter.validate_python("")
+
+
+def test_parse_error_when_canonical_n3_but_invalid_iri() -> None:
+    # Line 108: canonical N3 but invalid RFC 3987 IRI
+    with pytest.raises(ValueError, match="Could not parse RDF term from"):
+        object_adapter.validate_python("<invalid iri>")
+
+
+def test_parse_error_when_literal_but_identified_node_required() -> None:
+    # Line 115: literal where IdentifiedNode is required
+    with pytest.raises(ValueError, match="Failed to parse identified node"):
+        subject_adapter.validate_python('"hello"')
+
+
+def test_parse_error_when_non_iri_but_iri_required() -> None:
+    # Lines 125/127–128: non-IRI where URIRef is required
+    with pytest.raises(ValueError, match="Failed to parse IRI from"):
+        predicate_adapter.validate_python("_:b")

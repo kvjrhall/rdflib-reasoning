@@ -58,16 +58,13 @@ If you want to see the repository's RDFS inference capabilities quickly, start w
 If you prefer a minimal code-first example before opening a notebook, the basic RDFS inference path looks like this:
 
 ```python
-from rdflib import Dataset, Namespace
+from rdflib import Namespace
 from rdflib.namespace import RDF, RDFS
-from rdflib.plugins.stores.memory import Memory
-from rdflib_reasoning.engine import PRODUCTION_RDFS_RULES, RETEEngineFactory
-from rdflib_reasoning.engine.rete_store import RETEStore
+from rdflib_reasoning.engine import RDFS_RETE_MATERIALIZED
 
 EX = Namespace("urn:example:")
 
-store = RETEStore(Memory(), RETEEngineFactory(rules=PRODUCTION_RDFS_RULES))
-dataset = Dataset(store=store)
+dataset = RDFS_RETE_MATERIALIZED.dataset()
 graph = dataset.default_graph
 
 alice = EX.alice
@@ -91,8 +88,8 @@ graph.remove((alice, RDF.type, person))
 assert (alice, RDF.type, animal) not in graph
 ```
 
-Contradiction detection is also available through the same engine path: include the
-appropriate contradiction rules in `RETEEngineFactory(rules=...)`, and the default
+Contradiction detection is also available through the same engine path: extend a
+reasoner specification with the appropriate contradiction rules, and the default
 recorder records the diagnostic before raising `ContradictionDetectedError`. The
 contradiction notebook shows how to choose recorder policy and inspect the resulting
 records.

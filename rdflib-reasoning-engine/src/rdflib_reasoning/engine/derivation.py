@@ -59,6 +59,10 @@ class DerivationLogger(Protocol):
 
     def record(self, record: DerivationRecord) -> None: ...
 
+    def iter_records(self) -> Iterable[DerivationRecord]: ...
+
+    def clear(self) -> None: ...
+
 
 class ContradictionRecorder(Protocol):
     """Interface for sinks of engine-native contradiction records."""
@@ -70,15 +74,35 @@ class ContradictionRecorder(Protocol):
     def clear(self) -> None: ...
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class InMemoryDerivationLogger:
     """Simple in-memory sink for engine-native derivation records."""
 
-    records: list[DerivationRecord] = field(default_factory=list)
+    records: MutableSequence[DerivationRecord] = field(default_factory=list)
 
     def record(self, record: DerivationRecord) -> None:
         """Append one derivation record to the in-memory log."""
         self.records.append(record)
+
+    def iter_records(self) -> Iterable[DerivationRecord]:
+        return tuple(self.records)
+
+    def clear(self) -> None:
+        self.records.clear()
+
+
+@dataclass(slots=True, frozen=True)
+class DropDerivationLogger:
+    """Drop-all sink for derivation records (no retention)."""
+
+    def record(self, record: DerivationRecord) -> None:
+        pass
+
+    def iter_records(self) -> Iterable[DerivationRecord]:
+        return ()
+
+    def clear(self) -> None:
+        pass
 
 
 @dataclass(frozen=True, slots=True)

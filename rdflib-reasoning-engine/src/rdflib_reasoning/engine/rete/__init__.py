@@ -7,7 +7,6 @@ logical core remains triple-oriented and engine-managed.
 """
 
 from .agenda import Agenda
-from .callbacks import CallbackAction, CallbackContext, rule_action
 from .compiler import JoinOptimizer, RuleCompiler
 from .consequents import ActionInstance, TripleProduction
 from .facts import Fact, PartialMatch
@@ -34,8 +33,6 @@ __all__ = [
     "Agenda",
     "AlphaNode",
     "BetaNode",
-    "CallbackAction",
-    "CallbackContext",
     "DependencyGraph",
     "Fact",
     "JoinOptimizer",
@@ -52,5 +49,4 @@ __all__ = [
     "TerminalNode",
     "TripleProduction",
     "WorkingMemory",
-    "rule_action",
 ]

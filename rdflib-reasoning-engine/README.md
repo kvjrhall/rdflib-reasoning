@@ -21,6 +21,29 @@ conclusions through the same `Graph` API. Contradiction diagnostics are likewise
 engine-managed when the active ruleset includes contradiction-producing rules; if no
 recorder is supplied, the default policy records the contradiction and raises.
 
+Most applications should start from the canonical reasoner specifications exposed
+at the package root. For example, the production RDFS materialization path is:
+
+```python
+from rdflib import Namespace
+from rdflib.namespace import RDF, RDFS
+from rdflib_reasoning.engine import RDFS_RETE_MATERIALIZED
+
+EX = Namespace("urn:example:")
+
+dataset = RDFS_RETE_MATERIALIZED.dataset()
+graph = dataset.default_graph
+
+graph.add((EX.alice, RDF.type, EX.Person))
+graph.add((EX.Person, RDFS.subClassOf, EX.Mammal))
+
+assert (EX.alice, RDF.type, EX.Mammal) in graph
+```
+
+Advanced integrations that need direct per-context engine construction can derive
+a fresh `RETEEngineFactory` from the same specification with
+`RDFS_RETE_MATERIALIZED.engine_factory()`.
+
 ## Feature Matrix
 
 Status values:

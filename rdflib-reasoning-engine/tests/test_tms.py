@@ -1,7 +1,12 @@
 import pytest
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import BNode, URIRef, Variable
-from rdflib_reasoning.engine.api import RETEEngine
+from rdflib_reasoning.engine.api import RETEEngine, RETEEngineConfig
+from rdflib_reasoning.engine.builtins import Builtins
+from rdflib_reasoning.engine.derivation import (
+    DropDerivationLogger,
+    RaiseOnContradictionRecorder,
+)
 from rdflib_reasoning.engine.proof import RuleId
 from rdflib_reasoning.engine.rete.tms import RetractionOutcome, TMSController
 from rdflib_reasoning.engine.rules import (
@@ -10,6 +15,17 @@ from rdflib_reasoning.engine.rules import (
     TripleConsequent,
     TriplePattern,
 )
+
+
+def _engine_config():
+    return RETEEngineConfig(
+        context=BNode(),
+        builtins=Builtins.EMPTY,
+        derivation_logger=DropDerivationLogger(),
+        contradiction_recorder=RaiseOnContradictionRecorder(),
+        literal_subject_policy="error",
+        predicate_term_policy="error",
+    )
 
 
 def _subclass_rule(*, silent: bool = False) -> Rule:
@@ -37,15 +53,13 @@ def _subclass_rule(*, silent: bool = False) -> Rule:
 
 
 def _engine_with_subclass_rule(*, silent: bool = False) -> RETEEngine:
-    return RETEEngine(
-        context_data={"context": BNode()}, rules=[_subclass_rule(silent=silent)]
-    )
+    return RETEEngine(config=_engine_config(), rules=[_subclass_rule(silent=silent)])
 
 
 def test_support_snapshot_for_stated_fact_reports_stated_and_no_justifications() -> (
     None
 ):
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[])
+    engine = RETEEngine(config=_engine_config(), rules=[])
     stated = (URIRef("urn:test:alice"), RDF.type, URIRef("urn:test:Human"))
 
     engine.add_triples([stated])
@@ -340,7 +354,7 @@ def test_retract_triple_for_unknown_triple_returns_empty_outcome() -> None:
 
 
 def test_retract_triple_removes_isolated_stated_fact() -> None:
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[])
+    engine = RETEEngine(config=_engine_config(), rules=[])
     stated = (URIRef("urn:test:alice"), RDF.type, URIRef("urn:test:Human"))
 
     engine.add_triples([stated])
@@ -630,7 +644,7 @@ def test_retract_triple_preserves_dependency_graph_consistency() -> None:
 
 
 def test_retract_triple_is_idempotent_for_swept_seed() -> None:
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[])
+    engine = RETEEngine(config=_engine_config(), rules=[])
     stated = (URIRef("urn:test:alice"), RDF.type, URIRef("urn:test:Human"))
 
     engine.add_triples([stated])

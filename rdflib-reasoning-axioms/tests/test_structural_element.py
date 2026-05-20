@@ -1,6 +1,9 @@
+from collections.abc import Sequence
+
 import pytest
 from pydantic import ValidationError
-from rdflib import RDF, BNode, URIRef
+from rdflib import RDF, BNode, Graph, Node, URIRef
+from rdflib import Literal as RDFLiteral
 from rdflib_reasoning.axiom.datatype import DeclarationDatatype
 from rdflib_reasoning.axiom.structural_element import (
     DeclarationElement,
@@ -154,3 +157,91 @@ def test_seq_empty_list_encoding_emits_no_triples() -> None:
     seq = Seq(context=ctx, entries=(SeqEntry(cell=RDF.nil, value=None),))
     assert seq.name == RDF.nil
     assert seq.as_triples == ()
+
+
+def test_seq_entry_rejects_rdf_nil_cell_with_value() -> None:
+    with pytest.raises(ValidationError, match="rdf:nil"):
+        SeqEntry(cell=RDF.nil, value=URIRef("http://example.com/a"))
+
+
+def test_seq_entry_rejects_non_nil_cell_with_missing_value() -> None:
+    with pytest.raises(ValidationError, match="rdf:first"):
+        SeqEntry(cell=BNode(), value=None)
+
+
+def test_seq_from_rdflib() -> None:
+    context = BNode()
+    graph = Graph(identifier=context)
+    name = BNode()
+    entries: Sequence[tuple[Node, Node | None]] = (
+        (name, URIRef("http://example.com/a")),
+        (BNode(), URIRef("http://example.com/b")),
+        (RDF.nil, None),
+    )
+    for cell, value in entries:
+        if cell != RDF.nil:
+            assert value is not None
+            graph.add((cell, RDF.first, value))
+    for this_cell, next_cell in zip(entries[:-1], entries[1:], strict=True):
+        graph.add((this_cell[0], RDF.rest, next_cell[0]))
+
+    seq = Seq.from_rdflib(graph, name)
+    assert seq.name == name
+    assert set(seq.as_triples) == set(graph)
+
+
+def test_seq_missing_end_from_rdflib() -> None:
+    context = BNode()
+    graph = Graph(identifier=context)
+    name = BNode()
+    entries: Sequence[tuple[Node, Node | None]] = (
+        (name, URIRef("http://example.com/a")),
+        (BNode(), URIRef("http://example.com/b")),
+    )
+    for cell, value in entries:
+        if cell != RDF.nil:
+            assert value is not None
+            graph.add((cell, RDF.first, value))
+    for this_cell, next_cell in zip(entries[:-1], entries[1:], strict=True):
+        graph.add((this_cell[0], RDF.rest, next_cell[0]))
+
+    with pytest.raises(ValueError, match="complete Seq"):
+        Seq.from_rdflib(graph, name)
+
+
+def test_seq_missing_value_from_rdflib() -> None:
+    context = BNode()
+    graph = Graph(identifier=context)
+    name = BNode()
+    entries: Sequence[tuple[Node, Node | None]] = (
+        (name, URIRef("http://example.com/a")),
+        (BNode(), None),
+        (RDF.nil, None),
+    )
+    for cell, value in entries:
+        if cell != RDF.nil and value is not None:
+            graph.add((cell, RDF.first, value))
+    for this_cell, next_cell in zip(entries[:-1], entries[1:], strict=True):
+        graph.add((this_cell[0], RDF.rest, next_cell[0]))
+
+    with pytest.raises(ValueError, match="complete Seq"):
+        Seq.from_rdflib(graph, name)
+
+
+def test_seq_illegal_cell_from_rdflib() -> None:
+    context = BNode()
+    graph = Graph(identifier=context)
+    name = BNode()
+    entries: Sequence[tuple[Node, Node | None]] = (
+        (name, URIRef("http://example.com/a")),
+        (RDFLiteral(1), URIRef("http://example.com/b")),
+        (RDF.nil, None),
+    )
+    for cell, value in entries:
+        if cell != RDF.nil and value is not None:
+            graph.add((cell, RDF.first, value))
+    for this_cell, next_cell in zip(entries[:-1], entries[1:], strict=True):
+        graph.add((this_cell[0], RDF.rest, next_cell[0]))
+
+    with pytest.raises(ValueError, match="complete Seq"):
+        Seq.from_rdflib(graph, name)

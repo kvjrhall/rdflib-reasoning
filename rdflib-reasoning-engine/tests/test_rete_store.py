@@ -8,8 +8,18 @@ from rdflib.namespace import RDF, RDFS
 from rdflib.plugins.stores.memory import Memory
 from rdflib.store import VALID_STORE, Store
 from rdflib.term import BNode, URIRef, Variable
-from rdflib_reasoning.engine.api import RETEEngine, RETEEngineFactory
+from rdflib_reasoning.engine.api import (
+    NO_RULES,
+    RETEEngine,
+    RETEEngineConfig,
+    RETEEngineFactory,
+)
 from rdflib_reasoning.engine.batch_dispatcher import TripleAddedBatchEvent
+from rdflib_reasoning.engine.builtins import Builtins
+from rdflib_reasoning.engine.derivation import (
+    DropDerivationLogger,
+    RaiseOnContradictionRecorder,
+)
 from rdflib_reasoning.engine.proof import RuleId
 from rdflib_reasoning.engine.rete_store import (
     RETEStore,
@@ -24,6 +34,21 @@ from rdflib_reasoning.engine.rules import (
 
 _NS = Namespace("https://example.org/")
 _X = Variable("x")
+
+
+def _engine_config():
+    return RETEEngineConfig(
+        context=BNode(),
+        builtins=Builtins.EMPTY,
+        derivation_logger=DropDerivationLogger(),
+        contradiction_recorder=RaiseOnContradictionRecorder(),
+        literal_subject_policy="error",
+        predicate_term_policy="error",
+    )
+
+
+def _factory(rules: Iterable[Rule] = ()) -> RETEEngineFactory:
+    return NO_RULES.extend(more_rules=rules).engine_factory()
 
 
 class DummyRule(Rule):
@@ -42,7 +67,7 @@ class DummyRule(Rule):
 
 class DummyEngine(RETEEngine):
     def __init__(self) -> None:
-        super().__init__(context_data={}, rules=[])
+        super().__init__(config=_engine_config(), rules=[])
         self.warmup_calls: list[list[tuple[int, int, int]]] = []
         self.add_triples_calls: list[list[tuple[int, int, int]]] = []
         self.add_triples_result: set[tuple[int, int, int]] = set()
@@ -64,7 +89,7 @@ class DummyEngine(RETEEngine):
 
 class DummyFactory(RETEEngineFactory):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(config=NO_RULES.engine_factory_config())
         self.engines: dict[Any, DummyEngine] = {}
 
     def new_engine(self, context: Any) -> DummyEngine:  # type: ignore[override]
@@ -81,7 +106,7 @@ class ScriptedEngine(RETEEngine):
             frozenset[tuple[Any, Any, Any]], set[tuple[Any, Any, Any]]
         ],
     ) -> None:
-        super().__init__(context_data={}, rules=[])
+        super().__init__(config=_engine_config(), rules=[])
         self.scripted_results = scripted_results
         self.add_triples_calls: list[set[tuple[Any, Any, Any]]] = []
 
@@ -101,7 +126,7 @@ class ScriptedFactory(RETEEngineFactory):
             frozenset[tuple[Any, Any, Any]], set[tuple[Any, Any, Any]]
         ],
     ) -> None:
-        super().__init__()
+        super().__init__(config=NO_RULES.engine_factory_config())
         self.scripted_results = scripted_results
         self.engines: dict[Any, ScriptedEngine] = {}
 
@@ -254,7 +279,7 @@ def test_rete_store_uses_real_factory_engine_to_materialize_inference() -> None:
             ),
         ),
     )
-    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    store = RETEStore(Memory(), _factory([rule]))
     dataset = Dataset(store=store)
     alice = URIRef("urn:test:alice")
     human = URIRef("urn:test:Human")
@@ -282,7 +307,7 @@ def test_rete_store_warmup_does_not_materialize_non_silent_bootstrap_rule() -> N
             ),
         ),
     )
-    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    store = RETEStore(Memory(), _factory([rule]))
     dataset = Dataset(store=store)
 
     # Trigger engine creation for the default context through a store event.
@@ -333,9 +358,7 @@ def test_rete_store_warmup_does_not_materialize_bootstrap_only_nonsilent_closure
             ),
         ),
     )
-    store = RETEStore(
-        Memory(), RETEEngineFactory(rules=[bootstrap_rule, stimulated_rule])
-    )
+    store = RETEStore(Memory(), _factory([bootstrap_rule, stimulated_rule]))
     dataset = Dataset(store=store)
 
     dataset.default_graph.add((_NS.seed_bootstrap, _NS.p, _NS.o))
@@ -369,7 +392,7 @@ def _subclass_chain_rule() -> Rule:
 
 def test_dataset_remove_drives_engine_retraction_and_cascade_in_backing_graph() -> None:
     rule = _subclass_chain_rule()
-    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    store = RETEStore(Memory(), _factory([rule]))
     dataset = Dataset(store=store)
     alice = URIRef("urn:test:alice")
     a_cls = URIRef("urn:test:A")
@@ -398,7 +421,7 @@ def test_dataset_remove_drives_engine_retraction_and_cascade_in_backing_graph() 
 
 def test_dataset_remove_is_idempotent_for_already_absent_triple() -> None:
     rule = _subclass_chain_rule()
-    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    store = RETEStore(Memory(), _factory([rule]))
     dataset = Dataset(store=store)
     seed = (URIRef("urn:test:alice"), RDF.type, URIRef("urn:test:A"))
     dataset.default_graph.add(seed)
@@ -412,7 +435,7 @@ def test_dataset_remove_is_idempotent_for_already_absent_triple() -> None:
 
 def test_dataset_remove_rematerializes_stated_and_derived_triple_with_warning() -> None:
     rule = _subclass_chain_rule()
-    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    store = RETEStore(Memory(), _factory([rule]))
     dataset = Dataset(store=store)
     alice = URIRef("urn:test:alice")
     a_cls = URIRef("urn:test:A")
@@ -439,7 +462,7 @@ def test_dataset_remove_rematerializes_stated_and_derived_triple_with_warning() 
 
 def test_dataset_remove_pattern_drives_per_triple_engine_retraction() -> None:
     rule = _subclass_chain_rule()
-    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    store = RETEStore(Memory(), _factory([rule]))
     dataset = Dataset(store=store)
     alice = URIRef("urn:test:alice")
     bob = URIRef("urn:test:bob")
@@ -467,7 +490,7 @@ def test_dataset_remove_pattern_drives_per_triple_engine_retraction() -> None:
 def test_dataset_re_add_after_remove_re_derives_inference() -> None:
     """Stale partial-match safety: after retract + re-add, no spurious old derivations."""
     rule = _subclass_chain_rule()
-    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    store = RETEStore(Memory(), _factory([rule]))
     dataset = Dataset(store=store)
     alice = URIRef("urn:test:alice")
     bob = URIRef("urn:test:bob")
@@ -497,7 +520,7 @@ def test_dataset_remove_with_scripted_engine_calls_retract_triples_once_per_batc
 
     class RemoveScriptedEngine(RETEEngine):
         def __init__(self) -> None:
-            super().__init__(context_data={}, rules=[])
+            super().__init__(config=_engine_config(), rules=[])
             self.add_triples_calls: list[set[Any]] = []
             self.retract_triples_calls: list[set[Any]] = []
 
@@ -516,7 +539,7 @@ def test_dataset_remove_with_scripted_engine_calls_retract_triples_once_per_batc
 
     class RemoveScriptedFactory(RETEEngineFactory):
         def __init__(self) -> None:
-            super().__init__()
+            super().__init__(config=NO_RULES.engine_factory_config())
             self.engines: dict[Any, RemoveScriptedEngine] = {}
 
         def new_engine(self, context: Any) -> RemoveScriptedEngine:  # type: ignore[override]
@@ -647,7 +670,7 @@ def test_rete_store_warmup_does_not_materialize_silent_bootstrap_rule() -> None:
         ),
         silent=True,
     )
-    store = RETEStore(Memory(), RETEEngineFactory(rules=[rule]))
+    store = RETEStore(Memory(), _factory([rule]))
     dataset = Dataset(store=store)
 
     dataset.default_graph.add((_NS.seed2, _NS.p, _NS.o))

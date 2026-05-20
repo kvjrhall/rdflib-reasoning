@@ -1,4 +1,20 @@
+"""RDFLib-integrated reasoning engine public package.
+
+Most applications should construct reasoners through the canonical profiles in
+:mod:`rdflib_reasoning.engine.api`, especially
+:data:`rdflib_reasoning.engine.api.RDFS_RETE_MATERIALIZED` for materializing
+RDFS entailment and :data:`rdflib_reasoning.engine.api.NO_RULES` for a
+reasoner-shaped no-op profile.
+
+The package root re-exports the common engine, rule, proof, derivation, and
+diagnostic types for convenience. Lower-level RETE classes remain available for
+tests and advanced integrations, but the profile constants are the preferred
+entrypoint for stable construction.
+"""
+
 from .api import (
+    NO_RULES,
+    RDFS_RETE_MATERIALIZED,
     BlankNodePredicateError,
     BlankNodePredicateWarning,
     FatalRuleError,
@@ -7,10 +23,19 @@ from .api import (
     LiteralPredicateError,
     LiteralPredicateWarning,
     RDFTermConstraintError,
+    ReasonerSpecification,
     RETEEngine,
+    RETEEngineConfig,
     RETEEngineFactory,
+    RETEEngineFactoryConfig,
+    RETEStore,
 )
-from .builtins import DEFAULT_PREDICATE_BUILTINS, NotLiteralPredicate
+from .builtins import (
+    Builtins,
+    CallbackHook,
+    PredicateHook,
+    RuleContext,
+)
 from .derivation import (
     ContradictionRecorder,
     DerivationLogger,
@@ -45,18 +70,13 @@ from .proof_rendering import (
 )
 from .rete_store import RetractionRematerializeWarning
 from .rules import (
-    Builtins,
     CallbackConsequent,
-    CallbackHook,
-    ContextData,
     ContradictionConsequent,
     PatternTerm,
     PredicateCondition,
-    PredicateHook,
     Rule,
     RuleCondition,
     RuleConsequent,
-    RuleContext,
     TripleCondition,
     TripleConsequent,
     TriplePattern,
@@ -72,20 +92,17 @@ from .rulesets import (
 
 __all__ = [
     "Builtins",
-    "DEFAULT_PREDICATE_BUILTINS",
     "CallbackConsequent",
     "ContradictionConsequent",
     "CallbackHook",
     "AuthorityReference",
     "ContradictionClaim",
-    "ContextData",
     "ContradictionRecorder",
     "DropContradictionRecorder",
     "InMemoryContradictionRecorder",
     "RaiseOnContradictionRecorder",
     "ContradictionRecord",
     "DerivationLogger",
-    "NotLiteralPredicate",
     "DerivationProofReconstructor",
     "InMemoryDerivationLogger",
     "DerivationRecord",
@@ -99,6 +116,8 @@ __all__ = [
     "LiteralAsSubjectWarning",
     "LiteralPredicateError",
     "LiteralPredicateWarning",
+    "NO_RULES",
+    "RDFS_RETE_MATERIALIZED",
     "PatternTerm",
     "PredicateCondition",
     "PredicateHook",
@@ -111,8 +130,12 @@ __all__ = [
     "OWL2_RL_CONTRADICTION_RULES",
     "build_rule_lookup",
     "RETEEngine",
+    "RETEEngineConfig",
     "RETEEngineFactory",
+    "RETEEngineFactoryConfig",
+    "RETEStore",
     "RetractionRematerializeWarning",
+    "ReasonerSpecification",
     "Rule",
     "RuleCondition",
     "RuleConsequent",

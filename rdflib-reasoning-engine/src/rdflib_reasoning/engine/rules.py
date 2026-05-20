@@ -1,58 +1,9 @@
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Annotated, Literal, TypeAlias, TypedDict
+from typing import Annotated, Literal, TypeAlias
 
 from pydantic import Field
 from rdflib.term import Node, Variable
-from rdflib_reasoning.axiom.common import ContextIdentifier
 
 from .proof import ProofModel, RuleDescription, RuleId
-
-if TYPE_CHECKING:
-    from .derivation import ContradictionRecorder, DerivationLogger
-    from .rete.callbacks import CallbackContext
-
-
-class RuleContext:
-    """Read-only context passed to public predicates and callbacks."""
-
-
-class PredicateHook(ABC):
-    """Public read-only predicate hook used in rule conditions."""
-
-    @abstractmethod
-    def test(self, context: RuleContext, *args: Node) -> bool:
-        pass
-
-
-class CallbackHook(ABC):
-    """Public non-logical callback hook attached to a rule match."""
-
-    @abstractmethod
-    def run(self, context: RuleContext, *args: Node) -> None:
-        pass
-
-
-class Builtins(TypedDict, total=False):
-    """Registry for host-provided predicates and callbacks.
-
-    Public builtins are split into read-only predicate evaluation and
-    observational callbacks. Logical triple production remains engine-managed
-    and is therefore not represented as a builtin hook.
-    """
-
-    predicates: dict[str, PredicateHook]
-    callbacks: dict[str, CallbackHook]
-
-
-class ContextData(TypedDict, total=False):
-    """Per-engine contextual inputs supplied by the factory for one graph."""
-
-    builtins: Builtins
-    context: ContextIdentifier
-    derivation_logger: "DerivationLogger"
-    contradiction_recorder: "ContradictionRecorder"
-    callback_recorder: "CallbackContext"
-
 
 PatternTerm: TypeAlias = Node | Variable
 """A term in a rule pattern, either concrete RDFLib node or RDFLib variable."""
