@@ -18,12 +18,13 @@ from rdflib.store import VALID_STORE, Store, TripleAddedEvent, TripleRemovedEven
 from rdflib.term import Identifier
 from rdflib_reasoning.axiom.common import ContextIdentifier, Triple
 
-from .api import RETEEngine, RETEEngineFactory
 from .batch_dispatcher import (
     BatchDispatcher,
     TripleAddedBatchEvent,
     TripleRemovedBatchEvent,
 )
+from .rete_engine import RETEEngine
+from .rete_factory import RETEEngineFactory
 
 
 class RetractionRematerializeWarning(UserWarning):

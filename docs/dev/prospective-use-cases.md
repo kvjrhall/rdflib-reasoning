@@ -44,6 +44,7 @@ The current planning implications are:
 | [Backward-Chaining Inference](#backward-chaining-inference) | Post-core reasoning expansion |
 | [Proof Authoring and Exchange](#proof-authoring-and-exchange) | Proof and evaluation driver |
 | [Packaging Experiments](#packaging-experiments) | Non-monotonic adoption experiments |
+| [On-Retraction Callbacks](#on-retraction-callbacks) | Post-core reasoning expansion |
 
 ## Graph Inference Layers (GILs)
 
@@ -331,3 +332,34 @@ Planning implications:
 Planning posture: post-core or use-case-driven experimental track. These efforts
 SHOULD NOT be treated as required pre-`1.0.0` infrastructure unless a specific
 milestone exposes a measurable need.
+
+## On-Retraction Callbacks
+
+Callbacks are executed as a rule consequent which naturally supports triggering
+external systems based on monotonic reasoning. This is a rich integration
+feature that enables real-world applications to get more value from their RDF
+data.
+
+Truth management allows us to retract statements as well recursively prune
+deductions that required the statements as support.
+In other words, we "undo" the reasoning that would have happened if the
+retracted statements had only just been added to the graph.
+
+The inference engine remains logically sound, but the conditions that led to
+a callback being invoked may no longer be satisfied.
+In non-monotonic systems that depend on TMS retractions, the ability to use
+callback integration now includes unmitigated risk where they cannot cleanly
+respond to this change of inferred state.
+
+This gap is intentional under
+[DR-005](./decision-records/DR-005%20RETE%20Consequent%20Partitioning%20and%20Retraction%20Compatibility.md):
+callbacks are observational consequents outside JTMS support bookkeeping.
+Following `v1.0.0`, we may wish to close this gap by either modifying our
+existing callbacks to allow an "undo" operations, or by introducing a new
+callback type.
+
+Planning implications:
+
+- Predicates and callbacks may not be the only hooks types afforded to the engine.
+- A new consequent type like `RetractionCallbackSchedule` may need to be introduced
+- TMS records will likely need to be modified to associate retraction callbacks and retraction logic will need to invoke them.

@@ -1,22 +1,40 @@
 from collections.abc import Iterable
 
 import pytest
-from rdflib.namespace import RDF, RDFS
+from rdflib.namespace import OWL, RDF, RDFS
 from rdflib.term import BNode, Literal, URIRef, Variable
-from rdflib_reasoning.engine.api import FatalRuleError, RETEEngine, RETEEngineFactory
+from rdflib_reasoning.axiom.common import ContextIdentifier
+from rdflib_reasoning.engine.api import (
+    NO_RULES,
+    RDFS_RETE_MATERIALIZED,
+    FatalRuleError,
+    LiteralSubjectPolicy,
+    PredicateTermPolicy,
+    RETEEngine,
+    RETEEngineConfig,
+    RETEEngineFactory,
+    RETEEngineFactoryConfig,
+)
+from rdflib_reasoning.engine.builtins import (
+    Builtins,
+    CallbackHook,
+    PredicateHook,
+    RuleContext,
+)
 from rdflib_reasoning.engine.derivation import (
+    ContradictionDetectedError,
+    ContradictionRecorder,
     DerivationLogger,
+    DropDerivationLogger,
     InMemoryDerivationLogger,
+    RaiseOnContradictionRecorder,
 )
 from rdflib_reasoning.engine.proof import DerivationRecord, RuleId, TripleFact
 from rdflib_reasoning.engine.rules import (
     CallbackConsequent,
-    CallbackHook,
-    ContextData,
+    ContradictionConsequent,
     PredicateCondition,
-    PredicateHook,
     Rule,
-    RuleContext,
     TripleCondition,
     TripleConsequent,
     TriplePattern,
@@ -26,10 +44,51 @@ from rdflib_reasoning.engine.rulesets import PRODUCTION_RDFS_RULES
 _X = Variable("x")
 
 
+def _engine_config(
+    *,
+    context: ContextIdentifier | None = None,
+    builtins: Builtins | None = None,
+    derivation_logger: DerivationLogger | None = None,
+    contradiction_recorder: ContradictionRecorder | None = None,
+    literal_subject_policy: LiteralSubjectPolicy = "error",
+    predicate_term_policy: PredicateTermPolicy = "error",
+) -> RETEEngineConfig:
+    return RETEEngineConfig(
+        context=context or BNode(),
+        builtins=builtins or Builtins(),
+        derivation_logger=derivation_logger or DropDerivationLogger(),
+        contradiction_recorder=contradiction_recorder or RaiseOnContradictionRecorder(),
+        literal_subject_policy=literal_subject_policy,
+        predicate_term_policy=predicate_term_policy,
+    )
+
+
+def _factory(
+    rules: Iterable[Rule] = (),
+    *,
+    builtins: Builtins | None = None,
+    derivation_logger_factory=lambda _context: None,
+    literal_subject_policy: LiteralSubjectPolicy = "error",
+    predicate_term_policy: PredicateTermPolicy = "error",
+) -> RETEEngineFactory:
+    return RETEEngineFactory(
+        config=RETEEngineFactoryConfig(
+            rules=tuple(rules),
+            builtins=builtins or Builtins(),
+            derivation_logger_factory=derivation_logger_factory,
+            contradiction_recorder_factory=lambda _context: (
+                RaiseOnContradictionRecorder()
+            ),
+            literal_subject_policy=literal_subject_policy,
+            predicate_term_policy=predicate_term_policy,
+        )
+    )
+
+
 def test_warmup_with_production_rdfs_loads_finite_axiom_triples_into_working_memory() -> (
     None
 ):
-    factory = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES)
+    factory = _factory(PRODUCTION_RDFS_RULES)
     engine = factory.new_engine(URIRef("urn:test:axiom-ctx"))
     engine.warmup(())
     assert (RDF.type, RDF.type, RDF.Property) in engine.known_triples
@@ -70,8 +129,8 @@ class DummyRule(Rule):
 class WarmupEngine(RETEEngine):
     """Concrete RETEEngine that implements add_triples for testing warmup."""
 
-    def __init__(self, context_data: ContextData, rules: Iterable[Rule]) -> None:
-        super().__init__(context_data=context_data, rules=rules)
+    def __init__(self, config: RETEEngineConfig, rules: Iterable[Rule]) -> None:
+        super().__init__(config=config, rules=rules)
         self.add_triples_called_with: list[list[tuple[int, int, int]]] = []
 
     def add_triples(  # type: ignore[override]
@@ -98,14 +157,6 @@ class RecordingCallback(CallbackHook):
         context.record({"callback": "recording", "args": args})  # type: ignore[attr-defined]
 
 
-class RecordingEventSink:
-    def __init__(self) -> None:
-        self.events: list[object] = []
-
-    def record(self, event: object) -> None:
-        self.events.append(event)
-
-
 class RecordingLogger(DerivationLogger):
     def __init__(self) -> None:
         self.records: list[DerivationRecord] = []
@@ -116,15 +167,15 @@ class RecordingLogger(DerivationLogger):
 
 def test_rete_engine_init_and_close() -> None:
     context = BNode()
-    context_data: ContextData = {"context": context}
+    config = _engine_config(context=context)
     rules: list[Rule] = [
         DummyRule(id=RuleId(ruleset="test", rule_id="dummy-rule-1")),
         DummyRule(id=RuleId(ruleset="test", rule_id="dummy-rule-2")),
     ]
 
-    engine = RETEEngine(context_data=context_data, rules=rules)
+    engine = RETEEngine(config=config, rules=rules)
 
-    assert engine.context_data is context_data
+    assert engine.config is config
     assert engine.rules == tuple(rules)
 
     # close() is currently a no-op but should be callable.
@@ -133,9 +184,9 @@ def test_rete_engine_init_and_close() -> None:
 
 def test_rete_engine_warmup_uses_add_triples() -> None:
     context = BNode()
-    context_data: ContextData = {"context": context}
+    config = _engine_config(context=context)
     rules: list[Rule] = []
-    engine = WarmupEngine(context_data=context_data, rules=rules)
+    engine = WarmupEngine(config=config, rules=rules)
 
     existing_triples = [(1, 2, 3), (4, 5, 6)]
 
@@ -146,29 +197,168 @@ def test_rete_engine_warmup_uses_add_triples() -> None:
     assert engine.add_triples_called_with == [existing_triples]
 
 
-def test_rete_engine_factory_rejects_context_keyword() -> None:
-    with pytest.raises(ValueError, match="context is a reserved keyword"):
-        RETEEngineFactory(context="not-allowed")
+def test_rete_engine_factory_config_is_preserved() -> None:
+    config = NO_RULES.engine_factory_config()
+    factory = RETEEngineFactory(config=config)
 
-
-def test_rete_engine_factory_context_template_is_preserved() -> None:
-    factory = RETEEngineFactory(foo="bar", answer=42)
-
-    assert factory.context_template == {"foo": "bar", "answer": 42}
+    assert factory.config is config
     assert factory.rules_template == ()
 
 
-def test_rete_engine_factory_new_engine_uses_configured_rules_and_context() -> None:
+def test_rete_engine_factory_new_engine_uses_configured_rules_and_engine_config() -> (
+    None
+):
     context = BNode()
     rule = DummyRule(id=RuleId(ruleset="test", rule_id="factory-rule"))
-    factory = RETEEngineFactory(rules=[rule], foo="bar")
+    logger_by_context: dict[ContextIdentifier, InMemoryDerivationLogger] = {}
+
+    def logger_factory(context_id: ContextIdentifier) -> InMemoryDerivationLogger:
+        logger = InMemoryDerivationLogger()
+        logger_by_context[context_id] = logger
+        return logger
+
+    factory = _factory([rule], derivation_logger_factory=logger_factory)
 
     engine = factory.new_engine(context)
 
     assert isinstance(engine, RETEEngine)
-    assert engine.context_data["context"] == context
-    assert engine.context_data["foo"] == "bar"
+    assert engine.config.context == context
+    assert engine.config.derivation_logger is logger_by_context[context]
     assert engine.rules == (rule,)
+
+
+def test_rdfs_rete_materialized_spec_creates_production_rdfs_factory() -> None:
+    factory = RDFS_RETE_MATERIALIZED.engine_factory()
+    engine = factory.new_engine(URIRef("urn:test:canonical-rdfs"))
+
+    assert engine.rules == PRODUCTION_RDFS_RULES
+    assert RDFS_RETE_MATERIALIZED.materializes_inferences is True
+    assert RDFS_RETE_MATERIALIZED.supports_retraction is True
+    assert RDFS_RETE_MATERIALIZED.supports_derivation_logging is True
+    assert RDFS_RETE_MATERIALIZED.contradiction_policy == "raise"
+
+
+def test_rdfs_rete_materialized_spec_creates_per_context_loggers() -> None:
+    factory = RDFS_RETE_MATERIALIZED.engine_factory()
+
+    first = factory.new_engine(URIRef("urn:test:first"))
+    second = factory.new_engine(URIRef("urn:test:second"))
+
+    assert isinstance(first.derivation_logger, DropDerivationLogger), (
+        "The first context's derivation logger should be an InMemoryDerivationLogger "
+        f"Got {type(first.derivation_logger)}"
+    )
+    assert isinstance(second.derivation_logger, DropDerivationLogger), (
+        "The second context's derivation logger should be an InMemoryDerivationLogger"
+    )
+    assert first.derivation_logger is not second.derivation_logger, (
+        "The same logger instance was used for multiple contexts"
+    )
+
+
+def test_rdfs_rete_materialized_spec_raises_and_retains_contradictions() -> None:
+    x = Variable("x")
+    rule = Rule(
+        id=RuleId(ruleset="test", rule_id="nothing"),
+        description=None,
+        body=(
+            TripleCondition(
+                pattern=TriplePattern(subject=x, predicate=RDF.type, object=OWL.Nothing)
+            ),
+        ),
+        head=(
+            ContradictionConsequent(
+                category="cls-nothing2",
+                detail="Individual typed as owl:Nothing.",
+                arguments=(x, RDF.type, OWL.Nothing),
+            ),
+        ),
+    )
+    spec = RDFS_RETE_MATERIALIZED
+    factory = RETEEngineFactory(
+        config=RETEEngineFactoryConfig(
+            rules=(rule,),
+            builtins=spec.builtins,
+            literal_subject_policy=spec.literal_subject_policy,
+            predicate_term_policy=spec.predicate_term_policy,
+            derivation_logger_factory=spec.derivation_logger_factory,
+            contradiction_recorder_factory=spec.contradiction_recorder_factory,
+        )
+    )
+    engine = factory.new_engine(URIRef("urn:test:contradiction"))
+    triple = (URIRef("urn:test:a"), RDF.type, OWL.Nothing)
+
+    with pytest.raises(ContradictionDetectedError):
+        engine.add_triples([triple])
+
+    records = engine.contradiction_records()
+    assert len(records) == 1
+    assert records[0].witness is not None
+    assert records[0].witness.triple == triple
+
+
+def test_rdfs_rete_materialized_spec_store_materializes_rdfs_closure() -> None:
+    dataset = RDFS_RETE_MATERIALIZED.dataset()
+    person = URIRef("urn:test:Person")
+    mammal = URIRef("urn:test:Mammal")
+    alice = URIRef("urn:test:alice")
+
+    dataset.default_graph.add((person, RDFS.subClassOf, mammal))
+    dataset.default_graph.add((alice, RDF.type, person))
+
+    assert (alice, RDF.type, mammal) in dataset.default_graph
+
+
+def test_no_rules_spec_has_logically_noop_metadata() -> None:
+    assert NO_RULES.rules == ()
+    assert NO_RULES.materializes_inferences is True, (
+        "No-op spec should materialize inferences"
+    )
+    assert NO_RULES.supports_retraction is True, "No-op spec should support retraction"
+    assert NO_RULES.supports_derivation_logging is True, (
+        "No-op spec should support derivation logging"
+    )
+    assert NO_RULES.contradiction_policy == "raise", (
+        "No-op spec should raise on contradictions"
+    )
+
+
+def test_no_rules_spec_creates_noop_engine_without_derivation_logger() -> None:
+    engine = NO_RULES.engine_factory().new_engine(URIRef("urn:test:no-rules"))
+
+    assert engine.rules == ()
+    assert isinstance(engine.derivation_logger, DropDerivationLogger), (
+        "The derivation logger should be a DropDerivationLogger"
+    )
+    assert isinstance(engine.contradiction_recorder, RaiseOnContradictionRecorder)
+    assert engine.literal_subject_policy == "error"
+    assert engine.predicate_term_policy == "error"
+
+
+def test_no_rules_spec_store_preserves_assertions_without_materializing_closure() -> (
+    None
+):
+    dataset = NO_RULES.dataset()
+    person = URIRef("urn:test:Person")
+    mammal = URIRef("urn:test:Mammal")
+    alice = URIRef("urn:test:alice")
+
+    dataset.default_graph.add((person, RDFS.subClassOf, mammal))
+    dataset.default_graph.add((alice, RDF.type, person))
+
+    assert (person, RDFS.subClassOf, mammal) in dataset.default_graph
+    assert (alice, RDF.type, person) in dataset.default_graph
+    assert (alice, RDF.type, mammal) not in dataset.default_graph
+
+
+def test_no_rules_spec_store_supports_retraction_of_assertions() -> None:
+    dataset = NO_RULES.dataset()
+    triple = (URIRef("urn:test:alice"), RDF.type, URIRef("urn:test:Person"))
+
+    dataset.default_graph.add(triple)
+    dataset.default_graph.remove(triple)
+
+    assert triple not in dataset.default_graph
 
 
 def test_rete_engine_add_triples_materializes_inference_to_fixed_point() -> None:
@@ -196,7 +386,7 @@ def test_rete_engine_add_triples_materializes_inference_to_fixed_point() -> None
             ),
         )
     ]
-    engine = RETEEngine(context_data={"context": BNode()}, rules=rules)
+    engine = RETEEngine(config=_engine_config(), rules=rules)
     human = URIRef("urn:test:Human")
     mammal = URIRef("urn:test:Mammal")
     animal = URIRef("urn:test:Animal")
@@ -233,7 +423,7 @@ def test_rete_engine_add_triples_is_idempotent_for_known_triples() -> None:
             ),
         ),
     )
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    engine = RETEEngine(config=_engine_config(), rules=[rule])
     triple = (URIRef("urn:test:a"), RDF.type, URIRef("urn:test:A"))
 
     assert engine.add_triples([triple]) == set()
@@ -258,11 +448,9 @@ def test_rete_engine_add_triples_supports_builtin_predicates() -> None:
             ),
         ),
     )
-    context_data: ContextData = {
-        "context": BNode(),
-        "builtins": {"predicates": {"same_term": SameTermPredicate()}},
-    }
-    engine = RETEEngine(context_data=context_data, rules=[rule])
+    builtins = Builtins.EMPTY.extend(more_predicates={"same_term": SameTermPredicate()})
+    config = _engine_config(builtins=builtins)
+    engine = RETEEngine(config=config, rules=[rule])
     triple = (URIRef("urn:test:a"), RDF.type, URIRef("urn:test:A"))
 
     inferred = engine.add_triples([triple])
@@ -288,7 +476,7 @@ def test_rete_engine_same_term_predicate_builtin_by_default() -> None:
             ),
         ),
     )
-    engine = RETEEngineFactory(rules=[rule]).new_engine(URIRef("urn:test:ctx-default"))
+    engine = _factory([rule]).new_engine(URIRef("urn:test:ctx-default"))
 
     inferred = engine.add_triples(
         [(URIRef("urn:test:a"), RDF.type, URIRef("urn:test:A"))]
@@ -336,7 +524,7 @@ def test_rete_engine_term_in_predicates_builtin_by_default() -> None:
             ),
         ),
     )
-    engine = RETEEngineFactory(rules=[guard_rule, deny_rule]).new_engine(
+    engine = _factory([guard_rule, deny_rule]).new_engine(
         URIRef("urn:test:ctx-term-in")
     )
 
@@ -364,13 +552,13 @@ def test_rete_engine_not_literal_predicate_builtin_by_default() -> None:
             ),
         ),
     )
-    engine = RETEEngineFactory(rules=[rule]).new_engine(URIRef("urn:test:ctx"))
+    engine = _factory([rule]).new_engine(URIRef("urn:test:ctx"))
     a = URIRef("urn:test:a")
     b = URIRef("urn:test:b")
     inferred = engine.add_triples([(a, RDF.type, b)])
     assert (b, RDFS.subClassOf, b) in inferred
 
-    engine_lit = RETEEngineFactory(rules=[rule]).new_engine(URIRef("urn:test:ctx2"))
+    engine_lit = _factory([rule]).new_engine(URIRef("urn:test:ctx2"))
     inferred_lit = engine_lit.add_triples([(a, RDF.type, Literal("lit"))])
     assert inferred_lit == set()
     assert (
@@ -387,24 +575,20 @@ def test_rete_engine_user_may_override_not_literal_predicate() -> None:
 
     triple = (URIRef("urn:x"), URIRef("urn:p"), URIRef("urn:y"))
     range_triple = (triple[1], RDFS.range, URIRef("urn:test:C"))
-    default_engine = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES).new_engine(
-        URIRef("urn:ctx")
-    )
+    default_engine = _factory(PRODUCTION_RDFS_RULES).new_engine(URIRef("urn:ctx"))
     default_engine.add_triples([range_triple, triple])
     assert (triple[2], RDF.type, range_triple[2]) in default_engine.known_triples
 
-    override_engine = RETEEngineFactory(
-        rules=PRODUCTION_RDFS_RULES,
-        builtins={"predicates": {"not_literal": AlwaysFalse()}},
-    ).new_engine(URIRef("urn:ctx"))
+    builtins = Builtins.EMPTY.extend(more_predicates={"not_literal": AlwaysFalse()})
+    override_engine = _factory(PRODUCTION_RDFS_RULES, builtins=builtins).new_engine(
+        URIRef("urn:ctx")
+    )
     override_engine.add_triples([range_triple, triple])
     assert (triple[2], RDF.type, range_triple[2]) not in override_engine.known_triples
 
 
 def test_production_rdfs_omits_selected_schema_axioms_from_working_memory() -> None:
-    engine = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES).new_engine(
-        URIRef("urn:ctx")
-    )
+    engine = _factory(PRODUCTION_RDFS_RULES).new_engine(URIRef("urn:ctx"))
     engine.warmup(())
 
     assert (RDF.type, RDFS.domain, RDFS.Resource) not in engine.known_triples
@@ -435,7 +619,7 @@ def test_rete_engine_add_triples_records_derivations_for_new_conclusions() -> No
         ),
     )
     engine = RETEEngine(
-        context_data={"context": context, "derivation_logger": logger},
+        config=_engine_config(context=context, derivation_logger=logger),
         rules=[rule],
     )
     human = URIRef("urn:test:Human")
@@ -519,7 +703,7 @@ def test_rete_engine_silent_rule_is_not_materialized_but_logged_and_available() 
         silent=True,
     )
     engine = RETEEngine(
-        context_data={"context": context, "derivation_logger": logger},
+        config=_engine_config(context=context, derivation_logger=logger),
         rules=[rule],
     )
     triple = (URIRef("urn:test:A"), RDF.type, RDFS.Class)
@@ -582,7 +766,7 @@ def test_silent_only_same_output_triple_remains_non_materialized() -> None:
         silent=False,
     )
     engine = RETEEngine(
-        context_data={"context": BNode(), "derivation_logger": logger},
+        config=_engine_config(derivation_logger=logger),
         rules=[silent_rule, nonsilent_unsatisfied],
     )
 
@@ -634,7 +818,7 @@ def test_non_silent_only_same_output_triple_materializes() -> None:
         silent=False,
     )
     engine = RETEEngine(
-        context_data={"context": BNode(), "derivation_logger": logger},
+        config=_engine_config(derivation_logger=logger),
         rules=[silent_unsatisfied, nonsilent_rule],
     )
 
@@ -687,7 +871,7 @@ def test_non_silent_wins_when_silent_and_non_silent_derive_same_triple() -> None
         silent=False,
     )
     engine = RETEEngine(
-        context_data={"context": BNode(), "derivation_logger": logger},
+        config=_engine_config(derivation_logger=logger),
         rules=[silent_rule, nonsilent_rule],
     )
 
@@ -714,7 +898,7 @@ def test_rete_engine_warmup_runs_bootstrap_rule_once_per_engine_context() -> Non
             ),
         ),
     )
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[bootstrap_rule])
+    engine = RETEEngine(config=_engine_config(), rules=[bootstrap_rule])
 
     first = engine.warmup([])
     second = engine.warmup([])
@@ -746,7 +930,7 @@ def test_rete_engine_bootstrap_logs_effective_silence_separately_from_rule_polic
         silent=False,
     )
     engine = RETEEngine(
-        context_data={"context": BNode(), "derivation_logger": logger},
+        config=_engine_config(derivation_logger=logger),
         rules=[bootstrap_rule],
     )
 
@@ -798,7 +982,7 @@ def test_rete_engine_bootstrap_suppresses_non_silent_bootstrap_only_closure() ->
         ),
     )
     engine = RETEEngine(
-        context_data={"context": BNode()},
+        config=_engine_config(),
         rules=[bootstrap_rule, stimulated_rule],
     )
 
@@ -855,7 +1039,7 @@ def test_rete_engine_bootstrap_marks_stimulated_derivations_as_bootstrap_and_sil
         silent=False,
     )
     engine = RETEEngine(
-        context_data={"context": BNode(), "derivation_logger": logger},
+        config=_engine_config(derivation_logger=logger),
         rules=[bootstrap_rule, stimulated_rule],
     )
 
@@ -913,7 +1097,7 @@ def test_rete_engine_processes_matches_in_agenda_order() -> None:
         salience=10,
     )
     engine = RETEEngine(
-        context_data={"context": context, "derivation_logger": logger},
+        config=_engine_config(context=context, derivation_logger=logger),
         rules=[broad_rule, prioritized_rule],
     )
 
@@ -936,7 +1120,6 @@ def test_rete_engine_processes_matches_in_agenda_order() -> None:
 def test_rete_engine_add_triples_executes_callbacks_via_agenda() -> None:
     x = Variable("x")
     callback = RecordingCallback()
-    event_sink = RecordingEventSink()
     context = BNode()
     rule = Rule(
         id=RuleId(ruleset="test", rule_id="callback"),
@@ -955,11 +1138,10 @@ def test_rete_engine_add_triples_executes_callbacks_via_agenda() -> None:
         salience=4,
     )
     engine = RETEEngine(
-        context_data={
-            "context": context,
-            "builtins": {"callbacks": {"trace_class": callback}},
-            "callback_recorder": event_sink,
-        },
+        config=_engine_config(
+            context=context,
+            builtins=Builtins.EMPTY.extend(more_callbacks={"trace_class": callback}),
+        ),
         rules=[rule],
     )
 
@@ -974,12 +1156,6 @@ def test_rete_engine_add_triples_executes_callbacks_via_agenda() -> None:
     assert callback_context.bindings == {"x": URIRef("urn:test:A")}
     assert callback_context.premises == ((URIRef("urn:test:A"), RDF.type, RDFS.Class),)
     assert callback_context.depth == 0
-    assert event_sink.events == [
-        {
-            "callback": "recording",
-            "args": (URIRef("urn:test:A"), URIRef("urn:test:marker")),
-        }
-    ]
 
 
 def test_rete_engine_add_triples_rejects_unknown_callback_hook() -> None:
@@ -994,7 +1170,7 @@ def test_rete_engine_add_triples_rejects_unknown_callback_hook() -> None:
         ),
         head=(CallbackConsequent(callback="missing", arguments=(x,)),),
     )
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    engine = RETEEngine(config=_engine_config(), rules=[rule])
 
     with pytest.raises(FatalRuleError, match="Unknown callback hook `missing`"):
         engine.add_triples([(URIRef("urn:test:A"), RDF.type, RDFS.Class)])
@@ -1021,7 +1197,7 @@ def test_rete_engine_tracks_stated_and_derived_facts_in_working_memory() -> None
             ),
         ),
     )
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    engine = RETEEngine(config=_engine_config(), rules=[rule])
     human = URIRef("urn:test:Human")
     mammal = URIRef("urn:test:Mammal")
     alice = URIRef("urn:test:alice")
@@ -1064,7 +1240,7 @@ def _subclass_chain_engine() -> tuple[RETEEngine, Rule]:
             ),
         ),
     )
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    engine = RETEEngine(config=_engine_config(), rules=[rule])
     return engine, rule
 
 
@@ -1262,7 +1438,7 @@ def test_rete_engine_tracks_multiple_supports_for_one_derived_fact() -> None:
             ),
         ),
     )
-    engine = RETEEngine(context_data={"context": BNode()}, rules=[rule])
+    engine = RETEEngine(config=_engine_config(), rules=[rule])
     alice = URIRef("urn:test:alice")
     human = URIRef("urn:test:Human")
     person = URIRef("urn:test:Person")

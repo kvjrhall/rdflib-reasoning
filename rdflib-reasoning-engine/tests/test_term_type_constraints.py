@@ -8,12 +8,15 @@ from rdflib_reasoning.engine import (
     PRODUCTION_RDFS_RULES,
     BlankNodePredicateError,
     BlankNodePredicateWarning,
+    Builtins,
     LiteralAsSubjectError,
     LiteralAsSubjectWarning,
     LiteralPredicateError,
     LiteralPredicateWarning,
+    RaiseOnContradictionRecorder,
     RETEEngine,
     RETEEngineFactory,
+    RETEEngineFactoryConfig,
     Rule,
     RuleDescription,
     RuleId,
@@ -21,13 +24,37 @@ from rdflib_reasoning.engine import (
     TripleConsequent,
     TriplePattern,
 )
+from rdflib_reasoning.engine.api import (
+    NO_RULES,
+    LiteralSubjectPolicy,
+    PredicateTermPolicy,
+)
+from rdflib_reasoning.engine.derivation import DropDerivationLogger
 
 
-def make_engine(**policies: str) -> RETEEngine:
+def make_engine(
+    literal_subject_policy: LiteralSubjectPolicy = "error",
+    predicate_term_policy: PredicateTermPolicy = "error",
+) -> RETEEngine:
     """Helper to construct a bare RETEEngine with configurable term policies."""
 
-    factory = RETEEngineFactory(rules=(), **policies)
+    factory = RETEEngineFactory(
+        config=RETEEngineFactoryConfig(
+            rules=(),
+            contradiction_recorder_factory=lambda _context: (
+                RaiseOnContradictionRecorder()
+            ),
+            derivation_logger_factory=lambda _context: DropDerivationLogger(),
+            builtins=Builtins.EMPTY,
+            literal_subject_policy=literal_subject_policy,
+            predicate_term_policy=predicate_term_policy,
+        )
+    )
     return factory.new_engine(URIRef("urn:test:ctx"))
+
+
+def _factory(rules: tuple[Rule, ...]) -> RETEEngineFactory:
+    return NO_RULES.extend(more_rules=rules).engine_factory()
 
 
 def test_literal_subject_raises_error_by_default() -> None:
@@ -69,7 +96,7 @@ def test_literal_subject_inferred_includes_rule_diagnostics() -> None:
             ),
         ),
     )
-    factory = RETEEngineFactory(rules=(rule,))
+    factory = _factory((rule,))
     engine = factory.new_engine(URIRef("urn:test:ctx"))
     stated_triple: Triple = (
         URIRef("urn:test:bad-rule:s"),
@@ -98,7 +125,7 @@ def test_literal_subject_inferred_includes_rule_diagnostics() -> None:
 
 def test_rdfs4b_skips_literal_objects_without_literal_as_subject_error() -> None:
     """rdfs4b must not emit (literal rdf:type rdfs:Resource)—illegal RDF 1.1 triples."""
-    factory = RETEEngineFactory(rules=PRODUCTION_RDFS_RULES)
+    factory = _factory(PRODUCTION_RDFS_RULES)
     engine = factory.new_engine(URIRef("urn:test:ctx"))
     s = URIRef("urn:ex:Person")
     label_triple: Triple = (s, RDFS.label, Literal("Person"))

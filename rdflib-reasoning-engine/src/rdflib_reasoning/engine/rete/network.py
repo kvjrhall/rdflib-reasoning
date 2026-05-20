@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from rdflib.term import Node, Variable
 from rdflib_reasoning.axiom.common import Triple
 
-from ..rules import PredicateHook, RuleContext
+from ..builtins import PredicateHook, RuleContext
 from .compiler import (
     AlphaConstraint,
     CompiledPredicateCondition,

@@ -3,11 +3,14 @@ import warnings
 import pytest
 from rdflib.namespace import OWL, RDF
 from rdflib.term import BNode, URIRef, Variable
-from rdflib_reasoning.engine.api import RETEEngine
+from rdflib_reasoning.engine import Builtins
+from rdflib_reasoning.engine.api import RETEEngine, RETEEngineConfig
 from rdflib_reasoning.engine.derivation import (
+    ContradictionRecorder,
     ContradictionWarning,
     DerivationProofReconstructor,
     DropContradictionRecorder,
+    DropDerivationLogger,
     InMemoryContradictionRecorder,
 )
 from rdflib_reasoning.engine.proof import (
@@ -26,6 +29,17 @@ from rdflib_reasoning.engine.rulesets import OWL2_RL_CONTRADICTION_RULES
 
 _X = Variable("x")
 _P = Variable("p")
+
+
+def _engine_config(context: BNode, recorder: ContradictionRecorder):
+    return RETEEngineConfig(
+        context=context,
+        builtins=Builtins.EMPTY,
+        derivation_logger=DropDerivationLogger(),
+        contradiction_recorder=recorder,
+        literal_subject_policy="error",
+        predicate_term_policy="error",
+    )
 
 
 def test_contradiction_consequent_records_non_mutating_diagnostics() -> None:
@@ -53,7 +67,7 @@ def test_contradiction_consequent_records_non_mutating_diagnostics() -> None:
     context = BNode()
     silent_recorder = InMemoryContradictionRecorder(warn=False)
     engine = RETEEngine(
-        context_data={"context": context, "contradiction_recorder": silent_recorder},
+        config=_engine_config(context, silent_recorder),
         rules=[rule],
     )
     prop = URIRef("urn:test:p")
@@ -112,7 +126,7 @@ def test_contradiction_api_clear_resets_sequence() -> None:
     context = BNode()
     silent_recorder = InMemoryContradictionRecorder(warn=False)
     engine = RETEEngine(
-        context_data={"context": context, "contradiction_recorder": silent_recorder},
+        config=_engine_config(context, silent_recorder),
         rules=[rule],
     )
     triple = (URIRef("urn:test:a"), RDF.type, OWL.Nothing)
@@ -155,7 +169,7 @@ def test_reconstructor_builds_contradiction_proof_from_contradiction_records() -
     )
     silent_recorder = InMemoryContradictionRecorder(warn=False)
     engine = RETEEngine(
-        context_data={"context": context, "contradiction_recorder": silent_recorder},
+        config=_engine_config(context, silent_recorder),
         rules=[rule],
     )
 

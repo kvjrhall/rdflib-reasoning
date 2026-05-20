@@ -59,6 +59,8 @@ def _parse_node(value: str | Node) -> Node:
                 )
             node = parsed
         if not isinstance(node, Node):
+            # This is likely unreachable in production code, but we retain
+            # it as part of a defensive posture.
             raise ValueError(f"Unable to parse RDF term from text: {original_value}")
         node_text = _node_to_string(node).removeprefix("<").removesuffix(">")
 
