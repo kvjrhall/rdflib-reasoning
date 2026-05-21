@@ -41,3 +41,56 @@ SHOULD remain executable, readable, and aligned with the repository architecture
   same concept.
 - Notebook outputs MAY be refreshed when needed for clarity, but code and prose
   changes SHOULD remain reviewable and limited to the notebook's purpose.
+
+## Drift policy
+
+Notebook drift is a correctness issue. When code, documentation, or repository
+policy changes affect behavior demonstrated by a checked-in notebook, the
+Development Agent MUST update the notebook in the same change or explicitly
+confirm that the notebook is unaffected.
+
+The Development Agent MUST check for notebook impact when changing:
+
+- Public package APIs, imports, installation requirements, or package layout.
+- Middleware composition, tool behavior, tool descriptions, generated schemas,
+  prompts, continuation behavior, or tracing behavior used by notebook demos.
+- Shared notebook helpers, task text, target graphs, expected graph shapes,
+  scoring metrics, proof rendering, or evaluation payloads.
+- The suggested reading order, tutorial path, or notebook descriptions in
+  `notebooks/README.md`, the root `README.md`, or Sphinx pages.
+
+Notebook series that compare Research Agent conditions MUST remain comparable.
+When a change affects shared task text, baseline prompt guidance, middleware
+affordances, model-provider assumptions, target graphs, scoring helpers, or
+saved metric interpretation, the Development Agent MUST either update each
+affected condition consistently or state in notebook prose that the change is a
+deliberate condition difference.
+
+Saved notebook outputs MAY be kept when they are part of the research or
+demonstration record. They MUST NOT silently contradict current prose or code.
+If a behavior change makes saved output stale, the Development Agent SHOULD do
+one of the following:
+
+- Rerun the affected notebook and commit the refreshed output.
+- Clear or remove misleading output.
+- Mark the output or section as historical and explain why it is retained.
+
+Notebooks that require optional research dependencies, credentials, model
+provider access, network access, or long-running execution SHOULD state those
+requirements near the setup cells. If a notebook cannot be executed during a
+change, the Development Agent SHOULD report the reason and validate any
+reusable helpers or extractable code paths that can run locally.
+
+Reusable Python helpers under `notebooks/**/*.py` are reusable source files.
+They MUST follow repository Python, typing, linting, and docstring policy.
+Notebook cells in `notebooks/**/*.ipynb` are exempt from docstring linting, but
+their prose, imports, examples, and saved outputs remain subject to this policy.
+
+## Validation
+
+- Run `make check` after editing notebooks, notebook helpers, or notebook
+  guidance.
+- Run or audit affected notebooks when execution is feasible in the local
+  environment.
+- Use `notebooks/audit_demo_series.py` when changing the middleware demo series
+  or when reviewing condition comparability across that series.

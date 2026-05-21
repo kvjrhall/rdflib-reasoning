@@ -1,7 +1,4 @@
-"""
-Each :class:`~rdflib_reasoning.engine.RETEEngine` is configured with a
-:class:`~rdflib_reasoning.engine.Builtins` registry that gives the engine access
-to arbitrary python code outside of the engine.
+"""Expose Python hooks for RETE rule predicates and callbacks.
 
 Builtins are split into read-only
 :class:`~rdflib_reasoning.engine.PredicateHook` used while evaluating rule
@@ -53,8 +50,7 @@ class RuleContext:
     """
 
     def report_input_mismatch(self, message: str, inputs: Sequence[Node]) -> Never:
-        """Helper method to report a generic input error where no more specific ``report_*`` method is applicable."""
-
+        """Report a generic input error with formatted RDFLib node arguments."""
         raise BuiltinInputError(f"{message}\n{_format_inputs(inputs)}")
 
     def report_argument_count(
@@ -64,7 +60,7 @@ class RuleContext:
         min_inclusive: NonNegativeInt | None = None,
         max_inclusive: NonNegativeInt | None = None,
     ) -> Never:
-        """Helper method to report an argument count error."""
+        """Report an argument count error."""
         argc = len(inputs)
 
         message: str

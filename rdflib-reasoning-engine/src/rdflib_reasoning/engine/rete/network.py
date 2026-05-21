@@ -18,8 +18,8 @@ from .facts import Fact, PartialMatch, fact_id_for_triple
 
 
 class AlphaNode(BaseModel):
-    """
-    First layer of the RETE network.
+    """First layer of the RETE network.
+
     Filters individual facts based on literal constant constraints before any
     join work occurs.
     """
@@ -37,8 +37,7 @@ class AlphaNode(BaseModel):
 
 
 class PredicateNode(BaseModel):
-    """
-    Specialized alpha node that wraps read-only predicate callables.
+    """Specialized alpha node that wraps read-only predicate callables.
 
     Predicate nodes represent body-side evaluation only; they are not callback
     hooks and they do not emit logical consequences directly.
@@ -57,9 +56,7 @@ class PredicateNode(BaseModel):
 
 
 class BetaNode(BaseModel):
-    """
-    Join node maintaining partial-match memory for conjunctive rule bodies.
-    """
+    """Join node maintaining partial-match memory for conjunctive rule bodies."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -73,9 +70,10 @@ class BetaNode(BaseModel):
 
 
 class TerminalNode(BaseModel):
-    """
-    Leaf node that schedules engine-managed logical production and optional
-    observational callbacks from one completed match.
+    """Schedule engine-managed consequents from one completed match.
+
+    Terminal nodes handle logical production, optional observational callbacks,
+    and contradiction diagnostics.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -91,8 +89,7 @@ class TerminalNode(BaseModel):
 
 
 class NodeRegistry(BaseModel):
-    """
-    Canonicalizing store for structurally shared network nodes.
+    """Canonicalizing store for structurally shared network nodes.
 
     Node sharing is part of the intended RETE optimization strategy and should
     remain independent from proof reconstruction concerns.
@@ -148,8 +145,7 @@ class NodeRegistry(BaseModel):
 
 
 class NetworkBuilder:
-    """
-    Orchestrator for RETE network assembly from compiled rule representations.
+    """Orchestrator for RETE network assembly from compiled rule representations.
 
     The builder turns compiled rules into canonical alpha, beta, and predicate
     nodes plus per-rule terminal nodes using a left-deep join assembly.

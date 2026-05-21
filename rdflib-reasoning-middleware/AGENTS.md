@@ -5,6 +5,7 @@ Development Agents maintain this package and its Development Agent-facing docume
 
 ## Documentation and runtime visibility
 
+- Public docstrings MUST follow the repository-wide Google-style docstring standard in [`../AGENTS.md`](../AGENTS.md).
 - Research Agents may see package-exposed middleware prompts, tool descriptions, generated schemas, serialized responses, validation errors, and selected state fields.
 - Research Agents MUST NOT see repository-local specs, `AGENTS.md`, design docs, source comments, or other Development Agent-only material.
 - Public docstrings, module docstrings, `Field` descriptions, tool descriptions, middleware prompt text, and generated schema text are package-consumer or runtime-facing surfaces. They MUST NOT cite repository-local specs, crosswalks, `AGENTS.md`, design docs, or source comments.

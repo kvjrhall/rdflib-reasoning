@@ -5,7 +5,7 @@ TESTS ?=
 
 help:  # show this help (targets and descriptions)
 	@echo "Targets:"
-	@awk -F'[:#]' '/^[a-zA-Z0-9_-]+:.*#/ {gsub(/^[ \t]+/,"",$$3); printf "  %-12s %s\n", $$1, $$3}' $(MAKEFILE_LIST)
+	@awk -F'[:#]' '/^[a-zA-Z0-9_-]+:.*#/ {gsub(/^[ \t]+/,"",$$3); printf "  %-16s %s\n", $$1, $$3}' $(MAKEFILE_LIST)
 
 check: install-dev  # install dev deps, then execute all pre-commit hooks
 	uv run pre-commit run --all-files
@@ -19,6 +19,7 @@ clean:  # remove generated docs, test, coverage, and build artifacts
 	rm -rf .ruff_cache
 	rm -rf docs-build
 	rm -rf docs-src/autoapi
+	rm -f docs-src/tutorials/notebooks/*.ipynb
 	rm -rf htmlcov
 	rm -rf site
 	rm -rf dist
@@ -31,9 +32,11 @@ clean:  # remove generated docs, test, coverage, and build artifacts
 	rm -f coverage.xml
 
 docs: install-dev  # build the Sphinx documentation site
+	uv run python docs-src/prepare_notebooks.py
 	uv run sphinx-build -W --keep-going -b html docs-src docs-build/html
 
 docs-linkcheck: install-dev  # validate external links referenced by the Sphinx docs
+	uv run python docs-src/prepare_notebooks.py
 	uv run sphinx-build -W --keep-going -b linkcheck docs-src docs-build/linkcheck
 
 docs-serve: install-dev  # serve the Sphinx documentation site locally

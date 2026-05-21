@@ -150,7 +150,6 @@ def find_tool_transcript_issue(
     model-agnostic way instead of surfacing provider-specific ``BadRequestError``
     responses.
     """
-
     pending_tool_call_ids: set[str] = set()
     pending_ai_message: AIMessage | None = None
 

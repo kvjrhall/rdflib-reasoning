@@ -602,7 +602,6 @@ TURN_TRACE_TRANSCRIPT_VERSION = 1
 
 def normalize_trace_json_value(value: Any) -> Any:
     """Recursively coerce trace-related values into JSON-serializable data."""
-
     if isinstance(value, UUID):
         return str(value)
     if isinstance(value, Mapping):
@@ -623,7 +622,6 @@ def normalize_trace_json_value(value: Any) -> Any:
 
 def turn_trace_to_jsonable(turn: TurnTrace) -> dict[str, Any]:
     """Return one turn as a plain, JSON-friendly mapping."""
-
     normalized = normalize_trace_json_value(
         {
             "run_id": turn.run_id,
@@ -656,7 +654,6 @@ def turn_trace_to_jsonable(turn: TurnTrace) -> dict[str, Any]:
 
 def turn_traces_to_json_document(turns: Iterable[TurnTrace]) -> dict[str, Any]:
     """Build a versioned transcript document from correlated turns."""
-
     return {
         "format": TURN_TRACE_TRANSCRIPT_FORMAT,
         "version": TURN_TRACE_TRANSCRIPT_VERSION,

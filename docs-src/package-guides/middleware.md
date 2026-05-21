@@ -1,12 +1,15 @@
 # Middleware Package
 
-The `rdflib-reasoning-middleware` package is the intended runtime integration surface between
-the repository's reasoning components and Research Agent middleware and tool stacks.
+The `rdflib-reasoning-middleware` package provides runtime integration surfaces
+for RDF dataset state, vocabulary access, tracing, continuation control, and
+Research Agent-facing tool workflows.
 
 Use this package when you need:
 
-- dataset-backed agent state primitives
-- a boundary layer between the reasoning packages and a runtime agent framework
-- a place to evolve evaluation harness and middleware capability surfaces
+- dataset-backed state primitives for agent workflows;
+- thin tool adapters over RDFLib-backed dataset operations;
+- vocabulary search and namespace constraints for RDF term selection;
+- tracing helpers for inspectable notebook and evaluation runs;
+- boundary models that keep runtime schemas separate from engine internals.
 
 For generated API docs, see {doc}`../autoapi/middleware/index`.

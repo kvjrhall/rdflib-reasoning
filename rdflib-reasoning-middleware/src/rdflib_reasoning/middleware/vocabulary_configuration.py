@@ -155,14 +155,12 @@ class VocabularyConfiguration:
 
     def plus(self, *declarations: VocabularyDeclaration) -> "VocabularyConfiguration":
         """Return a new configuration extended by the supplied declarations."""
-
         return VocabularyConfiguration(
             declarations=_merge_declarations(self.declarations, *declarations)
         )
 
     def plus_dublin_core(self) -> "VocabularyConfiguration":
         """Add the extended Dublin Core published as ISO 15836-2:2019: https://www.iso.org/standard/71341.html."""
-
         return self.plus(
             *(
                 _declaration_from_bundled_vocabulary(vocabulary)
@@ -172,7 +170,6 @@ class VocabularyConfiguration:
 
     def plus_vann(self) -> "VocabularyConfiguration":
         """Add the bundled VANN vocabulary declaration to this configuration."""
-
         return self.plus(
             _declaration_from_bundled_vocabulary(bundled_vocabulary_by_namespace(VANN))
         )
