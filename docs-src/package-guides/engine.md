@@ -21,4 +21,17 @@ For a quick tour of the direct engine surface, see:
 - [RDFS retraction demo](../tutorials/notebooks/demo-rdfs-retraction.ipynb)
 - [Contradiction rules demo](../tutorials/notebooks/demo-contradiction-rules.ipynb)
 
+For focused tasks, see:
+
+- [Run RDFS inference](../how-to/run-rdfs-inference.md)
+- [Retract inferences](../how-to/retract-inferences.md)
+- [Inspect a proof](../how-to/inspect-a-proof.md)
+- [Enable contradiction diagnostics](../how-to/enable-contradiction-diagnostics.md)
+
+For conceptual background, see:
+
+- [Materialization and retraction](../concepts/materialization-and-retraction.md)
+- [Proofs and derivations](../concepts/proofs-and-derivations.md)
+- [Contradiction diagnostics](../concepts/contradiction-diagnostics.md)
+
 For generated API docs, see {doc}`../autoapi/engine/index`.
