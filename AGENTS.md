@@ -109,6 +109,49 @@ Package-local `AGENTS.md` files MAY add stricter docstring requirements for
 their local domain, but they MUST remain consistent with this repository-wide
 standard.
 
+## Sphinx documentation policy
+
+Published package documentation is authored under `docs-src/` and built with
+Sphinx. It is package-consumer documentation first: it SHOULD help downstream
+Python developers install, understand, extend, and correctly use the
+`rdflib-reasoning` packages. Research context MAY appear when it clarifies
+motivation or examples, but it MUST NOT make the project look like notebooks
+first and reusable Python packages second.
+
+Sphinx pages MUST NOT duplicate generated API reference content that belongs in
+docstrings. They SHOULD provide task-oriented or conceptual context that
+AutoAPI cannot infer: installation paths, package selection, tutorials,
+how-to guides, conceptual explanations, design tradeoffs that affect package
+use, and links into generated API pages.
+
+Sphinx documentation drift is a correctness issue. When changing public package
+behavior, installation requirements, package layout, supported workflows,
+middleware capabilities, generated schema behavior, notebook tutorial paths, or
+documented examples, the Development Agent MUST update the affected Sphinx pages
+in the same change or explicitly confirm that no published page describes the
+changed behavior.
+
+When adding a new public package capability, the Development Agent SHOULD decide
+whether it needs one or more of the following documentation forms before the
+task is complete:
+
+- Tutorial: a learning-oriented walkthrough for a first successful use.
+- How-to guide: a goal-oriented recipe for a specific task.
+- Concept: explanatory material for design, semantics, or tradeoffs.
+- Reference: generated API content from docstrings, plus minimal curated index
+  pages.
+
+Tutorials and how-to guides MUST prefer tested or manually verified examples.
+If an example cannot be executed as part of normal validation, the page SHOULD
+say what environment, optional dependency, or external service is required.
+Sphinx pages that derive from notebooks SHOULD link to the notebook source
+rather than copying large notebook bodies into prose pages.
+
+Sphinx edits MUST be validated with `make docs` when they change Sphinx source,
+toctrees, MyST syntax, cross references, generated API configuration, or
+examples rendered by the published site. Markdown-only Sphinx edits MUST also
+pass `make check`.
+
 ## Development Agent Commands
 
 Before first validation in a session, the Development Agent MUST check that

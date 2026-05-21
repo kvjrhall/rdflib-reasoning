@@ -68,6 +68,27 @@ When a change affects package behavior, middleware capabilities, architecture,
 or release scope, keep the implementation, architecture, roadmap, and relevant
 decision records aligned.
 
+## Sphinx Documentation
+
+The published documentation site is built from `docs-src/`. It should present
+the repository as a dependable Python package project first, with research
+context used where it helps explain motivation, examples, or design tradeoffs.
+
+Keep Sphinx pages synchronized with public behavior. If a change affects
+installation, package layout, supported workflows, middleware capabilities,
+schema-visible behavior, notebook tutorial paths, or documented examples, update
+the relevant `docs-src/` page in the same PR or note that no published page is
+affected.
+
+Use Sphinx pages for tutorials, how-to guides, conceptual explanations, and
+curated navigation. Keep API details in docstrings so generated AutoAPI pages
+remain the reference source. Prefer verified examples, and call out optional
+dependencies or external services when an example cannot run in the default
+developer environment.
+
+Run `make docs` for Sphinx changes. Markdown Sphinx pages should also pass
+`make check`.
+
 ## Docstrings
 
 Public Python docstrings use Google style and are part of the published API
