@@ -57,6 +57,12 @@ copying large notebook bodies into Sphinx prose. Reusable Python helpers under
 `notebooks/**/*.py` SHOULD be documented as reusable code; notebook cells in
 `notebooks/**/*.ipynb` remain demonstration artifacts.
 
+When a Sphinx page presents a notebook as a tutorial path, demonstration, or
+research result, the Development Agent MUST also follow the notebook drift
+policy in `../notebooks/AGENTS.md`. Sphinx prose SHOULD summarize the notebook's
+current purpose and link to the source notebook rather than preserving a second,
+independent copy of notebook results that can drift.
+
 ## Validation
 
 - Run `make docs` after changing Sphinx source, toctrees, MyST syntax, cross

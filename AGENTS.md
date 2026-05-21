@@ -112,45 +112,46 @@ standard.
 ## Sphinx documentation policy
 
 Published package documentation is authored under `docs-src/` and built with
-Sphinx. It is package-consumer documentation first: it SHOULD help downstream
-Python developers install, understand, extend, and correctly use the
-`rdflib-reasoning` packages. Research context MAY appear when it clarifies
-motivation or examples, but it MUST NOT make the project look like notebooks
-first and reusable Python packages second.
+Sphinx. It is package-consumer documentation first: Research context MAY clarify
+motivation or examples, but first-contact pages MUST present a dependable Python
+package project.
 
-Sphinx pages MUST NOT duplicate generated API reference content that belongs in
-docstrings. They SHOULD provide task-oriented or conceptual context that
-AutoAPI cannot infer: installation paths, package selection, tutorials,
-how-to guides, conceptual explanations, design tradeoffs that affect package
-use, and links into generated API pages.
+Sphinx documentation drift is a correctness issue. Changes to public package
+behavior, installation, package layout, supported workflows, middleware
+capabilities, generated schema behavior, notebook tutorial paths, or documented
+examples MUST update affected Sphinx pages in the same change or explicitly
+confirm that no published page is affected.
 
-Sphinx documentation drift is a correctness issue. When changing public package
-behavior, installation requirements, package layout, supported workflows,
-middleware capabilities, generated schema behavior, notebook tutorial paths, or
-documented examples, the Development Agent MUST update the affected Sphinx pages
-in the same change or explicitly confirm that no published page describes the
-changed behavior.
+When editing `docs-src/`, follow `docs-src/AGENTS.md`. Sphinx source, toctree,
+MyST, cross-reference, AutoAPI, or rendered-example changes MUST pass
+`make docs`; Markdown changes MUST also pass `make check`.
 
-When adding a new public package capability, the Development Agent SHOULD decide
-whether it needs one or more of the following documentation forms before the
-task is complete:
+## Notebook drift policy
 
-- Tutorial: a learning-oriented walkthrough for a first successful use.
-- How-to guide: a goal-oriented recipe for a specific task.
-- Concept: explanatory material for design, semantics, or tradeoffs.
-- Reference: generated API content from docstrings, plus minimal curated index
-  pages.
+Checked-in notebooks under `notebooks/` are research, demonstration, tutorial,
+and evaluation artifacts. They are not published Python packages, but they are
+part of the repository's package-consumer and research evidence.
 
-Tutorials and how-to guides MUST prefer tested or manually verified examples.
-If an example cannot be executed as part of normal validation, the page SHOULD
-say what environment, optional dependency, or external service is required.
-Sphinx pages that derive from notebooks SHOULD link to the notebook source
-rather than copying large notebook bodies into prose pages.
+Notebook drift is a correctness issue. Changes to public package behavior,
+middleware capabilities, shared notebook helpers, comparison prompts, evaluation
+metrics, proof rendering, tracing output, supported RDF forms, installation
+requirements, or documented notebook order MUST update affected notebooks and
+`notebooks/README.md` in the same change or explicitly confirm that no
+checked-in notebook is affected.
 
-Sphinx edits MUST be validated with `make docs` when they change Sphinx source,
-toctrees, MyST syntax, cross references, generated API configuration, or
-examples rendered by the published site. Markdown-only Sphinx edits MUST also
-pass `make check`.
+Notebook series that compare Research Agent conditions MUST preserve
+comparability. Shared task, target, prompt, middleware, model-provider, metric,
+or trace behavior changes MUST be applied consistently across the relevant
+series or documented as deliberate condition differences.
+
+Reusable Python helpers under `notebooks/**/*.py` are reusable source files and
+MUST follow the repository's Python, typing, linting, and docstring policies.
+Notebook cells under `notebooks/**/*.ipynb` are exempt from docstring linting,
+but their prose, imports, outputs, and examples remain subject to drift policy.
+
+When editing `notebooks/`, follow `notebooks/AGENTS.md`. Notebook edits MUST
+pass `make check`; executable notebook changes SHOULD be run or audited when
+local dependencies and runtime allow.
 
 ## Development Agent Commands
 

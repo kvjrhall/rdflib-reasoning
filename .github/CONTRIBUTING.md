@@ -120,6 +120,20 @@ uv sync --extra dev --extra research
 For the current notebook entry points and suggested reading order, see
 [notebooks/README.md](../notebooks/README.md).
 
+Keep notebooks synchronized with package behavior and public documentation. If
+a change affects notebook imports, middleware behavior, prompts, tracing,
+proof rendering, target graphs, scoring helpers, saved outputs, or the suggested
+reading order, update the affected notebooks and notebook index in the same PR
+or note why they are unaffected.
+
+Notebook series that compare Research Agent conditions should remain comparable:
+apply shared prompt, target, metric, and helper changes consistently across the
+series, or explain the deliberate condition difference in notebook prose.
+
+Saved outputs may be retained as part of the research record, but they should
+not silently contradict current code or prose. Rerun, clear, or mark stale
+outputs as historical when behavior changes.
+
 ## Publishing
 
 - Merges to `main` publish built distributions to TestPyPI through
