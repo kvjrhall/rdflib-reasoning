@@ -1,3 +1,5 @@
+"""LangChain middleware and tools for search-first RDF vocabulary retrieval."""
+
 import logging
 from collections.abc import Awaitable, Callable, MutableSet, Sequence, Set
 from dataclasses import dataclass
@@ -262,6 +264,8 @@ _REQUIRES_LIST_VOCABULARIES_FIRST_TOOLS: Final[frozenset[str]] = frozenset(
 
 
 class VocabularySummary(BaseModel):
+    """Compact summary of one indexed vocabulary exposed to tools."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
     namespace: N3IRIRef = Field(
         description="Namespace IRI of the indexed vocabulary.",
@@ -304,6 +308,8 @@ class VocabularySummary(BaseModel):
 
 
 class VocabularyListResponse(BaseModel):
+    """Tool response listing indexed vocabularies available in this run."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
     vocabularies: tuple[VocabularySummary, ...] = Field(
         description="Indexed vocabularies currently available through this middleware.",
@@ -341,6 +347,8 @@ class VocabularyListResponse(BaseModel):
 
 
 class ListTermsRequest(BaseModel):
+    """Inputs for paginated listing within one indexed vocabulary."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
     vocabulary: N3IRIRef = Field(
         description=(
@@ -380,6 +388,8 @@ class ListTermsRequest(BaseModel):
 
 
 class InspectTermRequest(BaseModel):
+    """Inputs for inspecting one indexed vocabulary term."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
     term: N3IRIRef = Field(
         description=(
@@ -404,6 +414,8 @@ class InspectTermRequest(BaseModel):
 
 
 class TermInspectionResponse(BaseModel):
+    """Detailed inspection payload for one indexed vocabulary term."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
     uri: N3IRIRef = Field(description="IRI of the indexed term.")
     label: str = Field(description="Human-readable label for the term.")
@@ -442,6 +454,8 @@ class RDFVocabularyMiddlewareConfig:
 
 
 class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
+    """Expose vocabulary tools and guard repeated static lookups via middleware hooks."""
+
     vocabulary_context: VocabularyContext
     _search_index: VocabularySearchIndex | None
     tools: Sequence[BaseTool]
@@ -453,6 +467,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
     _indexed_term_not_found_suggestion_limit: int
 
     def __init__(self, config: RDFVocabularyMiddlewareConfig) -> None:
+        """Wire vocabulary context, optional search index, tools, and per-run guards."""
         self.config = config
         self.vocabulary_context = self.config.vocabulary_context
         self._search_index = self.config.search_index
@@ -466,6 +481,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
 
     @property
     def search_index(self) -> VocabularySearchIndex:
+        """Return the configured or lazily built lexical search index."""
         if self._search_index is None:
             self._search_index = self.vocabulary_context.search_index
         return self._search_index
@@ -675,6 +691,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         return result
 
     def list_vocabularies(self) -> tuple[VocabularySummary, ...]:
+        """Return summaries for every indexed vocabulary visible in this run."""
         summaries = []
         for namespace in self._visible_indexed_vocabularies():
             vocabulary = self.vocabulary_context.specification_cache.get_vocabulary(
@@ -708,6 +725,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[VocabularyTerm, ...]:
+        """Return a page of indexed terms from ``vocabulary``."""
         if not self.vocabulary_context.whitelist.allows_namespace(vocabulary):
             raise VocabularyNamespaceNotAllowed(URIRef(str(vocabulary)))
         if str(vocabulary) not in self._visible_indexed_vocabularies():
@@ -722,6 +740,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
         term_types: tuple[VocabularyTermType, ...] = (),
         limit: int = 8,
     ) -> TermSearchResponse:
+        """Rank indexed terms against ``query`` using the lexical search index."""
         normalized_vocabularies = tuple(str(vocabulary) for vocabulary in vocabularies)
         for vocabulary in normalized_vocabularies:
             if not self.vocabulary_context.whitelist.allows_namespace(vocabulary):
@@ -739,6 +758,7 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
     def inspect_term(
         self, term: URIRef | str, include_source_rdf: bool = False
     ) -> TermInspectionResponse:
+        """Return structured metadata and optional source RDF for ``term``."""
         term_iri = URIRef(str(term))
         whitelist_result = self.vocabulary_context.whitelist.find_term(term_iri)
         if not whitelist_result.allowed:
@@ -1071,13 +1091,19 @@ class RDFVocabularyMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]
 
 
 class VocabularyNamespaceNotAllowed(Exception):
+    """Raised when a vocabulary namespace is outside the injected whitelist."""
+
     def __init__(self, namespace: URIRef) -> None:
+        """Store the disallowed namespace IRI on the exception."""
         self.namespace = namespace
         super().__init__(f"Disallowed vocabulary namespace: {namespace}")
 
 
 class IndexedVocabularyNamespaceNotFound(Exception):
+    """Raised when a whitelisted namespace has no indexed vocabulary in this run."""
+
     def __init__(self, namespace: URIRef) -> None:
+        """Store the missing namespace IRI on the exception."""
         self.namespace = namespace
         super().__init__(
             f"Vocabulary namespace is not available in the indexed vocabularies: {namespace}"
@@ -1085,7 +1111,10 @@ class IndexedVocabularyNamespaceNotFound(Exception):
 
 
 class IndexedVocabularyTermNotFound(Exception):
+    """Raised when a term IRI is not present in the indexed vocabularies."""
+
     def __init__(self, term: URIRef) -> None:
+        """Store the missing term IRI on the exception."""
         self.term = term
         super().__init__(f"Term is not available in the indexed vocabularies: {term}")
 
@@ -1093,6 +1122,7 @@ class IndexedVocabularyTermNotFound(Exception):
 def get_transitive_path(
     graph: Graph, leaf_node: URIRef, predicate: URIRef
 ) -> Set[Triple]:
+    """Collect transitive ``predicate`` edges reachable upward from ``leaf_node``."""
     hierarchy: MutableSet[Triple] = set()
     current_classes: list[IdentifiedNode] = [leaf_node]
 

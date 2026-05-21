@@ -1,3 +1,5 @@
+"""Load bundled and user-supplied RDF vocabulary specifications into read-only graphs."""
+
 import logging
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
@@ -34,6 +36,8 @@ _BUNDLED_VOCABULARY_CACHE: Final[MutableMapping[str, RDFVocabulary]] = {}
 
 @dataclass(frozen=True, slots=True)
 class OntologyDescription:
+    """Human-readable metadata for one indexed vocabulary namespace."""
+
     vocabulary: URIRef
     label: str
     description: str
@@ -49,6 +53,8 @@ _DEFAULT_VOCABULARY_LABEL: Final[str] = "An Anonymous User-Supplied RDF Vocabula
 
 @dataclass(frozen=True, slots=True)
 class UserVocabularySource:
+    """User-supplied ontology graph and optional presentation metadata."""
+
     graph: Graph
     vocabulary: URIRef
     label: str | None = None
@@ -58,6 +64,8 @@ class UserVocabularySource:
 
 
 class SpecificationCache:
+    """Read-only cache of bundled and injected RDF vocabulary specification graphs."""
+
     # cache_path: Path
     _bundled_specs: frozenset[str]
     _specs: MutableMapping[str, ReadOnlyGraphAggregate]
@@ -71,6 +79,7 @@ class SpecificationCache:
         bundled_namespaces: Sequence[URIRef | Namespace | type[DefinedNamespace] | str],
         user_specs: Sequence[UserVocabularySource] = (),
     ) -> None:
+        """Register bundled namespaces and copy user graphs into the cache."""
         # self.cache_path = user_cache_path(
         #     "rdflib-reasoning",
         #     appauthor=False,
@@ -106,6 +115,7 @@ class SpecificationCache:
     def get_spec(
         self, namespace: URIRef | Namespace | type[DefinedNamespace] | str
     ) -> Graph:
+        """Return the read-only specification graph for ``namespace``."""
         key = str(namespace)
         if key in self._specs:
             return self._specs[key]
@@ -125,6 +135,7 @@ class SpecificationCache:
     def get_vocabulary(
         self, namespace: URIRef | Namespace | type[DefinedNamespace] | str
     ) -> RDFVocabulary:
+        """Return the indexed term set built from the specification for ``namespace``."""
         key = str(namespace)
         if key in self._vocabularies:
             return self._vocabularies[key]
@@ -147,6 +158,7 @@ class SpecificationCache:
     def get_vocabulary_metadata(
         self, namespace: URIRef | Namespace | type[DefinedNamespace] | str
     ) -> OntologyDescription:
+        """Return presentation metadata for ``namespace``."""
         key = str(namespace)
         if key in self._metadata:
             return self._metadata[key]
@@ -172,6 +184,7 @@ class SpecificationCache:
     def has_bundled_resource(
         namespace: URIRef | Namespace | type[DefinedNamespace] | str,
     ) -> bool:
+        """Return whether a bundled specification ships for ``namespace``."""
         return has_bundled_vocabulary(namespace)
 
     def _build_ontology_description(

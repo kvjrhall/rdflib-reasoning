@@ -1,3 +1,5 @@
+"""Agenda scheduling and conflict resolution for RETE rule activations."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
@@ -29,6 +31,7 @@ class Agenda:
     _next_insertion_rank: int
 
     def __init__(self, actions: Iterable[ActionInstance] = ()) -> None:
+        """Initialize an empty agenda and enqueue optional seed ``actions``."""
         self._entries = []
         self._next_insertion_rank = 0
         self.extend(actions)
@@ -43,27 +46,34 @@ class Agenda:
         )
 
     def enqueue(self, action: ActionInstance) -> None:
+        """Add ``action`` to the agenda using conflict-resolution ordering."""
         heappush(self._entries, self._entry(action, self._next_insertion_rank))
         self._next_insertion_rank += 1
 
     def extend(self, actions: Iterable[ActionInstance]) -> None:
+        """Enqueue every action in ``actions``."""
         for action in actions:
             self.enqueue(action)
 
     def pop(self) -> ActionInstance:
+        """Remove and return the highest-priority scheduled action."""
         return heappop(self._entries).action
 
     def drain(self) -> tuple[ActionInstance, ...]:
+        """Pop all scheduled actions in priority order."""
         drained: list[ActionInstance] = []
         while len(self._entries) > 0:
             drained.append(self.pop())
         return tuple(drained)
 
     def __bool__(self) -> bool:
+        """Return whether the agenda contains pending actions."""
         return len(self._entries) > 0
 
     def __len__(self) -> int:
+        """Return the number of pending actions."""
         return len(self._entries)
 
     def __iter__(self) -> Iterator[ActionInstance]:
+        """Iterate over all pending actions, draining the agenda."""
         return iter(self.drain())

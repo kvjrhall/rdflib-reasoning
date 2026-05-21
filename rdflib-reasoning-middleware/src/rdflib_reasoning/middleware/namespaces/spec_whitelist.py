@@ -1,3 +1,5 @@
+"""Namespace whitelist enforcement for dataset and vocabulary middleware."""
+
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -137,9 +139,11 @@ class WhitelistEntry:
 
     @property
     def is_closed(self) -> bool:
+        """Return whether this entry uses a closed ``DefinedNamespace`` vocabulary."""
         return not isinstance(self.namespace, Namespace)
 
     def __lt__(self, other: Self) -> bool:
+        """Order entries deterministically by prefix and namespace URI."""
         this = (self.prefix, self._ns_key(self.namespace))
         that = (other.prefix, other._ns_key(other.namespace))
         return this < that
@@ -194,6 +198,7 @@ class RestrictedNamespaceWhitelist:
     _qname_index: Mapping[str, tuple[WhitelistedTerm, ...]]
 
     def __init__(self, entries: Iterable[WhitelistEntry]) -> None:
+        """Build the whitelist and QName index from ``entries``."""
         self.entries = tuple(sorted(entries))
         self._qname_index = self._build_qname_index()
 
@@ -216,6 +221,7 @@ class RestrictedNamespaceWhitelist:
         return {k: tuple(sorted(v, key=lambda t: t.qname)) for k, v in index.items()}
 
     def find_term(self, uri: URIRef) -> WhitelistResult:
+        """Test ``uri`` against the whitelist and return nearest matches when rejected."""
         for entry in self.entries:
             ns: Namespace = (
                 entry.namespace._NS if entry.is_closed else entry.namespace  # type: ignore[assignment]
@@ -253,6 +259,7 @@ class RestrictedNamespaceWhitelist:
         return WhitelistResult(allowed=False, term=None, nearest_matches=[])
 
     def enumerate_prompt(self) -> str | None:
+        """Return Research-Agent-facing guidance listing allowed vocabularies."""
         lines = [
             "### Allowed Vocabularies",
             "",
@@ -288,6 +295,7 @@ class RestrictedNamespaceWhitelist:
         return "\n".join(lines)
 
     def allows_namespace(self, namespace: URIRef | Namespace | str) -> bool:
+        """Return whether any whitelist entry covers ``namespace``."""
         key = str(namespace)
         return any(
             WhitelistEntry._ns_key(entry.namespace) == key for entry in self.entries

@@ -1,3 +1,5 @@
+"""Scheduled consequents and action instances produced by RETE terminal matches."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -87,6 +89,7 @@ class ActionInstance(BaseModel):
     def kind(
         self,
     ) -> Literal["production", "callback", "contradiction", "mixed", "empty"]:
+        """Classify the scheduled consequence kinds present on this action."""
         has_productions = len(self.productions) > 0
         has_callbacks = len(self.callbacks) > 0
         has_contradictions = len(self.contradictions) > 0

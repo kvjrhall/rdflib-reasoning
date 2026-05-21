@@ -1,3 +1,5 @@
+"""LangChain middleware that appends Ministral-style reasoning instructions to model calls."""
+
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any, Final, override
@@ -23,6 +25,8 @@ Your thinking process must follow the template below:[THINK]Your thoughts or/and
 
 
 class MinistralPromptSuffixMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
+    """``wrap_model_call`` hook that appends Ministral output-format guidance to the system prompt."""
+
     @override
     def wrap_model_call(
         self,

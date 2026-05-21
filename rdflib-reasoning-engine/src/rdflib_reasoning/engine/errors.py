@@ -1,13 +1,21 @@
-class ActionError(Exception): ...
+"""Base exception types for engine action and builtin failures."""
 
 
-class RetractionError(ActionError): ...
+class ActionError(Exception):
+    """Base exception for engine action failures."""
 
 
-class RetractionNotImplementedError(RetractionError): ...
+class RetractionError(ActionError):
+    """Base exception for truth-maintenance retraction failures."""
 
 
-class BuiltinError(Exception): ...
+class RetractionNotImplementedError(RetractionError):
+    """Raised when a requested retraction operation is not implemented."""
 
 
-class BuiltinInputError(BuiltinError, ValueError): ...
+class BuiltinError(Exception):
+    """Base exception for builtin hook failures."""
+
+
+class BuiltinInputError(BuiltinError, ValueError):
+    """Raised when builtin hook arguments violate the hook contract."""

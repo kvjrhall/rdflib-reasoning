@@ -1,3 +1,5 @@
+"""Production and conformant RDFS entailment rules for the reasoning engine."""
+
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import URIRef, Variable
 

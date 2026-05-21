@@ -54,6 +54,7 @@ def _rewrite_markdown_links(text: str) -> str:
 
 
 def main() -> None:
+    """Copy tutorial notebooks into ``docs-src/tutorials/notebooks`` with link rewrites."""
     TARGET_DIR.mkdir(parents=True, exist_ok=True)
 
     for name in NOTEBOOKS:

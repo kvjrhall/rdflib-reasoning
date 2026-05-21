@@ -1,3 +1,5 @@
+"""SPARQL queries that normalize RDF vocabulary graphs into indexed term records."""
+
 # from __future__ import annotations
 
 import textwrap
@@ -129,6 +131,7 @@ def build_vocabulary(
     | str,
     graph: Graph,
 ) -> RDFVocabulary:
+    """Collect classes, datatypes, individuals, and properties from ``graph``."""
     scope = _scope_from_namespace(namespace)
 
     classes = _collect_terms(

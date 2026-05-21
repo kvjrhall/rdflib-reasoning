@@ -1,3 +1,5 @@
+"""Fatal rule errors and RDF triple well-formedness diagnostics."""
+
 from collections.abc import Mapping
 from typing import Any, Literal
 
@@ -28,6 +30,7 @@ def format_term_constraint_diagnostics(
     bindings: Mapping[str, Node] | None = None,
     premises: tuple[Triple, ...] | None = None,
 ) -> str:
+    """Format a multi-line diagnostic block for an RDF term constraint violation."""
     lines = [
         f"  triple: {_triple_n3(triple)}",
     ]
@@ -70,6 +73,7 @@ class RDFTermConstraintError(FatalRuleError):
         bindings: Mapping[str, Node] | None = None,
         premises: tuple[Triple, ...] | None = None,
     ) -> None:
+        """Initialize the exception and attach optional stated or inference context fields."""
         super().__init__(message)
         self.triple = triple
         self.source = source

@@ -1,3 +1,5 @@
+"""Optional IPython helpers for rendering proofs inside notebooks."""
+
 # mypy: disable-error-code="import-not-found"
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+"""Declarative vocabulary configuration and validated runtime vocabulary context."""
+
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypeAlias, cast
 
@@ -70,6 +72,7 @@ class VocabularyDeclaration:
     user_spec: UserVocabularySource | None = None
 
     def __post_init__(self) -> None:
+        """Coerce ``namespace`` and verify any ``user_spec`` vocabulary IRI matches."""
         coerced_namespace = _coerce_namespace(self.namespace)
         object.__setattr__(self, "namespace", coerced_namespace)
         spec_vocab = (
@@ -82,17 +85,21 @@ class VocabularyDeclaration:
 
     @property
     def resolved_namespace(self) -> ResolvedVocabularyNamespace:
+        """Return the coerced namespace object stored on this declaration."""
         return cast(ResolvedVocabularyNamespace, self.namespace)
 
     @property
     def namespace_uri(self) -> str:
+        """Return the namespace IRI string for this declaration."""
         return _namespace_uri(self.resolved_namespace)
 
     def as_whitelist_entry(self) -> WhitelistEntry:
+        """Convert this declaration into a whitelist entry."""
         return WhitelistEntry(prefix=self.prefix, namespace=self.resolved_namespace)
 
     @property
     def is_indexed(self) -> bool:
+        """Return whether a bundled or user specification backs this vocabulary."""
         return self.user_spec is not None or SpecificationCache.has_bundled_resource(
             self.namespace_uri
         )
@@ -112,18 +119,22 @@ class VocabularyContext:
 
     @property
     def whitelist(self) -> RestrictedNamespaceWhitelist:
+        """Return the namespace whitelist derived from the declarations."""
         return self._whitelist
 
     @property
     def specification_cache(self) -> SpecificationCache:
+        """Return the read-only specification cache for indexed vocabularies."""
         return self._specification_cache
 
     @property
     def indexed_vocabularies(self) -> tuple[str, ...]:
+        """Return namespace IRIs that have searchable indexed term sets."""
         return self._indexed_vocabularies
 
     @property
     def search_index(self) -> "VocabularySearchIndex":
+        """Return the lazily built lexical search index for indexed vocabularies."""
         cached = self._search_index
         if cached is None:
             from .vocabulary.search_index import VocabularySearchIndex
@@ -143,6 +154,7 @@ class VocabularyConfiguration:
     def bundled_plus(
         cls, *declarations: VocabularyDeclaration
     ) -> "VocabularyConfiguration":
+        """Return the default bundled vocabularies extended by ``declarations``."""
         return cls(
             declarations=_merge_declarations(
                 tuple(
@@ -175,6 +187,7 @@ class VocabularyConfiguration:
         )
 
     def build_context(self) -> VocabularyContext:
+        """Materialize whitelist, specification cache, and indexed vocabulary state."""
         whitelist = RestrictedNamespaceWhitelist(
             declaration.as_whitelist_entry() for declaration in self.declarations
         )

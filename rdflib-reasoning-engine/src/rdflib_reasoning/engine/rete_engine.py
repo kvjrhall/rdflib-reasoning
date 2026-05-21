@@ -1,3 +1,5 @@
+"""RETE engine facade for per-context triple entailment and truth maintenance."""
+
 import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -53,6 +55,7 @@ class EngineCallbackContext(RuleContext):
     # _recorder: Any = None
 
     def record(self, event: Any) -> None:
+        """Append one observational callback event to this activation context."""
         self._events.append(event)
         # if self._recorder is not None:
         #     self._recorder.record(event)
@@ -105,6 +108,7 @@ class RETEEngine:
     _contradiction_sequence: int
 
     def __init__(self, config: RETEEngineConfig, rules: Iterable[Rule]) -> None:
+        """Compile ``rules`` and initialize working memory for ``config.context``."""
         self.config = config
         self.rules = tuple(rules)
         compiled_rules = tuple(RuleCompiler.compile_rule(rule) for rule in self.rules)
@@ -127,6 +131,7 @@ class RETEEngine:
         self._contradiction_sequence = 0
 
     def close(self) -> None:
+        """Clear working memory, tracked triples, and attached recorders for this context."""
         self.known_triples.clear()
         self.materialized_triples.clear()
         self.tms.clear()

@@ -84,6 +84,7 @@ convention = "google"
 "docs-src/conf.py" = ["D"]
 "docs/specs/**/*.py" = ["D"]
 "notebooks/**/*.ipynb" = ["D"]
+"notebooks/audit_demo_series.py" = ["D"]
 "rdflib-reasoning-*/tests/**" = ["D"]
 "rdflib-reasoning-*/tests/**/*.py" = ["D"]
 

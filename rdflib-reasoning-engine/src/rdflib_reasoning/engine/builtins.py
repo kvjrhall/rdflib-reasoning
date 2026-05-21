@@ -100,7 +100,7 @@ class PredicateHook(ABC):
 
     @abstractmethod
     def test(self, context: RuleContext, *args: Node) -> bool:
-        pass
+        """Return whether the predicate holds for ``args`` in ``context``."""
 
 
 class CallbackHook(ABC):
@@ -108,7 +108,7 @@ class CallbackHook(ABC):
 
     @abstractmethod
     def run(self, context: RuleContext, *args: Node) -> None:
-        pass
+        """Run the callback for ``args`` in ``context`` without mutating logical closure."""
 
 
 class DifferentTermsPredicate(PredicateHook):
@@ -130,6 +130,7 @@ class DifferentTermsPredicate(PredicateHook):
     __slots__ = ()
 
     def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether every argument is a distinct RDF node."""
         if len(args) < 2:
             context.report_argument_count(args, min_inclusive=2)
 
@@ -155,6 +156,7 @@ class NotLiteralPredicate(PredicateHook):
     __slots__ = ()
 
     def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether no argument is an RDF literal."""
         if len(args) < 1:
             context.report_argument_count(args, min_inclusive=1)
         return all(not isinstance(arg, RDFLiteral) for arg in args)
@@ -181,6 +183,7 @@ class SameTermPredicate(PredicateHook):
     _different_terms: Final[DifferentTermsPredicate] = DifferentTermsPredicate()
 
     def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether every argument is the same RDF node."""
         # It's the logical inverse of DifferentTermsPredicate
         return not self._different_terms.test(context, *args)
 
@@ -201,6 +204,7 @@ class TermInPredicate(PredicateHook):
     __slots__ = ()
 
     def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether the first argument equals one of the remaining arguments."""
         if len(args) < 2:
             context.report_argument_count(args, min_inclusive=2)
         test_term, *reference_terms = args
@@ -225,6 +229,7 @@ class TermNotInPredicate(PredicateHook):
     _term_in: Final[TermInPredicate] = TermInPredicate()
 
     def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether the first argument equals none of the remaining arguments."""
         # It's the logical inverse of TermInPredicate
         return not self._term_in.test(context, *args)
 
@@ -278,6 +283,7 @@ class Builtins:
     )
 
     def __post_init__(self) -> None:
+        """Wrap callback and predicate mappings in read-only proxies."""
         object.__setattr__(
             self,
             "callbacks",
@@ -310,6 +316,7 @@ class Builtins:
         more_callbacks: Mapping[str, CallbackHook] | None = None,
         more_predicates: Mapping[str, PredicateHook] | None = None,
     ) -> Self:
+        """Return a new registry with additional callbacks and predicates merged in."""
         return replace(
             self,
             callbacks=dict(self.callbacks) | dict(more_callbacks or {}),

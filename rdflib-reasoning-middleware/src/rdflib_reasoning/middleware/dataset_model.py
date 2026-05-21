@@ -81,10 +81,12 @@ class N3Triple(_HasSpo):
 
     @property
     def as_rdflib(self) -> Triple:
+        """Return this triple as an RDFLib ``(subject, predicate, object)`` tuple."""
         return (self.subject, self.predicate, self.object)
 
     @classmethod
     def from_rdflib(cls, triple: tuple[Node, Node, Node]) -> Self:
+        """Build an ``N3Triple`` from an RDFLib triple tuple."""
         return cls.model_validate(
             {
                 "subject": triple[0],
@@ -110,16 +112,19 @@ class N3Quad(_HasSpo):
 
     @property
     def graph(self) -> N3GraphContext:
+        """Return the RDF graph context parsed from ``graph_id``."""
         return _parse_graph_context(self.graph_id)
 
     @property
     def as_rdflib(self) -> tuple[IdentifiedNode, URIRef, Node, Graph]:
+        """Return this quad as an RDFLib ``(s, p, o, graph)`` tuple."""
         return (self.subject, self.predicate, self.object, self.graph)
 
     @classmethod
     def from_rdflib(
         cls, quad: tuple[Node, Node, Node, IdentifiedNode | Graph | None]
     ) -> Self:
+        """Build an ``N3Quad`` from an RDFLib quad tuple."""
         graph_identifier = quad[3].identifier if isinstance(quad[3], Graph) else quad[3]
         return cls.model_validate(
             {
