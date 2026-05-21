@@ -22,6 +22,7 @@ dev = [
   "build",
   "ipython",
   "mypy",
+  "myst-nb",
   "myst-parser",
   "nbformat",
   "pip-audit",

@@ -17,8 +17,8 @@ Use this package when you need:
 
 For a quick tour of the direct engine surface, see:
 
-- [RDFS inference demo](../../notebooks/demo-rdfs-inference.ipynb)
-- [RDFS retraction demo](../../notebooks/demo-rdfs-retraction.ipynb)
-- [Contradiction rules demo](../../notebooks/demo-contradiction-rules.ipynb)
+- [RDFS inference demo](../tutorials/notebooks/demo-rdfs-inference.ipynb)
+- [RDFS retraction demo](../tutorials/notebooks/demo-rdfs-retraction.ipynb)
+- [Contradiction rules demo](../tutorials/notebooks/demo-contradiction-rules.ipynb)
 
 For generated API docs, see {doc}`../autoapi/engine/index`.

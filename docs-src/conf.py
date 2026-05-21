@@ -18,7 +18,7 @@ author = "rdflib-reasoning contributors"
 
 extensions = [
     "autoapi.extension",
-    "myst_parser",
+    "myst_nb",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
 ]
@@ -27,7 +27,8 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build", "AGENTS.md"]
 
 source_suffix = {
-    ".md": "markdown",
+    ".ipynb": "myst-nb",
+    ".md": "myst-nb",
     ".rst": "restructuredtext",
 }
 
@@ -70,6 +71,8 @@ linkcheck_retries = 2
 linkcheck_workers = 5
 
 myst_heading_anchors = 3
+nb_execution_mode = "off"
+suppress_warnings = ["misc.highlighting_failure"]
 
 os.environ.setdefault("SPHINX_BUILD", "1")
 
