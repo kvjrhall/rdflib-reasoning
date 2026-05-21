@@ -1,41 +1,48 @@
 # Getting Started
 
-## Environment
+## Install
 
-Development in this repository is expected to use the `rdflib-reasoning` conda environment.
+Install the published metapackage:
 
-## Installation
+```sh
+pip install rdflib-reasoning
+```
+
+The metapackage depends on the published component packages:
+
+- `rdflib-reasoning-axioms`
+- `rdflib-reasoning-engine`
+- `rdflib-reasoning-middleware`
+
+Component packages can also be installed directly when you only need one part
+of the system.
+
+## Local Checkout
+
+Development in this repository is expected to use the `rdflib-reasoning` conda
+environment.
 
 Base install:
 
 ```sh
-pip install -e .
+uv sync
 ```
 
 Developer tooling:
 
 ```sh
-pip install -e .[dev]
+uv sync --extra dev
 ```
 
 Notebook and research tooling:
 
 ```sh
-pip install -e .[research]
+uv sync --extra research
 ```
 
 Full local workspace:
 
 ```sh
-pip install -e .[dev,research]
-```
-
-If you use `uv`, the equivalent commands are:
-
-```sh
-uv sync
-uv sync --extra dev
-uv sync --extra research
 uv sync --extra dev --extra research
 ```
 

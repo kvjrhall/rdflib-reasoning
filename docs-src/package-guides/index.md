@@ -1,7 +1,7 @@
 # Package Guides
 
-These pages summarize the role of each Python package in the monorepo and point to the
-generated API reference for the most important modules.
+These pages summarize the role of each published component package and point to
+the generated API reference for package details.
 
 ```{toctree}
 :maxdepth: 1
