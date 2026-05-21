@@ -49,6 +49,8 @@ not runtime callers of this package.
 
 ## Boundary rules
 
+- Public docstrings MUST follow the repository-wide Google-style docstring
+  standard in [`../AGENTS.md`](../AGENTS.md).
 - Engine-internal components MUST NOT be required serialized inputs or outputs
   across the Research Agent boundary.
 - Engine-native derivation records, working-memory structures, agenda state, and

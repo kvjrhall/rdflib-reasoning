@@ -175,6 +175,9 @@ graph LR
 
 ## Docstring guidance
 
+- Follow the repository-wide Google-style docstring standard in
+  [`../AGENTS.md`](../AGENTS.md). The local rules below add axioms-specific
+  requirements for structural models and schema-facing RDF behavior.
 - Concrete `StructuralElement` docstrings SHOULD name the OWL structural form,
   such as `DataIntersectionOf( DR1 ... DRn )`, when a paired OWL form exists.
 - Docstrings SHOULD summarize key RDF node, blank-node, list, or ordering

@@ -36,7 +36,7 @@ html_theme = "alabaster"
 html_static_path = ["_static"]
 
 napoleon_google_docstring = True
-napoleon_numpy_docstring = True
+napoleon_numpy_docstring = False
 
 autoapi_type = "python"
 autoapi_dirs = [
