@@ -9,8 +9,7 @@ def fact_id_for_triple(triple: Triple) -> str:
 
 
 class Fact(BaseModel):
-    """
-    Fundamental unit of data within the RETE internals.
+    """Fundamental unit of data within the RETE internals.
 
     In the current design, logical entailment is triple-oriented. Any broader
     RETE-OO-style object handling remains internal scaffolding and MUST NOT
@@ -30,9 +29,7 @@ class Fact(BaseModel):
 
 
 class PartialMatch(BaseModel):
-    """
-    A collection of Facts that have satisfied a subset of a rule's
-    preconditions.
+    """Represent facts satisfying a subset of a rule's preconditions.
 
     Partial matches are the join-time support structure later referenced by
     agenda scheduling, justification tracking, and explanation reconstruction.

@@ -11,8 +11,7 @@ from .facts import Fact
 
 
 class TripleProduction(BaseModel):
-    """
-    Declarative logical consequent managed by the engine.
+    """Declarative logical consequent managed by the engine.
 
     Logical rule heads are represented as engine-managed triple production so
     that fixed-point reasoning and truth-maintenance support remain centralized.
@@ -64,8 +63,7 @@ class ContradictionSchedule(BaseModel):
 
 
 class ActionInstance(BaseModel):
-    """
-    Scheduled unit of work derived from a completed match.
+    """Scheduled unit of work derived from a completed match.
 
     An action instance may represent logical triple production, an
     observational callback, a contradiction diagnostic, or a mixed set of

@@ -1,6 +1,4 @@
-"""
-Prompts for the rdflib-reasoning notebooks.
-We stash them here so that we can be consistent across the notebooks.
+"""Prompts for the rdflib-reasoning notebooks.
 
 We provide supplemental prompts for Research Agents when they are not using
 specific middleware instances. The middleware instances give guidance as well as

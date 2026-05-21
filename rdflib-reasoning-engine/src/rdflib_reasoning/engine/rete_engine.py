@@ -216,7 +216,6 @@ class RETEEngine:
         Optional ``source`` / rule fields are included in raised exception
         messages and on :class:`RDFTermConstraintError` for debugging.
         """
-
         diag_kwargs = {
             "triple": triple,
             "source": source,

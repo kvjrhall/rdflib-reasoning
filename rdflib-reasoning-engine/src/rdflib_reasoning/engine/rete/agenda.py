@@ -18,8 +18,7 @@ class AgendaEntry:
 
 
 class Agenda:
-    """
-    Central scheduler for rule activations.
+    """Central scheduler for rule activations.
 
     The agenda applies conflict resolution using user-defined salience first,
     then breadth-first inference depth, while preserving stable insertion order

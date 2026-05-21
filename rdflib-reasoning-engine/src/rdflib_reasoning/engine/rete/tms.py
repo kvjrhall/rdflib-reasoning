@@ -12,9 +12,7 @@ from .facts import Fact, fact_id_for_triple
 
 
 class DependencyGraph(BaseModel):
-    """
-    Bidirectional map tracking logical support relationships among facts.
-    """
+    """Bidirectional map tracking logical support relationships among facts."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -94,8 +92,7 @@ class DependencyGraph(BaseModel):
 
 
 class Justification(BaseModel):
-    """
-    A single reason for a fact's logical support.
+    """A single reason for a fact's logical support.
 
     Justifications are logical support records used for future truth
     maintenance; they are distinct from user-facing proof nodes.
@@ -157,8 +154,7 @@ class RetractionOutcome(BaseModel):
 
 
 class WorkingMemory(BaseModel):
-    """
-    Reactive store of currently asserted facts flowing through the network.
+    """Reactive store of currently asserted facts flowing through the network.
 
     Working memory is an execution-time structure, not a persisted proof or
     derivation artifact.
@@ -210,8 +206,7 @@ class WorkingMemory(BaseModel):
 
 
 class TMSController(BaseModel):
-    """
-    Controller for truth-maintenance bookkeeping and recursive retraction.
+    """Controller for truth-maintenance bookkeeping and recursive retraction.
 
     The controller owns fact support state, dependency graph maintenance, and
     Mark-Verify-Sweep retraction. It deliberately does not mutate RETE matcher

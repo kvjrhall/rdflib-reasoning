@@ -1,5 +1,4 @@
-"""
-Schema-facing RDF dataset boundary models for Research Agent tools and state.
+"""Schema-facing RDF dataset boundary models for Research Agent tools and state.
 
 Design rules for these models are governed by:
 - `docs/dev/architecture.md` under "Structural elements and middleware"
@@ -72,8 +71,7 @@ class _HasSpo(BaseModel):
 
 
 class N3Triple(_HasSpo):
-    """
-    RDF triple accepted in canonical N3 lexical form and serialized in N3.
+    """RDF triple accepted in canonical N3 lexical form and serialized in N3.
 
     Use this model when a statement is scoped only by its subject, predicate, and object.
     See RDF 1.1 Concepts and Abstract Syntax § 3.1 RDF Triples.
@@ -97,8 +95,7 @@ class N3Triple(_HasSpo):
 
 
 class N3Quad(_HasSpo):
-    """
-    RDF quad accepted in canonical N3 lexical form and serialized in N3.
+    """RDF quad accepted in canonical N3 lexical form and serialized in N3.
 
     Use this model when the triple is asserted within a specific named graph given by `graph_id`.
     See RDF 1.1 Concepts and Abstract Syntax § 4 RDF Datasets.

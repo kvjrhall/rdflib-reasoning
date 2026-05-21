@@ -73,9 +73,7 @@ class CompiledRule(BaseModel):
 
 
 class JoinOptimizer:
-    """
-    Construction-time utility for ordering joins in conjunctive rule bodies.
-    """
+    """Construction-time utility for ordering joins in conjunctive rule bodies."""
 
     @staticmethod
     def order_triple_conditions(
@@ -125,8 +123,7 @@ class JoinOptimizer:
 
 
 class RuleCompiler:
-    """
-    Entry point for translating public rule definitions into RETE IR.
+    """Entry point for translating public rule definitions into RETE IR.
 
     This remains a programmatic rule-definition boundary; no text syntax is
     implied by this scaffold.
