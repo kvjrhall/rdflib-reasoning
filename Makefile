@@ -5,7 +5,7 @@ TESTS ?=
 
 help:  # show this help (targets and descriptions)
 	@echo "Targets:"
-	@awk -F'[:#]' '/^[a-zA-Z0-9_-]+:.*#/ {gsub(/^[ \t]+/,"",$$3); printf "  %-12s %s\n", $$1, $$3}' $(MAKEFILE_LIST)
+	@awk -F'[:#]' '/^[a-zA-Z0-9_-]+:.*#/ {gsub(/^[ \t]+/,"",$$3); printf "  %-16s %s\n", $$1, $$3}' $(MAKEFILE_LIST)
 
 check: install-dev  # install dev deps, then execute all pre-commit hooks
 	uv run pre-commit run --all-files
