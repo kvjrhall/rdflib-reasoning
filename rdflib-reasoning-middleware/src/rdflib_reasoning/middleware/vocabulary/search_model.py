@@ -1,9 +1,13 @@
+"""Request and response models for lexical vocabulary term search."""
+
 from pydantic import BaseModel, ConfigDict, Field
 from rdflib_reasoning.axiom.common import N3IRIRef
 from rdflib_reasoning.middleware.namespaces.common import VocabularyTermType
 
 
 class TermSearchRequest(BaseModel):
+    """Inputs for ranking vocabulary terms against a natural-language query."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     query: str = Field(
@@ -26,6 +30,8 @@ class TermSearchRequest(BaseModel):
 
 
 class TermSearchHit(BaseModel):
+    """One ranked vocabulary term match with a score and short explanations."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     uri: N3IRIRef
@@ -41,6 +47,8 @@ class TermSearchHit(BaseModel):
 
 
 class TermSearchResponse(BaseModel):
+    """Ranked search hits returned for a ``TermSearchRequest`` query."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     query: str

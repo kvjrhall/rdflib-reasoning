@@ -74,18 +74,7 @@ target-version = "py314"
 
 [tool.ruff.lint]
 extend-select = ["B", "D", "I"]
-ignore = [
-  # Enforce docstring style before requiring full public-docstring coverage.
-  # Missing-docstring backfill will be introduced deliberately in later slices.
-  "D100",
-  "D101",
-  "D102",
-  "D103",
-  "D104",
-  "D105",
-  "D106",
-  "D107",
-]
+ignore = []
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -95,6 +84,7 @@ convention = "google"
 "docs-src/conf.py" = ["D"]
 "docs/specs/**/*.py" = ["D"]
 "notebooks/**/*.ipynb" = ["D"]
+"notebooks/audit_demo_series.py" = ["D"]
 "rdflib-reasoning-*/tests/**" = ["D"]
 "rdflib-reasoning-*/tests/**/*.py" = ["D"]
 

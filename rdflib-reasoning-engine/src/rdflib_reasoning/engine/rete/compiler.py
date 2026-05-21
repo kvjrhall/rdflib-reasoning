@@ -1,3 +1,5 @@
+"""Rule compilation into RETE intermediate representations."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -183,6 +185,7 @@ class RuleCompiler:
 
     @classmethod
     def compile_rule(cls, rule: Rule) -> CompiledRule:
+        """Translate one public :class:`~rdflib_reasoning.engine.rules.Rule` into compiled RETE IR."""
         triple_conditions = tuple(
             cls._compile_triple_condition(condition, idx)
             for idx, condition in enumerate(rule.body)

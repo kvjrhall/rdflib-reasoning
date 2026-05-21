@@ -1,3 +1,5 @@
+"""RDFLib store wrapper that materializes RETE inference per graph context."""
+
 import warnings
 from collections.abc import Generator, Iterable, Iterator, Mapping
 from typing import Any, Literal, cast
@@ -42,6 +44,8 @@ _OpenResult = Literal[1, 0, -1] | None
 
 
 class RETEStore(Store):
+    """Context-aware RDFLib store that runs a RETE engine behind graph mutations."""
+
     store: Store
     factory: RETEEngineFactory
     engines: dict[ContextIdentifier, RETEEngine]
@@ -51,6 +55,7 @@ class RETEStore(Store):
     _raw_dispatcher: Dispatcher
 
     def __init__(self, store: Store, factory: RETEEngineFactory):
+        """Wrap ``store`` and lazily create engines from ``factory`` per context."""
         super().__init__()
         if not store.context_aware:
             raise ValueError("Backing store must be context-aware")
@@ -172,12 +177,14 @@ class RETEStore(Store):
                 ctx_graph.add(triple)
 
     def create(self, configuration: str) -> None:
+        """Delegate store creation to the backing store."""
         # Delegated to the backing store
         self.store.create(configuration)
 
     def open(
         self, configuration: str | tuple[str, str], create: bool = False
     ) -> _OpenResult:
+        """Open the backing store and warm engines for existing contexts."""
         store_status = cast(_OpenResult, self.store.open(configuration, create))
         if store_status is VALID_STORE:
             for context in self.store.contexts():
@@ -185,10 +192,12 @@ class RETEStore(Store):
         return store_status
 
     def close(self, commit_pending_transaction: bool = False) -> None:
+        """Delegate store shutdown to the backing store."""
         # Delegated to the backing store
         self.store.close(commit_pending_transaction)
 
     def gc(self) -> None:
+        """Delegate garbage collection to the backing store."""
         # Delegated to the backing store
         self.store.gc()
 
@@ -198,6 +207,7 @@ class RETEStore(Store):
         context: _ContextType,
         quoted: bool = False,
     ) -> None:
+        """Add one triple after emitting a pre-mutation event on the raw dispatcher."""
         # Per DR-026, emit the pre-mutation event ourselves on the private
         # raw dispatcher; BatchDispatcher will dedup against the backing
         # store via Store.contexts(triple).
@@ -205,6 +215,7 @@ class RETEStore(Store):
         self.store.add(triple, context, quoted)
 
     def addN(self, quads: Iterable[_QuadType]) -> None:  # type: ignore[misc,override]
+        """Add quads after emitting pre-mutation events on the raw dispatcher."""
         # Per DR-026, materialize the iterable so we can emit one
         # pre-mutation event per quad on the private raw dispatcher before
         # delegating to the backing store.
@@ -222,6 +233,7 @@ class RETEStore(Store):
     def remove(
         self, triple: _TriplePatternType, context: _ContextType | None = None
     ) -> None:
+        """Remove triples after emitting pre-mutation events and flush re-materializations."""
         # Per DR-026, RETEStore owns pre-mutation event emission for
         # remove: snapshot the concrete triples matching the pattern in
         # the requested context, emit one ``TripleRemovedEvent`` per match
@@ -254,6 +266,7 @@ class RETEStore(Store):
         triple: _TripleChoiceType,
         context: _ContextType | None = None,
     ) -> Generator[tuple[_TripleType, Iterator[_ContextType | None]], None, None]:
+        """Delegate triple choice iteration to the backing store."""
         # Delegated to the backing store
         yield from self.store.triples_choices(triple, context)  # type: ignore[arg-type,misc]
 
@@ -262,10 +275,12 @@ class RETEStore(Store):
         triple_pattern: _TriplePatternType,  # type: ignore[misc,override]
         context: _ContextType | None = None,
     ) -> Iterator[tuple[_TripleType, Iterator[_ContextType | None]]]:
+        """Delegate triple pattern iteration to the backing store."""
         # Delegated to the backing store
         return self.store.triples(triple_pattern, context)  # type: ignore[return-value]
 
     def __len__(self, context: _ContextType | None = None) -> int:
+        """Return the number of triples in the backing store."""
         # Delegated to the backing store
         return len(self.store)
 
@@ -273,6 +288,7 @@ class RETEStore(Store):
         self,
         triple: _TripleType | None = None,  # type: ignore[misc,override]
     ) -> Generator[_ContextType, None, None]:
+        """Delegate context lookup to the backing store."""
         # Delegated to the backing store
         return self.store.contexts(triple)
 
@@ -284,6 +300,7 @@ class RETEStore(Store):
         queryGraph: str,  # noqa: N803
         **kwargs: Any,
     ) -> Result:
+        """Delegate SPARQL query execution to the backing store."""
         # Delegated to the backing store
         return self.store.query(query, initNs, initBindings, queryGraph, **kwargs)
 
@@ -295,40 +312,49 @@ class RETEStore(Store):
         queryGraph: str,  # noqa: N803
         **kwargs: Any,
     ) -> None:
+        """Raise because SPARQL Update is not supported without truth maintenance."""
         # return self.store.update(update, initNs, initBindings, queryGraph, **kwargs)
         # Without truth maintenance support, we can't support SPARQL Update.
         # Update operations can remove triples, delete graphs, etc.
         raise NotImplementedError("SPARQL Update is not supported yet")
 
     def bind(self, prefix: str, namespace: URIRef, override: bool = True) -> None:
+        """Delegate namespace binding to the backing store."""
         # Delegated to the backing store
         return self.store.bind(prefix, namespace, override)
 
     def prefix(self, namespace: URIRef) -> str | None:
+        """Return the prefix bound to ``namespace`` on the backing store."""
         # Delegated to the backing store
         return self.store.prefix(namespace)
 
     def namespace(self, prefix: str) -> URIRef | None:
+        """Return the namespace URI for ``prefix`` on the backing store."""
         # Delegated to the backing store
         return self.store.namespace(prefix)
 
     def namespaces(self) -> Iterator[tuple[str, URIRef]]:
+        """Iterate namespace bindings from the backing store."""
         # Delegated to the backing store
         yield from self.store.namespaces()
 
     def commit(self) -> None:
+        """Delegate transaction commit to the backing store."""
         # Delegated to the backing store
         self.store.commit()
 
     def rollback(self) -> None:
+        """Delegate transaction rollback to the backing store."""
         # Delegated to the backing store
         self.store.rollback()
 
     def add_graph(self, graph: Graph) -> None:
+        """Ensure an engine exists for ``graph`` and delegate graph addition."""
         self._ensure_engine(graph.identifier)
         self.store.add_graph(graph)
 
     def remove_graph(self, graph: Graph) -> None:
+        """Raise because graph removal is not yet supported."""
         # super().remove_graph(graph)
         # context_id = graph.identifier
         # del self.engine_contexts[context_id]

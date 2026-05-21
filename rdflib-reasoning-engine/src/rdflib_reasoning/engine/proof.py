@@ -1,3 +1,5 @@
+"""Schema-facing proof, derivation, and rule-description models."""
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -19,6 +21,8 @@ class ProofModel(BaseModel):
 
 
 class ProofPayloadKind(StrEnum):
+    """Discriminator values for proof payload claim kinds."""
+
     TRIPLE = "triple"
     STRUCTURAL_ELEMENT = "structural_element"
     CONTRADICTION = "contradiction"
@@ -319,6 +323,7 @@ class RuleApplication(ProofModel):
 
     @model_validator(mode="after")
     def check_derivation_alignment(self) -> "RuleApplication":
+        """Require ``rule_id`` or ``description`` and keep attached derivation metadata aligned."""
         if self.rule_id is None and self.description is None:
             raise ValueError(
                 "RuleApplication MUST provide at least one of `rule_id` or `description`."

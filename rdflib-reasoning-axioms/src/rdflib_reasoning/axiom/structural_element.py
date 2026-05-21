@@ -1,3 +1,5 @@
+"""OWL 2 structural element bases, RDF list fragments, and declaration helpers."""
+
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Mapping, Sequence
 from itertools import chain
@@ -51,6 +53,7 @@ class GraphBacked(BaseModel, ABC):
     """
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        """Reject direct instantiation of the abstract ``GraphBacked`` base."""
         if cls is GraphBacked:
             raise TypeError(
                 "GraphBacked cannot be instantiated directly; subclass a concrete "
@@ -66,6 +69,7 @@ class GraphBacked(BaseModel, ABC):
 
     @classmethod
     def __pydantic_init_subclass__(cls, **kwargs) -> None:
+        """Require concrete subclasses that use ``kind`` to declare a string ``Literal``."""
         super().__pydantic_init_subclass__(**kwargs)
 
         if cls is GraphBacked or not cls._require_concrete_kind:
@@ -202,6 +206,7 @@ class SeqEntry(BaseModel):
 
     @model_validator(mode="after")
     def check_rdf_nil_or_value(self) -> Self:
+        """Require ``rdf:nil`` rows to omit ``rdf:first`` and non-terminal rows to supply a value."""
         if self.cell == RDF.nil and self.value is not None:
             raise ValueError("The `rdf:nil` node MUST NOT have a `rdf:first` value.")
         if self.cell != RDF.nil and self.value is None:
@@ -243,11 +248,14 @@ class Seq(StructuralFragment):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def name(self) -> IdentifiedNode:
+        """List head node taken from the first ``SeqEntry`` cell."""
         return self.entries[0].cell
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def as_triples(self) -> Sequence[Triple]:
+        """Emit ``rdf:first`` and ``rdf:rest`` triples for this finite ``rdf:List``."""
+
         def heads() -> Generator[Triple]:
             for entry in self.entries:
                 if entry.value is not None:
@@ -262,6 +270,7 @@ class Seq(StructuralFragment):
 
     @model_validator(mode="after")
     def check_list_integrity(self) -> Self:
+        """Validate non-empty entries, a terminal ``rdf:nil``, and unique list cells."""
         if len(self.entries) == 0:
             raise ValueError(
                 "An empty list MUST be encoded as a single entry containing `rdf:nil`."
@@ -284,6 +293,7 @@ class Seq(StructuralFragment):
 
     @classmethod
     def from_rdflib(cls, graph: Graph, head: IdentifiedNode) -> Self:
+        """Walk ``rdf:first`` / ``rdf:rest`` from ``head`` and build a ``Seq`` in ``graph``'s context."""
         entries: list[SeqEntry] = []
         rest: IdentifiedNode | None = head
         try:
@@ -311,6 +321,8 @@ class Seq(StructuralFragment):
 
 
 class DeclarationElement(StructuralElement, ABC):
+    """OWL 2 declaration axiom head with a fixed ``rdf:type`` for the declared name."""
+
     name_value: N3Resource = Field(
         ...,
         validation_alias=AliasChoices("name", "name_value"),
@@ -320,14 +332,17 @@ class DeclarationElement(StructuralElement, ABC):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def name(self) -> IdentifiedNode:
+        """Declared entity identifier (alias of ``name_value``)."""
         return self.name_value
 
     @property
     @abstractmethod
     def rdf_type(self) -> IdentifiedNode:
+        """``rdf:type`` object for the declaration triple."""
         pass
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def as_triples(self) -> Sequence[Triple]:
+        """Single ``name rdf:type rdf_type`` declaration triple."""
         return ((self.name, RDF.type, self.rdf_type),)

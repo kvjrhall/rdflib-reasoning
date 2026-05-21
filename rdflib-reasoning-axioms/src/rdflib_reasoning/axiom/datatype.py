@@ -84,6 +84,7 @@ class DataRange(DeclarationElement, ABC):
     """
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        """Reject direct instantiation of the abstract ``DataRange`` base."""
         if cls is DataRange:
             raise TypeError(
                 "DataRange is abstract; use a concrete subclass "
@@ -282,6 +283,7 @@ class DataRestriction(StructuralElement, ABC):
     """
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        """Reject direct instantiation of the abstract ``DataRestriction`` base."""
         if cls is DataRestriction:
             raise TypeError(
                 "DataRestriction is abstract; use a concrete subclass "
@@ -298,6 +300,7 @@ class DataRestriction(StructuralElement, ABC):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def name(self) -> IdentifiedNode:
+        """Restriction node identifier (alias of ``name_value``)."""
         return self.name_value
 
     @property
@@ -471,6 +474,7 @@ class FacetEntry(BaseModel):
 
     @model_validator(mode="after")
     def check_rdf_nil_or_facet_value(self) -> Self:
+        """Require ``rdf:nil`` rows to be empty and facet rows to supply anchor, facet, and value."""
         is_sentinel = self.cell == RDF.nil
         any_set = (
             self.anchor is not None or self.facet is not None or self.value is not None
@@ -517,11 +521,14 @@ class FacetList(StructuralFragment):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def name(self) -> IdentifiedNode:
+        """Facet list head node taken from the first ``FacetEntry`` cell."""
         return self.entries[0].cell
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def as_triples(self) -> Sequence[Triple]:
+        """Emit list scaffolding and per-facet constraint triples for ``DatatypeRestriction``."""
+
         def members() -> Generator[Triple]:
             for entry in self.entries:
                 if (
@@ -541,6 +548,7 @@ class FacetList(StructuralFragment):
 
     @model_validator(mode="after")
     def check_list_integrity(self) -> Self:
+        """Validate non-empty entries, a terminal ``rdf:nil``, and unique list cells."""
         if len(self.entries) == 0:
             raise ValueError(
                 "An empty facet list MUST be encoded as a single entry containing `rdf:nil`."

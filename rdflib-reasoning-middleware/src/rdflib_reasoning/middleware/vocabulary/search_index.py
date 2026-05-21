@@ -1,3 +1,5 @@
+"""Build and query a lexical index over indexed RDF vocabulary terms."""
+
 import unicodedata
 from collections.abc import Generator, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
@@ -18,6 +20,8 @@ from .search_model import TermSearchHit, TermSearchResponse
 
 @dataclass(frozen=True, slots=True)
 class IndexedTerm:
+    """Normalized searchable fields for one vocabulary term."""
+
     uri: str
     label: str
     definition: str
@@ -49,6 +53,7 @@ LabelLookup: TypeAlias = Mapping[str, str]
 
 
 def strip_accents(text: str) -> str:
+    """Remove combining marks after NFKD normalization."""
     return "".join(
         ch
         for ch in unicodedata.normalize("NFKD", text)
@@ -57,6 +62,7 @@ def strip_accents(text: str) -> str:
 
 
 def split_identifier(text: str) -> str:
+    """Split camelCase and separator-heavy identifiers into spaced words."""
     # Split camelCase / PascalCase
     text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
     # Replace common separators
@@ -65,6 +71,7 @@ def split_identifier(text: str) -> str:
 
 
 def normalize_text(text: str) -> str:
+    """Lowercase, accent-stripped text suitable for lexical matching."""
     text = strip_accents(text).strip()
     text = split_identifier(text)
     text = text.lower()
@@ -73,10 +80,12 @@ def normalize_text(text: str) -> str:
 
 
 def tokenize(text: str) -> tuple[str, ...]:
+    """Return alphanumeric tokens extracted from normalized ``text``."""
     return tuple(_WORD_RE.findall(normalize_text(text)))
 
 
 def uri_local_name(uri: str) -> str:
+    """Return the fragment or final path segment of ``uri``."""
     for sep in ("#", "/", ":"):
         if sep in uri:
             uri = uri.rsplit(sep, 1)[-1]
@@ -85,12 +94,15 @@ def uri_local_name(uri: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class VocabularySearchIndex:
+    """Lexical index over indexed vocabulary terms for ranked search."""
+
     terms: tuple[IndexedTerm, ...]
     terms_by_uri: Mapping[str, IndexedTerm]
     # optional inverted/token structures later
 
     @classmethod
     def build(cls, context: VocabularyContext) -> Self:
+        """Index every term from ``context`` indexed vocabularies."""
         # We pre-populate the lookup with known-good labels, so that we only
         # create ad-hoc labels for uncontrolled terms.
         labels_by_uri: MutableMapping[str, str] = {}
@@ -117,6 +129,7 @@ class VocabularySearchIndex:
         term_types: tuple[VocabularyTermType, ...] = (),
         limit: int = 8,
     ) -> TermSearchResponse:
+        """Rank indexed terms against ``query`` and return the top ``limit`` hits."""
         normalized_query = normalize_text(query)
         query_tokens = tokenize(query)
         if not normalized_query or len(query_tokens) == 0:

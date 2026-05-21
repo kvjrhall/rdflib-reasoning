@@ -87,23 +87,14 @@ unsupported RDF forms.
 
 When adding a new public module, class, function, method, dataclass, Pydantic
 model, or exported notebook helper, the Development Agent SHOULD add the public
-docstring in the same change. If the new public object intentionally ships
-without a docstring while the repository is still backfilling missing
-docstrings, the Development Agent MUST ensure no misleading nearby docstring
-appears to document it and SHOULD keep the omission local to the narrowest
-reasonable scope.
+docstring in the same change.
 
 When moving, renaming, splitting, merging, or deleting public objects, the
 Development Agent MUST review the moved object's docstrings, module docstrings,
 package `__init__.py` docstrings, and any affected AutoAPI/Sphinx references so
 published API documentation continues to match the import surface.
 
-Docstring edits MUST be validated with `make check`. Before enabling any of
-`D100` through `D107` for a wider scope, the Development Agent SHOULD run a
-targeted Ruff check such as
-`uv run ruff check . --select D100,D101,D102,D103,D104,D105,D106,D107` and
-confirm that remaining violations are intentional backfill work rather than
-tests, generated files, notebook cells, or other excluded surfaces.
+Docstring edits MUST be validated with `make check`.
 
 Package-local `AGENTS.md` files MAY add stricter docstring requirements for
 their local domain, but they MUST remain consistent with this repository-wide

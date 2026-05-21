@@ -1,3 +1,5 @@
+"""Truth-maintenance support graph, working memory, and retraction control."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
@@ -20,6 +22,7 @@ class DependencyGraph(BaseModel):
     consequents_by_antecedent: dict[str, set[str]] = Field(default_factory=dict)
 
     def add_support(self, consequent_id: str, antecedent_ids: tuple[str, ...]) -> None:
+        """Record that ``consequent_id`` is supported by ``antecedent_ids``."""
         consequent_antecedents = self.antecedents_by_consequent.setdefault(
             consequent_id, set()
         )
@@ -29,9 +32,11 @@ class DependencyGraph(BaseModel):
             supported.add(consequent_id)
 
     def antecedents_of(self, consequent_id: str) -> tuple[str, ...]:
+        """Return sorted antecedent fact ids supporting ``consequent_id``."""
         return tuple(sorted(self.antecedents_by_consequent.get(consequent_id, set())))
 
     def consequents_of(self, antecedent_id: str) -> tuple[str, ...]:
+        """Return sorted consequent fact ids supported by ``antecedent_id``."""
         return tuple(sorted(self.consequents_by_antecedent.get(antecedent_id, set())))
 
     def discard_consequent(self, consequent_id: str) -> None:
@@ -87,6 +92,7 @@ class DependencyGraph(BaseModel):
                 del self.consequents_by_antecedent[antecedent_id]
 
     def clear(self) -> None:
+        """Remove all dependency edges from the graph."""
         self.antecedents_by_consequent.clear()
         self.consequents_by_antecedent.clear()
 
@@ -120,10 +126,12 @@ class SupportSnapshot(BaseModel):
 
     @property
     def justification_count(self) -> int:
+        """Return the number of justifications recorded in this snapshot."""
         return len(self.justification_ids)
 
     @property
     def is_supported(self) -> bool:
+        """Return whether the fact is present and has stated or derived support."""
         return self.is_present and (self.is_stated or self.justification_count > 0)
 
 
@@ -146,6 +154,7 @@ class RetractionOutcome(BaseModel):
 
     @property
     def is_empty(self) -> bool:
+        """Return whether the retraction changed no facts or justifications."""
         return (
             not self.removed_fact_ids
             and not self.removed_justification_ids
@@ -166,6 +175,7 @@ class WorkingMemory(BaseModel):
     fact_ids_by_triple: dict[Triple, str] = Field(default_factory=dict)
 
     def add_fact(self, triple: Triple, *, stated: bool) -> Fact:
+        """Insert or promote ``triple`` in working memory and return its fact."""
         fact_id = fact_id_for_triple(triple)
         existing_id = self.fact_ids_by_triple.get(triple)
         if existing_id is not None:
@@ -180,15 +190,18 @@ class WorkingMemory(BaseModel):
         return fact
 
     def get_fact(self, triple: Triple) -> Fact | None:
+        """Return the working-memory fact for ``triple``, if present."""
         fact_id = self.fact_ids_by_triple.get(triple)
         if fact_id is None:
             return None
         return self.facts_by_id[fact_id]
 
     def has_fact(self, triple: Triple) -> bool:
+        """Return whether ``triple`` is currently present in working memory."""
         return triple in self.fact_ids_by_triple
 
     def facts(self) -> tuple[Fact, ...]:
+        """Return all facts currently stored in working memory."""
         return tuple(self.facts_by_id.values())
 
     def remove_fact(self, fact_id: str) -> Fact:
@@ -201,6 +214,7 @@ class WorkingMemory(BaseModel):
         return fact
 
     def clear(self) -> None:
+        """Remove every fact from working memory."""
         self.facts_by_id.clear()
         self.fact_ids_by_triple.clear()
 
@@ -241,6 +255,7 @@ class TMSController(BaseModel):
         return f"{rule_id.ruleset}:{rule_id.rule_id}|{antecedents_key}|{metadata_key}"
 
     def register_stated(self, triples: Iterable[Triple]) -> tuple[Fact, ...]:
+        """Add stated ``triples`` to working memory."""
         return tuple(
             self.working_memory.add_fact(triple, stated=True) for triple in triples
         )
@@ -254,6 +269,7 @@ class TMSController(BaseModel):
         bindings: Mapping[str, Node],
         depth: int,
     ) -> Fact:
+        """Record one derived ``triple`` and attach a justification from ``premises``."""
         consequent = self.working_memory.add_fact(triple, stated=False)
         antecedent_ids = tuple(fact.id for fact in premises)
         metadata = {
@@ -277,27 +293,33 @@ class TMSController(BaseModel):
         return consequent
 
     def fact_for_triple(self, triple: Triple) -> Fact | None:
+        """Return the working-memory fact for ``triple``."""
         return self.working_memory.get_fact(triple)
 
     def justifications_for(self, triple: Triple) -> tuple[Justification, ...]:
+        """Return justifications supporting ``triple``."""
         fact = self.working_memory.get_fact(triple)
         if fact is None:
             return ()
         return self.justifications_for_fact_id(fact.id)
 
     def justifications_for_fact_id(self, fact_id: str) -> tuple[Justification, ...]:
+        """Return justifications recorded for ``fact_id``."""
         return tuple(self.justifications_by_consequent.get(fact_id, {}).values())
 
     def support_count(self, triple: Triple) -> int:
+        """Return the number of justifications supporting ``triple``."""
         return len(self.justifications_for(triple))
 
     def is_supported(self, triple: Triple) -> bool:
+        """Return whether ``triple`` is stated or has at least one justification."""
         fact = self.working_memory.get_fact(triple)
         if fact is None:
             return False
         return fact.stated or self.support_count(triple) > 0
 
     def support_snapshot(self, triple: Triple) -> SupportSnapshot:
+        """Return an immutable view of current support state for ``triple``."""
         fact = self.working_memory.get_fact(triple)
         if fact is None:
             return SupportSnapshot(
@@ -325,6 +347,7 @@ class TMSController(BaseModel):
         without_justification_id: str | None = None,
         without_antecedent_id: str | None = None,
     ) -> bool:
+        """Return whether ``triple`` would remain supported after removing one support edge."""
         if (without_justification_id is None) == (without_antecedent_id is None):
             raise ValueError(
                 "Provide exactly one of without_justification_id or "
@@ -347,6 +370,7 @@ class TMSController(BaseModel):
         return False
 
     def transitively_supported(self, triple: Triple) -> bool:
+        """Return whether every justification chain for ``triple`` is fully grounded."""
         fact = self.working_memory.get_fact(triple)
         if fact is None:
             return False
@@ -378,12 +402,14 @@ class TMSController(BaseModel):
             visiting.remove(fact_id)
 
     def dependents_of(self, triple: Triple) -> tuple[str, ...]:
+        """Return direct consequent fact ids that depend on ``triple``."""
         fact = self.working_memory.get_fact(triple)
         if fact is None:
             return ()
         return self.dependency_graph.consequents_of(fact.id)
 
     def transitive_dependents_of(self, triple: Triple) -> tuple[str, ...]:
+        """Return all transitive consequent fact ids that depend on ``triple``."""
         fact = self.working_memory.get_fact(triple)
         if fact is None:
             return ()
@@ -542,6 +568,7 @@ class TMSController(BaseModel):
         )
 
     def clear(self) -> None:
+        """Reset working memory, dependency graph, and justification tables."""
         self.working_memory.clear()
         self.dependency_graph.clear()
         self.justifications_by_consequent.clear()

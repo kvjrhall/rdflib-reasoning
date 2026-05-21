@@ -1,3 +1,5 @@
+"""Working-memory facts and partial matches used by the RETE network."""
+
 from pydantic import BaseModel, ConfigDict, Field
 from rdflib.term import Node
 from rdflib_reasoning.axiom.common import Triple

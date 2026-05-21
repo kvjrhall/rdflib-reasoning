@@ -1,3 +1,5 @@
+"""LangChain middleware that steers continuation, recovery, and tool-transcript repair."""
+
 import logging
 import re
 from ast import literal_eval

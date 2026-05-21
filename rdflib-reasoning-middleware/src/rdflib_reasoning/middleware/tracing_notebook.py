@@ -1,3 +1,5 @@
+"""Notebook helpers that live-render correlated LangChain turn traces."""
+
 # mypy: disable-error-code="import-not-found"
 
 try:
@@ -31,6 +33,7 @@ class NotebookTraceRenderer:
     """Render trace sink snapshots in a notebook cell."""
 
     def __init__(self, sink: TraceSink, *, heading: str = "Trace") -> None:
+        """Bind a trace sink to a notebook display handle."""
         self.sink = sink
         self.heading = heading
         self._handle = display(
@@ -250,6 +253,7 @@ class LiveNotebookTrace:
         max_events: int = 500,
         refresh_interval_seconds: float = 0.25,
     ) -> None:
+        """Create a recorder, renderer, and background refresh loop for notebooks."""
         self.sink = TraceSink(max_events=max_events)
         self.recorder = TraceRecorder(self.sink)
         self.renderer = NotebookTraceRenderer(self.sink, heading=heading)
@@ -308,10 +312,12 @@ class LiveNotebookTrace:
         return str(out)
 
     def __enter__(self) -> Self:
+        """Start live notebook refreshes and return this helper."""
         self.start()
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+        """Stop live refreshes and flush the final trace snapshot."""
         del exc_type, exc, tb
         self.stop()
 

@@ -399,6 +399,7 @@ def evaluate_actual_graph(
 
 
 def pprint_measures(measures: dict):
+    """Print overlap counts and evaluation metrics from :func:`evaluate_actual_graph`."""
     expected_count = measures["counts"]["expected"]
     actual_count = measures["counts"]["extracted"]
     intersection_count = measures["counts"]["intersection"]

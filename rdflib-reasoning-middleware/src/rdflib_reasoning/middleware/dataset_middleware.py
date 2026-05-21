@@ -1,3 +1,5 @@
+"""LangChain middleware and tools for mutating and serializing an RDF dataset session."""
+
 import logging
 from collections.abc import Awaitable, Callable, Iterable, MutableSet, Sequence
 from dataclasses import dataclass
@@ -413,6 +415,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
     _last_serialize_signature: tuple[int, str] | None
 
     def __init__(self, config: DatasetMiddlewareConfig) -> None:
+        """Wire vocabulary context, dataset runtime, tools, and per-run guard state."""
         self.config = config
         self.vocabulary_context = self.config.vocabulary_context
         self.runtime = self.config.runtime or DatasetRuntime()
@@ -427,6 +430,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
 
     @property
     def session(self) -> DatasetSession:
+        """Return the live dataset session owned by this middleware runtime."""
         return self.runtime.session
 
     def _create_state(self) -> DatasetState:
@@ -1168,6 +1172,7 @@ class WhitelistViolation(Exception):
     """Exception raised when a term is rejected by the whitelist."""
 
     def __init__(self, bad_term: URIRef, result: WhitelistResult) -> None:
+        """Capture the rejected term and whitelist lookup used for tool-facing errors."""
         self.bad_term = bad_term
         self.result = result
         super().__init__(f"Whitelist violation: {bad_term}")

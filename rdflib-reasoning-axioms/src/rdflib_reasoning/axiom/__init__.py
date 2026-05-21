@@ -1,3 +1,5 @@
+"""Public axiomatization API for lifting RDF graphs into structural elements."""
+
 from .axiomatize import (
     AxiomatizationError,
     MalformedGraphError,

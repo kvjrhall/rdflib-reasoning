@@ -1,3 +1,5 @@
+"""RETE network construction, node sharing, and matching."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -105,19 +107,23 @@ class NodeRegistry(BaseModel):
     beta_memory: dict[str, dict[str, PartialMatch]] = Field(default_factory=dict)
 
     def get_or_create_alpha(self, node: AlphaNode) -> AlphaNode:
+        """Return a shared alpha node, creating ``node`` when needed."""
         created = self.alpha_nodes.setdefault(node.key, node)
         self.alpha_memory.setdefault(node.key, {})
         return created
 
     def get_or_create_predicate(self, node: PredicateNode) -> PredicateNode:
+        """Return a shared predicate node, creating ``node`` when needed."""
         return self.predicate_nodes.setdefault(node.key, node)
 
     def get_or_create_beta(self, node: BetaNode) -> BetaNode:
+        """Return a shared beta node, creating ``node`` when needed."""
         created = self.beta_nodes.setdefault(node.key, node)
         self.beta_memory.setdefault(node.key, {})
         return created
 
     def add_terminal(self, node: TerminalNode) -> TerminalNode:
+        """Register ``node`` as a terminal and return it."""
         self.terminal_nodes[node.key] = node
         return node
 
@@ -154,6 +160,7 @@ class NetworkBuilder:
     registry: NodeRegistry
 
     def __init__(self, registry: NodeRegistry | None = None) -> None:
+        """Initialize the builder with an optional shared ``registry``."""
         self.registry = NodeRegistry() if registry is None else registry
 
     @staticmethod
@@ -218,6 +225,7 @@ class NetworkBuilder:
         return current_key, current_variables
 
     def build_rule(self, rule: CompiledRule) -> TerminalNode:
+        """Build the terminal node and join chain for one compiled rule."""
         input_keys: list[str] = []
         join_root, _ = self._build_join_chain(rule)
         if join_root is not None:
@@ -241,6 +249,7 @@ class NetworkBuilder:
         return self.registry.add_terminal(terminal)
 
     def build_rules(self, rules: tuple[CompiledRule, ...]) -> tuple[TerminalNode, ...]:
+        """Build terminal nodes for every compiled rule in ``rules``."""
         return tuple(self.build_rule(rule) for rule in rules)
 
 
@@ -248,6 +257,7 @@ class MatcherContext(RuleContext):
     """Minimal read-only rule context for builtin predicate evaluation."""
 
     def __init__(self, terminal: TerminalNode) -> None:
+        """Capture the terminal whose rule context predicates may inspect."""
         self.terminal = terminal
 
 
@@ -263,6 +273,7 @@ class NetworkMatcher:
         *,
         predicates: dict[str, PredicateHook] | None = None,
     ) -> None:
+        """Initialize a matcher over ``registry`` with optional predicate hooks."""
         self.registry = registry
         self.predicates = {} if predicates is None else predicates
 
@@ -443,6 +454,7 @@ class NetworkMatcher:
         terminal: TerminalNode,
         facts: Iterable[Fact | Triple],
     ) -> tuple[ActionInstance, ...]:
+        """Match ``terminal`` against ``facts`` and return scheduled actions."""
         normalized_facts = tuple(
             fact if isinstance(fact, Fact) else self._fact_from_triple(fact)
             for fact in facts
@@ -457,9 +469,11 @@ class NetworkMatcher:
         return self._actions_for_terminal(terminal, partial_matches)
 
     def alpha_memory_size(self, key: str) -> int:
+        """Return the number of persisted partial matches for alpha node ``key``."""
         return len(self.registry.alpha_memory[key])
 
     def beta_memory_size(self, key: str) -> int:
+        """Return the number of persisted partial matches for beta node ``key``."""
         return len(self.registry.beta_memory[key])
 
     def match_terminals(
@@ -467,6 +481,7 @@ class NetworkMatcher:
         terminals: Iterable[TerminalNode],
         facts: Iterable[Fact | Triple],
     ) -> tuple[ActionInstance, ...]:
+        """Match every terminal in ``terminals`` against ``facts``."""
         normalized_facts = tuple(
             fact if isinstance(fact, Fact) else self._fact_from_triple(fact)
             for fact in facts

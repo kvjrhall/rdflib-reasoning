@@ -1,4 +1,4 @@
-.PHONY: audit check clean docs docs-linkcheck docs-serve help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
+.PHONY: audit check clean cloc docs docs-linkcheck docs-serve help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
 
 PYTHON ?= python
 TESTS ?=
@@ -16,11 +16,13 @@ audit: install-all  # audit base + dev + research dependencies for known vulnera
 clean:  # remove generated docs, test, coverage, and build artifacts
 	rm -rf .pytest_cache
 	rm -rf .mypy_cache
+	rm -rf rdflib-reasoning-*/.mypy_cache
 	rm -rf .ruff_cache
 	rm -rf docs-build
 	rm -rf docs-src/autoapi
 	rm -f docs-src/tutorials/notebooks/*.ipynb
 	rm -rf htmlcov
+	rm -rf rdflib-reasoning-*/htmlcov
 	rm -rf site
 	rm -rf dist
 	rm -rf build
@@ -29,7 +31,12 @@ clean:  # remove generated docs, test, coverage, and build artifacts
 	rm -rf rdflib-reasoning-engine/src/*.egg-info
 	rm -rf rdflib-reasoning-middleware/src/*.egg-info
 	rm -f .coverage
+	rm -f rdflib-reasoning-*/.coverage
 	rm -f coverage.xml
+	rm -f rdflib-reasoning-*/coverage.xml
+
+cloc: clean  # count lines of code
+	cloc --exclude-dir=.venv,.uv-cache,htmlcov --not-match-d='.*docs/specs/.*' --fullpath .
 
 docs: install-dev  # build the Sphinx documentation site
 	uv run python docs-src/prepare_notebooks.py

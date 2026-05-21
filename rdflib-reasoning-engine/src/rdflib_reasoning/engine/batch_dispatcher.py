@@ -1,3 +1,5 @@
+"""Batching RDFLib store events for fixed-point reasoner execution."""
+
 import logging
 from typing import cast
 
@@ -11,23 +13,33 @@ logger = logging.getLogger(__name__)
 
 
 class BatchEvent(Event):
+    """Base batch event carrying deduplicated triples for one graph context."""
+
     events: set[Triple]
     context_id: ContextIdentifier
 
     def __init__(self, events: set[Triple], context_id: ContextIdentifier):
+        """Initialize a batch event for ``events`` in ``context_id``."""
         super().__init__(events=events, context_id=context_id)
 
     def __repr__(self) -> str:
+        """Return a debug representation of this batch event."""
         return f"BatchEvent(events={self.events}, context_id={self.context_id})"
 
 
 class TripleAddedBatchEvent(BatchEvent):
+    """Batch of triple additions delivered after fixed-point coalescing."""
+
     def __init__(self, events: set[Triple], context_id: ContextIdentifier):
+        """Initialize an addition batch for ``events`` in ``context_id``."""
         super().__init__(events=events, context_id=context_id)
 
 
 class TripleRemovedBatchEvent(BatchEvent):
+    """Batch of triple removals delivered after fixed-point coalescing."""
+
     def __init__(self, events: set[Triple], context_id: ContextIdentifier):
+        """Initialize a removal batch for ``events`` in ``context_id``."""
         super().__init__(events=events, context_id=context_id)
 
 
@@ -87,6 +99,7 @@ class BatchDispatcher(Dispatcher):
     backing_store: Store
 
     def __init__(self, *, source_dispatcher: Dispatcher, backing_store: Store):
+        """Subscribe to ``source_dispatcher`` and deduplicate events against ``backing_store``."""
         super().__init__()
         self.backing_store = backing_store
         self._current_additions = dict()

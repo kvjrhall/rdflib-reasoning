@@ -1,3 +1,5 @@
+"""Correlated turn tracing built from LangChain callback events."""
+
 from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -53,18 +55,22 @@ class TraceSink:
     """Append-only bounded trace buffer."""
 
     def __init__(self, max_events: int = 500) -> None:
+        """Create a bounded append-only buffer retaining at most ``max_events``."""
         self._events: deque[TraceEvent] = deque(maxlen=max_events)
         self._lock = Lock()
 
     def append(self, event: TraceEvent) -> None:
+        """Append one normalized callback event."""
         with self._lock:
             self._events.append(event)
 
     def clear(self) -> None:
+        """Remove all buffered events."""
         with self._lock:
             self._events.clear()
 
     def snapshot(self) -> tuple[TraceEvent, ...]:
+        """Return a copy of the buffered events in insertion order."""
         with self._lock:
             return tuple(self._events)
 
@@ -170,6 +176,7 @@ class TraceRecorder(BaseCallbackHandler):
     raise_error = False
 
     def __init__(self, sink: TraceSink) -> None:
+        """Record LangChain callbacks into ``sink``."""
         self.sink = sink
 
     def _append(
@@ -204,6 +211,7 @@ class TraceRecorder(BaseCallbackHandler):
         metadata: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Record the start of a chat model run with summarized input messages."""
         del kwargs
         self._append(
             kind="chat_model_start",
@@ -229,6 +237,7 @@ class TraceRecorder(BaseCallbackHandler):
         tags: list[str] | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Record streamed tokens and any tool-call chunks from the model."""
         del kwargs
         tool_call_chunks = []
         if chunk is not None:
@@ -264,6 +273,7 @@ class TraceRecorder(BaseCallbackHandler):
         tags: list[str] | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Record the final model message, tool calls, and response metadata."""
         del kwargs
         generations = getattr(response, "generations", [])
         first_generation = generations[0][0] if generations and generations[0] else None
@@ -295,6 +305,7 @@ class TraceRecorder(BaseCallbackHandler):
         inputs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Record the start of a tool invocation."""
         del kwargs
         self._append(
             kind="tool_start",
@@ -317,6 +328,7 @@ class TraceRecorder(BaseCallbackHandler):
         parent_run_id: UUID | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Record a completed tool result or artifact."""
         del kwargs
         tool_name = getattr(output, "name", None)
         tool_call_id = getattr(output, "tool_call_id", None)
@@ -344,6 +356,7 @@ class TraceRecorder(BaseCallbackHandler):
         parent_run_id: UUID | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Record tool messages emitted when a chain step finishes."""
         del kwargs
         for tool_message in _tool_messages(outputs):
             self._append(
@@ -418,6 +431,7 @@ class TurnTracer:
     """Correlate raw trace events into turn-level trace artifacts."""
 
     def snapshot(self, events: Iterable[TraceEvent]) -> tuple[TurnTrace, ...]:
+        """Fold raw trace events into correlated per-turn artifacts."""
         turns: list[TurnTrace] = []
         current_turn: _TurnTraceBuilder | None = None
 

@@ -1,3 +1,5 @@
+"""Presentation helpers for rendering canonical proof models as text."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -70,10 +72,12 @@ class ProofRenderer:
     )
 
     def __post_init__(self) -> None:
+        """Build the rule lookup table from configured or default production rules."""
         rules_source = PRODUCTION_RDFS_RULES if self.rules is None else self.rules
         object.__setattr__(self, "_rule_lookup", build_rule_lookup(rules_source))
 
     def render_markdown(self, proof: DirectProof) -> str:
+        """Render ``proof`` as a markdown document with goal metadata and step tree."""
         lines: list[str] = ["## Direct Proof", ""]
         lines.append(f"- Context: `{self._term_to_text(cast(Node, proof.context))}`")
         lines.append(f"- Goal: `{self._payload_to_text(proof.goal)}`")
@@ -86,6 +90,7 @@ class ProofRenderer:
         return "\n".join(lines)
 
     def render_mermaid(self, proof: DirectProof) -> str:
+        """Render ``proof`` as a Mermaid flowchart linking the goal to proof steps."""
         ids = count(1)
         lines = ["flowchart TD"]
         goal_id = f"n{next(ids)}"

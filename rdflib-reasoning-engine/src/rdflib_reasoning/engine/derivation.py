@@ -1,3 +1,5 @@
+"""Engine-native derivation logging, contradiction recording, and proof reconstruction."""
+
 from __future__ import annotations
 
 import warnings
@@ -57,21 +59,27 @@ class DerivationLogger(Protocol):
     These records are engine provenance artifacts, not user-facing proof steps.
     """
 
-    def record(self, record: DerivationRecord) -> None: ...
+    def record(self, record: DerivationRecord) -> None:
+        """Append one engine-native derivation record."""
 
-    def iter_records(self) -> Iterable[DerivationRecord]: ...
+    def iter_records(self) -> Iterable[DerivationRecord]:
+        """Yield derivation records currently held by the sink."""
 
-    def clear(self) -> None: ...
+    def clear(self) -> None:
+        """Remove all derivation records from the sink."""
 
 
 class ContradictionRecorder(Protocol):
     """Interface for sinks of engine-native contradiction records."""
 
-    def record(self, record: ContradictionRecord) -> None: ...
+    def record(self, record: ContradictionRecord) -> None:
+        """Append one engine-native contradiction record."""
 
-    def iter_records(self) -> Iterable[ContradictionRecord]: ...
+    def iter_records(self) -> Iterable[ContradictionRecord]:
+        """Yield contradiction records currently held by the sink."""
 
-    def clear(self) -> None: ...
+    def clear(self) -> None:
+        """Remove all contradiction records from the sink."""
 
 
 @dataclass(slots=True, frozen=True)
@@ -85,9 +93,11 @@ class InMemoryDerivationLogger:
         self.records.append(record)
 
     def iter_records(self) -> Iterable[DerivationRecord]:
+        """Return a snapshot of all logged derivation records."""
         return tuple(self.records)
 
     def clear(self) -> None:
+        """Remove all logged derivation records."""
         self.records.clear()
 
 
@@ -96,12 +106,14 @@ class DropDerivationLogger:
     """Drop-all sink for derivation records (no retention)."""
 
     def record(self, record: DerivationRecord) -> None:
-        pass
+        """Discard ``record`` without retaining it."""
 
     def iter_records(self) -> Iterable[DerivationRecord]:
+        """Return an empty sequence because no records are retained."""
         return ()
 
     def clear(self) -> None:
+        """No-op because no records are retained."""
         pass
 
 
@@ -123,9 +135,11 @@ class InMemoryContradictionRecorder:
             _warn_contradiction(record, stacklevel=2)
 
     def iter_records(self) -> Iterable[ContradictionRecord]:
+        """Return a snapshot of all logged contradiction records."""
         return tuple(self.records)
 
     def clear(self) -> None:
+        """Remove all logged contradiction records."""
         self.records.clear()
 
 
@@ -135,6 +149,7 @@ class ContradictionDetectedError(RuntimeError):
     record: ContradictionRecord
 
     def __init__(self, record: ContradictionRecord):
+        """Initialize the error from ``record`` and attach it as :attr:`record`."""
         message = format_contradiction_record(record)
         super().__init__(message)
         self.record = record
@@ -151,13 +166,16 @@ class RaiseOnContradictionRecorder:
     records: MutableSequence[ContradictionRecord] = field(default_factory=list)
 
     def record(self, record: ContradictionRecord) -> None:
+        """Append ``record`` and raise :class:`ContradictionDetectedError`."""
         self.records.append(record)
         raise ContradictionDetectedError(record)
 
     def iter_records(self) -> Iterable[ContradictionRecord]:
+        """Return a snapshot of contradiction records logged before any raise."""
         return tuple(self.records)
 
     def clear(self) -> None:
+        """Remove all logged contradiction records."""
         self.records.clear()
 
 
@@ -173,13 +191,16 @@ class DropContradictionRecorder:
     warn: bool = True
 
     def record(self, record: ContradictionRecord) -> None:
+        """Optionally warn about ``record`` and discard it without retention."""
         if self.warn:
             _warn_contradiction(record, stacklevel=2)
 
     def iter_records(self) -> Iterable[ContradictionRecord]:
+        """Return an empty sequence because no records are retained."""
         return ()
 
     def clear(self) -> None:
+        """No-op because no records are retained."""
         pass
 
 
@@ -190,7 +211,8 @@ class ExplanationReconstructor(Protocol):
         self,
         goal: ProofPayload,
         records: Iterable[DerivationRecord | ContradictionRecord],
-    ) -> DirectProof: ...
+    ) -> DirectProof:
+        """Rebuild a :class:`DirectProof` for ``goal`` from engine trace records."""
 
 
 class DerivationProofReconstructor:
@@ -267,6 +289,7 @@ class DerivationProofReconstructor:
         goal: ProofPayload,
         records: Iterable[DerivationRecord | ContradictionRecord],
     ) -> DirectProof:
+        """Build a :class:`DirectProof` tree for ``goal`` from derivation and contradiction records."""
         derivation_records = tuple(
             record for record in records if isinstance(record, DerivationRecord)
         )

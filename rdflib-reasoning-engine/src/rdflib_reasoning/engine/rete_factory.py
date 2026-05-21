@@ -1,3 +1,5 @@
+"""Factory for constructing per-context RETE engine instances."""
+
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -51,13 +53,16 @@ class RETEEngineFactory:
     config: RETEEngineFactoryConfig
 
     def __init__(self, *, config: RETEEngineFactoryConfig) -> None:
+        """Store ``config`` as the template used for each new engine."""
         self.config = config
 
     @property
     def rules_template(self) -> Sequence[Rule]:
+        """Return the shared rules applied to every engine created by this factory."""
         return self.config.rules
 
     def new_engine(self, context: ContextIdentifier) -> RETEEngine:
+        """Create a fresh RETE engine bound to ``context``."""
         engine_config = RETEEngineConfig(
             context=context,
             builtins=self.config.builtins,

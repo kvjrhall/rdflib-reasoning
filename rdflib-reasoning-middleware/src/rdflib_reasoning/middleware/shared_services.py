@@ -1,3 +1,5 @@
+"""Shared in-process services for dataset sessions and run-local RDF term telemetry."""
+
 from collections import Counter
 from collections.abc import Iterable, Mapping, MutableSet
 from dataclasses import dataclass
@@ -23,6 +25,8 @@ class DatasetSession:
     _lock: rwlock.RWLockable = DataclassField(default_factory=rwlock.RWLockFairD)
 
     def snapshot_dataset(self) -> Dataset:
+        """Return a deep copy of the live dataset under a read lock."""
+
         def _cleanup_quad(
             quad: tuple[Node, Node, Node, IdentifiedNode | None],
         ) -> tuple[Node, Node, Node, Graph]:
@@ -56,17 +60,21 @@ class DatasetRuntime:
     session: DatasetSession = DataclassField(default_factory=_new_dataset_session)
 
     def snapshot_dataset(self) -> Dataset:
+        """Return a deep copy of the coordinated dataset session."""
         return self.session.snapshot_dataset()
 
     def dataset_size(self) -> int:
+        """Return the total quad count in the live dataset."""
         with self.session._lock.gen_rlock():
             return len(self.session._dataset)
 
     def default_graph_size(self) -> int:
+        """Return the triple count in the dataset default graph."""
         with self.session._lock.gen_rlock():
             return len(self.session._dataset.default_graph)
 
     def replace_dataset(self) -> None:
+        """Close the current dataset and start a fresh empty session."""
         with self.session._lock.gen_wlock():
             self.session._dataset.close()
             self.session = _new_dataset_session()
@@ -74,19 +82,31 @@ class DatasetRuntime:
 
 @dataclass(slots=True)
 class RunTermTelemetry:
-    """Default in-memory run-local telemetry for asserted RDF term usage."""
+    """Default in-memory run-local telemetry for asserted RDF term usage.
+
+    Following `DR-020` (preceded by `DR-019` and `DR-017`), this data object
+    is notified when terms are used by :class:`DatasetMiddleware`.
+    Not yet implemented is usage by :class:`RDFVocabularyMiddleware` to be able
+    to rank/boost terms in search results.
+
+    If some more sophisticated search strategy is implemented, the application
+    of this class will need to be revisited.
+    """
 
     _asserted_term_counts: Counter[str] = DataclassField(default_factory=Counter)
     _lock: Lock = DataclassField(default_factory=Lock)
 
     def record_asserted_terms(self, terms: Iterable[URIRef]) -> None:
+        """Increment per-IRI counts for terms asserted during the current run."""
         with self._lock:
             self._asserted_term_counts.update(str(term) for term in terms)
 
     def asserted_term_count(self, term: URIRef | str) -> int:
+        """Return how many times ``term`` was recorded in this run."""
         with self._lock:
             return self._asserted_term_counts[str(term)]
 
     def snapshot_asserted_term_counts(self) -> Mapping[str, int]:
+        """Return a copy of asserted-term counts keyed by IRI string."""
         with self._lock:
             return dict(self._asserted_term_counts)

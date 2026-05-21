@@ -102,10 +102,9 @@ docstring policy. Notebook files under `notebooks/**/*.ipynb` are exempt from
 docstring linting because they are demonstration artifacts rather than reusable
 Python modules.
 
-`D100` through `D107` are currently ignored while missing public docstrings are
-backfilled deliberately. Do not add misleading or stale docstrings, and do not
-expand the ignore set for reusable source code. Use `make check` before opening
-a PR that changes docstrings or Ruff docstring configuration.
+Do not add misleading or stale docstrings, and do not expand the
+`tool.ruff.lint.ignore` set for reusable source code. Use `make check` before
+opening a PR that changes docstrings or Ruff docstring configuration.
 
 ## Notebooks
 

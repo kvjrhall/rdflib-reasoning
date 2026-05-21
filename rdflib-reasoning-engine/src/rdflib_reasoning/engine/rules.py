@@ -1,3 +1,5 @@
+"""Public rule intermediate representation consumed by the RETE engine."""
+
 from typing import Annotated, Literal, TypeAlias
 
 from pydantic import Field

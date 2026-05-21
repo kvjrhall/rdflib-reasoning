@@ -1,3 +1,5 @@
+"""LangChain middleware for RDF datasets, vocabulary, tracing, and continuation control."""
+
 from rdflib_reasoning.axiom.common import (
     N3ContextIdentifier,
     N3IRIRef,

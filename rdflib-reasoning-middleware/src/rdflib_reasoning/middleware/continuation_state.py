@@ -1,3 +1,5 @@
+"""Private LangGraph state fields for continuation guard middleware."""
+
 from typing import Annotated, Final, Literal
 
 from langchain.agents.middleware import AgentState
