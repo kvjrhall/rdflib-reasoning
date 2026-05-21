@@ -77,11 +77,36 @@ Private helpers MAY omit docstrings when their behavior is local and obvious,
 but SHOULD have docstrings when they encode non-trivial invariants, algorithms,
 or boundary behavior.
 
-When changing public behavior, public parameters, return values, exceptions,
-side effects, schema-visible behavior, tool-visible behavior, or supported RDF
-forms, the Development Agent MUST update the relevant docstrings in the same
-change. Package-local `AGENTS.md` files MAY add stricter docstring requirements
-for their local domain, but they MUST remain consistent with this repository-wide
+Docstring drift is a correctness issue. When changing public behavior, public
+parameters, return values, exceptions, side effects, schema-visible behavior,
+tool-visible behavior, supported RDF forms, or implementation details described
+by an existing public docstring, the Development Agent MUST update the relevant
+docstrings in the same change. A change MUST NOT leave a docstring describing
+old behavior, planned behavior, removed arguments, obsolete exceptions, or
+unsupported RDF forms.
+
+When adding a new public module, class, function, method, dataclass, Pydantic
+model, or exported notebook helper, the Development Agent SHOULD add the public
+docstring in the same change. If the new public object intentionally ships
+without a docstring while the repository is still backfilling missing
+docstrings, the Development Agent MUST ensure no misleading nearby docstring
+appears to document it and SHOULD keep the omission local to the narrowest
+reasonable scope.
+
+When moving, renaming, splitting, merging, or deleting public objects, the
+Development Agent MUST review the moved object's docstrings, module docstrings,
+package `__init__.py` docstrings, and any affected AutoAPI/Sphinx references so
+published API documentation continues to match the import surface.
+
+Docstring edits MUST be validated with `make check`. Before enabling any of
+`D100` through `D107` for a wider scope, the Development Agent SHOULD run a
+targeted Ruff check such as
+`uv run ruff check . --select D100,D101,D102,D103,D104,D105,D106,D107` and
+confirm that remaining violations are intentional backfill work rather than
+tests, generated files, notebook cells, or other excluded surfaces.
+
+Package-local `AGENTS.md` files MAY add stricter docstring requirements for
+their local domain, but they MUST remain consistent with this repository-wide
 standard.
 
 ## Development Agent Commands

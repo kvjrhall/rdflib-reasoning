@@ -68,6 +68,24 @@ When a change affects package behavior, middleware capabilities, architecture,
 or release scope, keep the implementation, architecture, roadmap, and relevant
 decision records aligned.
 
+## Docstrings
+
+Public Python docstrings use Google style and are part of the published API
+documentation. Keep docstrings synchronized with behavior in the same change
+that modifies public parameters, return values, exceptions, side effects,
+schema-visible behavior, tool-visible behavior, supported RDF forms, or any
+implementation detail already described by a public docstring.
+
+Reusable notebook helper modules under `notebooks/**/*.py` follow the same
+docstring policy. Notebook files under `notebooks/**/*.ipynb` are exempt from
+docstring linting because they are demonstration artifacts rather than reusable
+Python modules.
+
+`D100` through `D107` are currently ignored while missing public docstrings are
+backfilled deliberately. Do not add misleading or stale docstrings, and do not
+expand the ignore set for reusable source code. Use `make check` before opening
+a PR that changes docstrings or Ruff docstring configuration.
+
 ## Notebooks
 
 Notebooks are part of the repository's research record and public examples, not
