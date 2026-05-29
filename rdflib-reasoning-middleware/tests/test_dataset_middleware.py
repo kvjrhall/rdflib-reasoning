@@ -177,6 +177,12 @@ def test_add_triples_records_asserted_term_usage_in_telemetry() -> None:
     assert telemetry.asserted_term_count(triple[1]) == 1
     assert telemetry.asserted_term_count(triple[2]) == 1
 
+    assert telemetry.snapshot_asserted_term_counts() == {
+        str(triple[0]): 1,
+        str(triple[1]): 1,
+        str(triple[2]): 1,
+    }
+
 
 def test_add_triples_reports_no_action_needed_for_exact_repeat() -> None:
     middleware = _dataset_middleware()

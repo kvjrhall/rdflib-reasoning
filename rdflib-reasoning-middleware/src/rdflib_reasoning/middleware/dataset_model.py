@@ -166,6 +166,16 @@ class MutationResponse(BaseModel):
         ),
         examples=[0, 1, 2],
     )
+    inferred: NonNegativeInt = Field(
+        default=0,
+        description="Number of triples inferred by the reasoner following the operation.",
+        examples=[0, 1, 3],
+    )
+    retracted: NonNegativeInt = Field(
+        default=0,
+        description="Number of triples retracted by the reasoner following the operation.",
+        examples=[0, 1, 3],
+    )
     no_action_needed: bool = Field(
         default=False,
         description=(

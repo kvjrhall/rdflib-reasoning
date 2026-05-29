@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable, Iterable, MutableSet, Sequence
 from dataclasses import dataclass
 from json import dumps as json_dumps
 from json import loads as json_loads
-from typing import Any, Final, Literal, TypeGuard, override
+from typing import Any, Final, Literal, TypeGuard, cast, override
 
 from deepagents.middleware._utils import append_to_system_message
 from langchain.agents.middleware import AgentMiddleware
@@ -21,7 +21,8 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.types import Command
 from pydantic import NonNegativeInt
 from rdflib import BNode, Node, URIRef
-from rdflib_reasoning.axiom.common import TURTLE_BLANK_NODE, Triple
+from rdflib_reasoning.axiom.common import TURTLE_BLANK_NODE, ContextIdentifier, Triple
+from rdflib_reasoning.middleware.common import not_none
 
 from ._message_heuristics import (
     completed_turtle_answer_represents_empty_graph,
@@ -47,10 +48,17 @@ from .namespaces.spec_whitelist import (
     RestrictedNamespaceWhitelist,
     WhitelistResult,
 )
-from .shared_services import DatasetRuntime, DatasetSession, RunTermTelemetry
+from .shared_services import DatasetRuntime, RunTermTelemetry
 from .vocabulary_configuration import VocabularyContext
 
 logger = logging.getLogger(__name__)
+
+
+def _format_triple_effect(count: int, action: str) -> str:
+    """Return a short human-readable triple-count side-effect phrase."""
+    noun = "triple" if count == 1 else "triples"
+    verb = "was" if count == 1 else "were"
+    return f"{count} {noun} {verb} {action}"
 
 
 def _format_whitelist_violation_message(
@@ -124,7 +132,7 @@ DATASET_SYSTEM_PROMPT: Final[str] = """## Knowledge Base
 - If you mint IRIs and the user does not specify a base IRI, you SHOULD use <urn:example:> as the default base for minted IRIs.
 - When presenting RDF to the user or serializing the knowledge base for inspection, you SHOULD prefer Turtle unless the user requests a different RDF serialization.
 - SHOULD NOT mint IRIs if convention dictates that they be blank nodes (e.g., OWL 2 Class Restrictions).
-- You SHOULD prefer a minted IRI over a blank node when there is an authorative IRI base for that resource.
+- You SHOULD prefer a minted IRI over a blank node when there is an authoritative IRI base for that resource.
 - When minting an IRI to represent a Class, Datatype, or Property, you MUST assign it a `rdfs:label` and define it using `rdfs:comment`.
 - When minting a new local IRI for a Class or Datatype, the local name SHOULD be singular and use `PascalCase`, for example `ProjectReport`, `FieldObservation`, or `QualityRating`.
 - When minting a new local IRI for a Property, the local name SHOULD use `camelCase`, for example `hasInventoryCode`, `recordedAtFacility`, or `reviewStatus`.
@@ -167,7 +175,7 @@ DATASET_SYSTEM_PROMPT: Final[str] = """## Knowledge Base
 - Errors like `Value error, Could not parse RDF term` indicate that your RDF term syntax is incorrect.
   - If the value is meant to be an IRI, first check whether it should be wrapped as `<...>` or corrected to a valid bare RFC 3987 IRI.
   - If the value is meant to be plain text, encode it as an RDF literal such as `"Project report"` or `"A short human-readable description."`.
-- Mutating knowledge base tool effects are persistant, cumulative, and idempotent.
+- Mutating knowledge base tool effects are persistent, cumulative, and idempotent.
 - You MUST keep each `add_triples` call small enough to recover from a single validation error.
   - You SHOULD prefer one subject per `add_triples` call.
   - You SHOULD NOT mix many unrelated subjects in one `add_triples` call.
@@ -205,7 +213,7 @@ supporting superclass reuses a standard vocabulary term.
 - If you mint IRIs and the user does not specify a base IRI, you SHOULD use <urn:example:> as the default base for minted IRIs.
 - The fact that a local base IRI is available does NOT by itself justify minting a new local term.
 - You SHOULD NOT mint IRIs if convention dictates that they be blank nodes (e.g., OWL 2 Class Restrictions).
-- You SHOULD prefer a minted IRI over a blank node when there is an authorative IRI base for that resource.
+- You SHOULD prefer a minted IRI over a blank node when there is an authoritative IRI base for that resource.
 - When minting an IRI to represent a Class, Datatype, or Property, you MUST assign it a `rdfs:label` and define it using `rdfs:comment`.
 - When minting a new local IRI for a Class or Datatype, the local name SHOULD be singular and use `PascalCase`, for example `ProjectReport`, `FieldObservation`, or `QualityRating`.
 - When minting a new local IRI for a Property, the local name SHOULD use `camelCase`, for example `hasInventoryCode`, `recordedAtFacility`, or `reviewStatus`.
@@ -408,6 +416,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
     tools: Sequence[BaseTool]
     whitelist: RestrictedNamespaceWhitelist
     run_term_telemetry: RunTermTelemetry
+    _blank_nodes: MutableSet[BNode]
     _whitelist_confirmed: MutableSet[URIRef]
     _last_add_triples_noop_signature: str | None
     _last_remove_triples_noop_signature: str | None
@@ -416,6 +425,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
 
     def __init__(self, config: DatasetMiddlewareConfig) -> None:
         """Wire vocabulary context, dataset runtime, tools, and per-run guard state."""
+        self._blank_nodes = set()
         self.config = config
         self.vocabulary_context = self.config.vocabulary_context
         self.runtime = self.config.runtime or DatasetRuntime()
@@ -427,20 +437,6 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         self._last_remove_triples_noop_signature = None
         self._dataset_revision = 0
         self._last_serialize_signature = None
-
-    @property
-    def session(self) -> DatasetSession:
-        """Return the live dataset session owned by this middleware runtime."""
-        return self.runtime.session
-
-    def _create_state(self) -> DatasetState:
-        """Create a fresh middleware state."""
-        return {"messages": []}
-
-    def _reset_state(self) -> DatasetState:
-        """Replace any existing dataset session with a fresh empty one."""
-        self._replace_dataset()
-        return self._create_state()
 
     @override
     def before_agent(
@@ -457,9 +453,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         self, state: DatasetState, runtime: Any
     ) -> dict[str, Any] | Command[Any] | None:
         # We don't need to step in if the dataset is populated.
-        with self.session._lock.gen_rlock():
-            dataset_is_empty = len(self.session._dataset) == 0
-
+        dataset_is_empty = self.runtime.dataset_size() == 0
         if not dataset_is_empty:
             return None
 
@@ -619,10 +613,10 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         if tool_name == "new_blank_node" and self._should_reject_new_blank_node(
             request
         ):
-            unused_blank_nodes = ", ".join([b.n3() for b in self.session._blank_nodes])
+            unused_blank_nodes = ", ".join([b.n3() for b in self._blank_nodes])
             logger.debug(
                 "Rejecting new_blank_node misuse because %s unused blank nodes are already tracked",
-                len(self.session._blank_nodes),
+                len(self._blank_nodes),
             )
             return ToolMessage(
                 content=NEW_BLANK_NODE_MISUSE_MESSAGE.format(
@@ -640,7 +634,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
                 )
                 # Do not set continuation_mode here: the graph is already finalize_only, and
                 # emitting it again can merge after ContinuationGuardMiddleware.after_model
-                # sets stop_now in the same superstep, clobbering orchestration state.
+                # sets stop_now in the same super-step, clobbering orchestration state.
                 return Command(
                     update={
                         "messages": [
@@ -697,8 +691,8 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
 
         graph_size_before: int | None = None
         if tool_name in {"add_triples", "remove_triples", "reset_dataset"}:
-            with self.session._lock.gen_rlock():
-                graph_size_before = len(self.session._dataset.default_graph)
+            # NOTE: default graph for the time being
+            graph_size_before = self.runtime.graph_size()
         graph_size_after: int | None = None
 
         add_triples_signature = None
@@ -749,8 +743,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
                 status="error",
             )
         if graph_size_before is not None:
-            with self.session._lock.gen_rlock():
-                graph_size_after = len(self.session._dataset.default_graph)
+            graph_size_after = self.runtime.graph_size()
         self._update_repeated_call_guard(
             tool_name,
             result,
@@ -782,25 +775,23 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
 
     def _should_reject_reset_dataset(self, request: ToolCallRequest) -> bool:
         """Hook for reset-dataset misuse detection."""
-        with self.session._lock.gen_rlock():
-            return len(self.session._dataset) == 0
+        del request
+        return self.runtime.dataset_size() == 0
 
     def _should_reject_new_blank_node(self, request: ToolCallRequest) -> bool:
         """Hook for blank-node misuse detection."""
         del request
-        with self.session._lock.gen_rlock():
-            too_many = len(self.session._blank_nodes) >= 2
+        too_many = len(self._blank_nodes) >= 2
         if too_many:
-            with self.session._lock.gen_wlock():
-                dataset = self.session._dataset
-                for blank_node in list(self.session._blank_nodes):
+            with self.runtime.dataset_write() as dataset:
+                for blank_node in list(self._blank_nodes):
                     if (blank_node, None, None, None) in dataset:
-                        self.session._blank_nodes.remove(blank_node)
-                return len(self.session._blank_nodes) >= 2
+                        self._blank_nodes.remove(blank_node)
+                return len(self._blank_nodes) >= 2
         else:
             return False
 
-        # There are already 2 unusred blank nodes, which is enough to make a
+        # There are already 2 unused blank nodes, which is enough to make a
         # triple, so this is an extraneous request.
 
     def _tool_call_signature(self, request: ToolCallRequest) -> str | None:
@@ -939,11 +930,6 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
             self._last_add_triples_noop_signature = None
             return
         if tool_name == "reset_dataset":
-            if graph_size_before is None or graph_size_after is None:
-                return
-            if graph_size_after < graph_size_before:
-                self._dataset_revision += 1
-                self._last_serialize_signature = None
             self._last_add_triples_noop_signature = None
             self._last_remove_triples_noop_signature = None
             return
@@ -953,27 +939,41 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         if tool_name in {"remove_triples", "reset_dataset"}:
             self._last_add_triples_noop_signature = None
 
-    def _replace_dataset(self) -> None:
-        """Replace the middleware-owned dataset session."""
+    def _replace_dataset(self, *, record_mutation: bool = True) -> None:
+        """Replace the middleware-owned dataset session.
+
+        Args:
+            record_mutation: When true, bump dataset revision and clear
+                serialize guard state after a substantive graph change.
+        """
         self.runtime.replace_dataset()
-        self._dataset_revision += 1
-        self._last_serialize_signature = None
+        self._blank_nodes.clear()
+        if record_mutation:
+            self._dataset_revision += 1
+            self._last_serialize_signature = None
 
     def list_triples(self) -> tuple[Triple, ...]:
         """Return all exact triples currently present in the default graph."""
-        with self.session._lock.gen_rlock():
-            return tuple(
-                self.session._dataset.default_graph.triples((None, None, None))
-            )
+        return tuple(
+            cast(Triple, t)
+            for t in self.runtime.snapshot_graph().triples((None, None, None))
+        )  # pyright: ignore[reportReturnType]
 
-    def add_triples(self, triples: Iterable[Triple]) -> MutationResponse:
+    def add_triples(
+        self, triples: Iterable[Triple], context: ContextIdentifier | None = None
+    ) -> MutationResponse:
         """Add exact triples to the default graph."""
         triples = tuple(triples)
-        given = len(triples)
+        sz_given = len(triples)
         added_terms: list[URIRef] = []
-        with self.session._lock.gen_wlock():
-            graph = self.session._dataset.default_graph
-            before = len(graph)
+        with self.runtime.dataset_write() as dataset:
+            graph = (
+                not_none(dataset.get_graph(context), f"Unknown graph {context}")
+                if context is not None
+                else dataset.default_graph
+            )
+            sz_before_mutation = len(graph)
+            new_triples: set[Triple] = set()
             for triple in triples:
                 for to_check in self._should_check_whitelist(triple):
                     result = self.whitelist.find_term(to_check)
@@ -985,72 +985,128 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
                 triple_is_new = triple not in graph
                 graph.add(triple)
                 if triple_is_new:
+                    new_triples.add(triple)
                     added_terms.extend(
                         node for node in triple if isinstance(node, URIRef)
                     )
-            updated = len(graph) - before
+            sz_graph_delta = len(graph) - sz_before_mutation
+        sz_new = len(new_triples)
+        sz_preexisting = sz_given - sz_new
+        sz_inferred = max(0, sz_graph_delta - sz_new)
+        sz_retracted = max(0, sz_new - sz_graph_delta)
 
-        preexisting = given - updated
         if added_terms:
             self.run_term_telemetry.record_asserted_terms(added_terms)
 
-        no_action_needed = given > 0 and updated == 0 and preexisting == given
+        logger.debug(
+            "Added triples: requested=%s added=%s unchanged=%s inferred=%s "
+            "retracted=%s graph_delta=%s",
+            sz_given,
+            sz_new,
+            sz_preexisting,
+            sz_inferred,
+            sz_retracted,
+            sz_graph_delta,
+        )
+
+        no_action_needed = sz_given > 0 and sz_new == 0 and sz_preexisting == sz_given
         if no_action_needed:
             message = (
-                f"No action was needed. All {given} requested triples were already "
+                f"No action was needed. All {sz_given} requested triples were already "
                 "present in the default graph. Do not retry this same `add_triples` "
                 "call unless you change the triples."
             )
         else:
-            message = f"{updated} of {given} triples added."
-            if preexisting > 0:
-                message += f" {preexisting} of {given} triples were already present."
+            message = f"{sz_new} of {sz_given} requested triples added."
+            if sz_preexisting > 0:
+                message += (
+                    f" {sz_preexisting} of {sz_given} triples were already present."
+                )
+            if sz_inferred > 0:
+                message += f" {_format_triple_effect(sz_inferred, 'inferred by the reasoner')}."
+            if sz_retracted > 0:
+                message += f" {_format_triple_effect(sz_retracted, 'retracted by the reasoner')}."
 
         return MutationResponse(
-            requested=NonNegativeInt(given),
-            updated=NonNegativeInt(updated),
-            unchanged=NonNegativeInt(preexisting),
+            requested=sz_given,
+            updated=sz_new,
+            unchanged=sz_preexisting,
+            inferred=sz_inferred,
+            retracted=sz_retracted,
             no_action_needed=no_action_needed,
             message=message,
         )
 
-    def remove_triples(self, triples: Iterable[Triple]) -> MutationResponse:
+    def remove_triples(
+        self, triples: Iterable[Triple], context: ContextIdentifier | None = None
+    ) -> MutationResponse:
         """Remove exact triples from the default graph."""
         triples = tuple(triples)
-        given = len(triples)
-        with self.session._lock.gen_wlock():
-            graph = self.session._dataset.default_graph
-            before = len(graph)
+        sz_given = len(triples)
+        with self.runtime.dataset_write() as dataset:
+            graph = (
+                not_none(dataset.get_graph(context), f"Unknown graph {context}")
+                if context is not None
+                else dataset.default_graph
+            )
+            sz_before_mutation = len(graph)
+            removed_triples: set[Triple] = set()
             for triple in triples:
+                triple_was_present = triple in graph
                 graph.remove(triple)
-            updated = before - len(graph)
-        unchanged = given - updated
-        no_action_needed = given > 0 and updated == 0 and unchanged == given
+                if triple_was_present:
+                    removed_triples.add(triple)
+            sz_graph_delta = sz_before_mutation - len(graph)
+        sz_removed = len(removed_triples)
+        sz_unchanged = sz_given - sz_removed
+        sz_retracted = max(0, sz_graph_delta - sz_removed)
+        sz_inferred = max(0, sz_removed - sz_graph_delta)
+
+        logger.debug(
+            "Removed triples: requested=%s removed=%s unchanged=%s inferred=%s "
+            "retracted=%s graph_delta=%s",
+            sz_given,
+            sz_removed,
+            sz_unchanged,
+            sz_inferred,
+            sz_retracted,
+            sz_graph_delta,
+        )
+
+        no_action_needed = sz_given > 0 and sz_removed == 0 and sz_unchanged == sz_given
         if no_action_needed:
             message = (
-                f"No action was needed. All {given} requested triples were already "
+                f"No action was needed. All {sz_given} requested triples were already "
                 "absent from the default graph. Do not retry this same "
                 "`remove_triples` call unless you change the triples."
             )
         else:
-            message = "Triples removed from the default graph."
+            message = f"{sz_removed} of {sz_given} requested triples removed."
+            if sz_unchanged > 0:
+                message += f" {sz_unchanged} of {sz_given} triples were already absent."
+            if sz_retracted > 0:
+                message += f" {_format_triple_effect(sz_retracted, 'retracted by the reasoner')}."
+            if sz_inferred > 0:
+                message += f" {_format_triple_effect(sz_inferred, 'inferred by the reasoner')}."
         return MutationResponse(
-            requested=NonNegativeInt(given),
-            updated=NonNegativeInt(updated),
-            unchanged=NonNegativeInt(unchanged),
+            requested=cast(NonNegativeInt, sz_given),
+            updated=cast(NonNegativeInt, sz_removed),
+            unchanged=cast(NonNegativeInt, sz_unchanged),
+            inferred=cast(NonNegativeInt, sz_inferred),
+            retracted=cast(NonNegativeInt, sz_retracted),
             no_action_needed=no_action_needed,
             message=message,
         )
 
     def reset_dataset(self) -> MutationResponse:
         """Reset the middleware-owned dataset session."""
-        updated = self.runtime.default_graph_size()
-        self.runtime.replace_dataset()
+        updated = self.runtime.graph_size()
         no_action_needed = updated == 0
+        self._replace_dataset(record_mutation=not no_action_needed)
         return MutationResponse(
-            requested=NonNegativeInt(updated),
-            updated=NonNegativeInt(updated),
-            unchanged=NonNegativeInt(0),
+            requested=cast(NonNegativeInt, updated),
+            updated=cast(NonNegativeInt, updated),
+            unchanged=cast(NonNegativeInt, 0),
             no_action_needed=no_action_needed,
             message=(
                 "No action was needed. The dataset was already empty."
@@ -1062,10 +1118,10 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
     def serialize(
         self,
         format: Literal["trig", "turtle", "nt", "n3"] = "trig",
+        context: ContextIdentifier | None = None,
     ) -> str:
         """Serialize the default graph as RDF text."""
-        with self.session._lock.gen_rlock():
-            data = self.session._dataset.default_graph.serialize(format=format)
+        data = self.runtime.snapshot_graph(context).serialize(format=format)
         return data.decode("utf-8") if isinstance(data, bytes) else data
 
     def _build_tools(self) -> tuple[BaseTool, ...]:
@@ -1108,10 +1164,9 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         def serialize_dataset_tool(
             format: Literal["trig", "turtle", "nt", "n3"] = "trig",
         ) -> SerializationResponse:
-            with self.session._lock.gen_rlock():
-                default_graph = self.session._dataset.default_graph
-                triple_count = len(default_graph)
-                serialized = default_graph.serialize(format=format)
+            default_graph = self.runtime.snapshot_graph()
+            triple_count = len(default_graph)
+            serialized = default_graph.serialize(format=format)
             if isinstance(serialized, bytes):
                 serialized = serialized.decode("utf-8")
             is_empty = triple_count == 0
@@ -1136,8 +1191,7 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
 
         @tool("reset_dataset", description=RESET_DATASET_TOOL_DESCRIPTION)
         def reset_dataset_tool() -> MutationResponse:
-            with self.session._lock.gen_rlock():
-                triple_count = len(self.session._dataset.default_graph)
+            triple_count = self.runtime.dataset_size()
             logger.debug(
                 "Resetting dataset with %s triples in the default graph", triple_count
             )
@@ -1149,9 +1203,9 @@ class DatasetMiddleware(AgentMiddleware[DatasetState, ContextT, ResponseT]):
         )
         def new_blank_node_tool() -> NewResourceNodeResponse:
             resource = BNode()
-            with self.session._lock.gen_wlock():
-                self.session._blank_nodes.add(resource)
-                blank_node_count = len(self.session._blank_nodes)
+            self._blank_nodes.add(resource)
+            blank_node_count = len(self._blank_nodes)
+
             logger.debug(
                 "Creating new blank node; %s tracked blank nodes now available",
                 blank_node_count,
