@@ -30,9 +30,11 @@ Minimal usage:
 ```python
 from deepagents import create_deep_agent
 from rdflib import Namespace
+from rdflib_reasoning.engine import RDFS_RETE_MATERIALIZED
 from rdflib_reasoning.middleware import (
     DatasetMiddleware,
     DatasetMiddlewareConfig,
+    DatasetRuntime,
     VocabularyConfiguration,
     VocabularyDeclaration,
 )
@@ -54,6 +56,23 @@ result = agent.invoke(
     {"messages": [{"role": "user", "content": "Represent this text as RDF."}]}
 )
 ```
+
+To use a reasoner-backed RDFLib dataset behind the same default-graph tool
+surface, inject a configured `DatasetRuntime`:
+
+```python
+runtime = DatasetRuntime(specification=RDFS_RETE_MATERIALIZED)
+
+dataset_middleware = DatasetMiddleware(
+    DatasetMiddlewareConfig(
+        runtime=runtime,
+        vocabulary_context=vocabulary_context,
+    )
+)
+```
+
+This configures the developer-facing runtime boundary; it does not add separate
+Research Agent-facing inference or proof tools.
 
 Coordinated task-specific vocabulary setup:
 
@@ -219,6 +238,7 @@ progress.
 | Default-graph serialization | Implemented | `0.2.0` baseline: serialize current state as RDF text for inspection |
 | Dataset reset | Implemented | `0.2.0` baseline escape hatch for clearing the middleware-owned dataset session |
 | Shared dataset runtime injection | Implemented | `DatasetRuntime` can be injected explicitly when multiple middleware components need the same live dataset boundary |
+| Reasoner-backed dataset runtime | Implemented | `DatasetRuntime` can be configured with a `ReasonerSpecification` such as `RDFS_RETE_MATERIALIZED` |
 | Namespace whitelisting: enforcement | Implemented | `0.3.0`: reject URIs from non-whitelisted namespaces in `add_triples` |
 | Namespace whitelisting: enumeration | Implemented | `0.3.0`: include allowed vocabulary list in middleware prompt when enabled |
 | Namespace whitelisting: remediation | Implemented | `0.3.0`: suggest nearest valid term via Levenshtein distance for closed-vocabulary near-misses |
@@ -280,7 +300,7 @@ progress.
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Reasoner-backed dataset interface | Not started | Middleware surface for datasets backed by an inference engine |
+| Reasoner-backed dataset interface | Not started | Research Agent-facing inference surface over the reasoner-backed `DatasetRuntime` |
 | Inference execution | Not started | Trigger rule materialization against current dataset state |
 | Direct proof generation | Not started | Return a `DirectProof` for a supplied claim, structural element, or contradiction |
 | Derivation trace access | Not started | Expose rule-level derivation traces produced by the engine |

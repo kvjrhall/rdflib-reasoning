@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.types import Command
 from rdflib import Literal, Namespace, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, XSD
+from rdflib_reasoning.engine import RDFS_RETE_MATERIALIZED
 from rdflib_reasoning.middleware import (
     DatasetMiddleware,
     DatasetMiddlewareConfig,
@@ -55,6 +56,24 @@ def _dataset_middleware() -> DatasetMiddleware:
     return DatasetMiddleware(
         DatasetMiddlewareConfig(vocabulary_context=_default_vocabulary_context())
     )
+
+
+def _reasoner_backed_middleware() -> DatasetMiddleware:
+    return DatasetMiddleware(
+        DatasetMiddlewareConfig(
+            vocabulary_context=_default_vocabulary_context(),
+            runtime=DatasetRuntime(specification=RDFS_RETE_MATERIALIZED),
+        )
+    )
+
+
+_ENTITY = EX_NS.entity
+_CLASS_A = EX_NS.classA
+_CLASS_B = EX_NS.classB
+_TYPE_CLASS_A = (_ENTITY, RDF.type, _CLASS_A)
+_SUBCLASS = (_CLASS_A, RDFS.subClassOf, _CLASS_B)
+_TYPE_CLASS_B = (_ENTITY, RDF.type, _CLASS_B)
+_RDFS_PREMISES = (_TYPE_CLASS_A, _SUBCLASS)
 
 
 def _core_whitelist() -> RestrictedNamespaceWhitelist:
@@ -158,6 +177,64 @@ def test_dataset_middleware_uses_injected_runtime() -> None:
     first.add_triples([triple])
 
     assert second.list_triples() == (triple,)
+
+
+def test_reasoner_backed_add_triples_materializes_rdfs_inferences() -> None:
+    middleware = _reasoner_backed_middleware()
+
+    response = middleware.add_triples(_RDFS_PREMISES)
+
+    assert response.updated == 2
+    assert response.inferred > 0
+    assert "inferred by the reasoner" in response.message
+    triples = set(middleware.list_triples())
+    assert _TYPE_CLASS_A in triples
+    assert _SUBCLASS in triples
+    assert _TYPE_CLASS_B in triples
+    assert (_CLASS_A, RDF.type, RDFS.Class) in triples
+    assert (_CLASS_B, RDF.type, RDFS.Class) in triples
+
+
+def test_reasoner_backed_serialize_includes_inferred_triples() -> None:
+    middleware = _reasoner_backed_middleware()
+    middleware.add_triples(_RDFS_PREMISES)
+
+    output = middleware.serialize(format="turtle")
+
+    assert str(_CLASS_B) in output or "classB" in output
+    assert "rdf:type" in output or "a " in output
+
+
+def test_reasoner_backed_remove_triples_retracts_dependent_inferences() -> None:
+    middleware = _reasoner_backed_middleware()
+    middleware.add_triples(_RDFS_PREMISES)
+
+    response = middleware.remove_triples([_TYPE_CLASS_A])
+
+    assert response.updated == 1
+    assert response.retracted > 0
+    assert "retracted by the reasoner" in response.message
+    triples = set(middleware.list_triples())
+    assert _TYPE_CLASS_A not in triples
+    assert _TYPE_CLASS_B not in triples
+    assert _SUBCLASS in triples
+
+
+def test_reasoner_backed_reset_dataset_clears_inferred_state() -> None:
+    middleware = _reasoner_backed_middleware()
+    middleware.add_triples(_RDFS_PREMISES)
+    prior_size = len(middleware.list_triples())
+    assert prior_size > len(_RDFS_PREMISES)
+
+    response = middleware.reset_dataset()
+
+    assert response.updated == prior_size
+    assert response.no_action_needed is False
+    assert middleware.list_triples() == ()
+
+    rematerialize = middleware.add_triples(_RDFS_PREMISES)
+    assert rematerialize.inferred > 0
+    assert _TYPE_CLASS_B in set(middleware.list_triples())
 
 
 def test_add_triples_records_asserted_term_usage_in_telemetry() -> None:
