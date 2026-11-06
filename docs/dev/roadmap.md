@@ -267,6 +267,9 @@ a controlled runtime affordance over dataset-backed state.
 1. Deductive dataset runtime integration
    - Compose inference middleware over `DatasetMiddleware` and the shared
      `DatasetRuntime` coordination boundary.
+   - Implemented foundation: `DatasetRuntime` can already be configured with a
+     reasoner specification so middleware and tests can share a reasoner-backed
+     RDFLib dataset boundary.
    - Ensure inference operates on the same dataset-backed state as manual graph
      updates, vocabulary-constrained modeling, and later graph import.
    - Architecture: [Dataset middleware](architecture.md#dataset-middleware)
