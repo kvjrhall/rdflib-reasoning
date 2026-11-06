@@ -64,6 +64,7 @@ intersphinx_mapping = {
 
 linkcheck_ignore = [
     r"https://github\.com/.*/blob/main/.*",
+    r"https://www.iso.org/standard/.*",
 ]
 linkcheck_anchors = True
 linkcheck_timeout = 10
