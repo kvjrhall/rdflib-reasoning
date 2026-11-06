@@ -229,7 +229,7 @@ class TraceRecorder(BaseCallbackHandler):
 
     def on_llm_new_token(
         self,
-        token: str,
+        token: str | list[str | dict[str, Any]],
         *,
         chunk: Any = None,
         run_id: UUID,
