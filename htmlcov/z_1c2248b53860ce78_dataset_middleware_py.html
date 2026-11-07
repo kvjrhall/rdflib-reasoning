@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for rdflib-reasoning-middleware/src/rdflib_reasoning/middleware/dataset_middleware.py: 83%</title>
+    <title>Coverage for rdflib-reasoning-middleware/src/rdflib_reasoning/middleware/dataset_middleware.py: 84%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_54cfdca1.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>rdflib-reasoning-middleware<span class="sep">/</span>src<span class="sep">/</span>rdflib_reasoning<span class="sep">/</span>middleware<span class="sep">/</span>dataset_middleware.py</b>:
-            <span class="pc_cov">83%</span>
+            <span class="pc_cov">84%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">409 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">338<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">71<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">343<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">66<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_1c2248b53860ce78_dataset_model_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-11-06 23:48 +0000
+            created at 2026-11-07 00:02 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -138,9 +138,9 @@
     <p class="pln"><span class="n"><a id="t56" href="#t56">56</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t57" href="#t57">57</a></span><span class="t"><span class="key">def</span> <span class="nam">_format_triple_effect</span><span class="op">(</span><span class="nam">count</span><span class="op">:</span> <span class="nam">int</span><span class="op">,</span> <span class="nam">action</span><span class="op">:</span> <span class="nam">str</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">str</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t58" href="#t58">58</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Return a short human-readable triple-count side-effect phrase.&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t59" href="#t59">59</a></span><span class="t">    <span class="nam">noun</span> <span class="op">=</span> <span class="str">&quot;triple&quot;</span> <span class="key">if</span> <span class="nam">count</span> <span class="op">==</span> <span class="num">1</span> <span class="key">else</span> <span class="str">&quot;triples&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t60" href="#t60">60</a></span><span class="t">    <span class="nam">verb</span> <span class="op">=</span> <span class="str">&quot;was&quot;</span> <span class="key">if</span> <span class="nam">count</span> <span class="op">==</span> <span class="num">1</span> <span class="key">else</span> <span class="str">&quot;were&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t61" href="#t61">61</a></span><span class="t">    <span class="key">return</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">count</span><span class="op">}</span><span class="fst"> </span><span class="op">{</span><span class="nam">noun</span><span class="op">}</span><span class="fst"> </span><span class="op">{</span><span class="nam">verb</span><span class="op">}</span><span class="fst"> </span><span class="op">{</span><span class="nam">action</span><span class="op">}</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t59" href="#t59">59</a></span><span class="t">    <span class="nam">noun</span> <span class="op">=</span> <span class="str">&quot;triple&quot;</span> <span class="key">if</span> <span class="nam">count</span> <span class="op">==</span> <span class="num">1</span> <span class="key">else</span> <span class="str">&quot;triples&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t60" href="#t60">60</a></span><span class="t">    <span class="nam">verb</span> <span class="op">=</span> <span class="str">&quot;was&quot;</span> <span class="key">if</span> <span class="nam">count</span> <span class="op">==</span> <span class="num">1</span> <span class="key">else</span> <span class="str">&quot;were&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t61" href="#t61">61</a></span><span class="t">    <span class="key">return</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">count</span><span class="op">}</span><span class="fst"> </span><span class="op">{</span><span class="nam">noun</span><span class="op">}</span><span class="fst"> </span><span class="op">{</span><span class="nam">verb</span><span class="op">}</span><span class="fst"> </span><span class="op">{</span><span class="nam">action</span><span class="op">}</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t62" href="#t62">62</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t"><span class="key">def</span> <span class="nam">_format_whitelist_violation_message</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
@@ -1105,7 +1105,7 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t1023" href="#t1023">1023</a></span><span class="t">                    <span class="fst">f&quot;</span><span class="fst"> </span><span class="op">{</span><span class="nam">sz_preexisting</span><span class="op">}</span><span class="fst"> of </span><span class="op">{</span><span class="nam">sz_given</span><span class="op">}</span><span class="fst"> triples were already present.</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t1024" href="#t1024">1024</a></span><span class="t">                <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1025" href="#t1025">1025</a></span><span class="t">            <span class="key">if</span> <span class="nam">sz_inferred</span> <span class="op">&gt;</span> <span class="num">0</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1026" href="#t1026">1026</a></span><span class="t">                <span class="nam">message</span> <span class="op">+=</span> <span class="fst">f&quot;</span><span class="fst"> </span><span class="op">{</span><span class="nam">_format_triple_effect</span><span class="op">(</span><span class="nam">sz_inferred</span><span class="op">,</span> <span class="str">&#x27;inferred by the reasoner&#x27;</span><span class="op">)</span><span class="op">}</span><span class="fst">.</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1026" href="#t1026">1026</a></span><span class="t">                <span class="nam">message</span> <span class="op">+=</span> <span class="fst">f&quot;</span><span class="fst"> </span><span class="op">{</span><span class="nam">_format_triple_effect</span><span class="op">(</span><span class="nam">sz_inferred</span><span class="op">,</span> <span class="str">&#x27;inferred by the reasoner&#x27;</span><span class="op">)</span><span class="op">}</span><span class="fst">.</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1027" href="#t1027">1027</a></span><span class="t">            <span class="key">if</span> <span class="nam">sz_retracted</span> <span class="op">&gt;</span> <span class="num">0</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1028" href="#t1028">1028</a></span><span class="t">                <span class="nam">message</span> <span class="op">+=</span> <span class="fst">f&quot;</span><span class="fst"> </span><span class="op">{</span><span class="nam">_format_triple_effect</span><span class="op">(</span><span class="nam">sz_retracted</span><span class="op">,</span> <span class="str">&#x27;retracted by the reasoner&#x27;</span><span class="op">)</span><span class="op">}</span><span class="fst">.</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1029" href="#t1029">1029</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -1167,7 +1167,7 @@
     <p class="run"><span class="n"><a id="t1085" href="#t1085">1085</a></span><span class="t">            <span class="key">if</span> <span class="nam">sz_unchanged</span> <span class="op">&gt;</span> <span class="num">0</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1086" href="#t1086">1086</a></span><span class="t">                <span class="nam">message</span> <span class="op">+=</span> <span class="fst">f&quot;</span><span class="fst"> </span><span class="op">{</span><span class="nam">sz_unchanged</span><span class="op">}</span><span class="fst"> of </span><span class="op">{</span><span class="nam">sz_given</span><span class="op">}</span><span class="fst"> triples were already absent.</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1087" href="#t1087">1087</a></span><span class="t">            <span class="key">if</span> <span class="nam">sz_retracted</span> <span class="op">&gt;</span> <span class="num">0</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1088" href="#t1088">1088</a></span><span class="t">                <span class="nam">message</span> <span class="op">+=</span> <span class="fst">f&quot;</span><span class="fst"> </span><span class="op">{</span><span class="nam">_format_triple_effect</span><span class="op">(</span><span class="nam">sz_retracted</span><span class="op">,</span> <span class="str">&#x27;retracted by the reasoner&#x27;</span><span class="op">)</span><span class="op">}</span><span class="fst">.</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1088" href="#t1088">1088</a></span><span class="t">                <span class="nam">message</span> <span class="op">+=</span> <span class="fst">f&quot;</span><span class="fst"> </span><span class="op">{</span><span class="nam">_format_triple_effect</span><span class="op">(</span><span class="nam">sz_retracted</span><span class="op">,</span> <span class="str">&#x27;retracted by the reasoner&#x27;</span><span class="op">)</span><span class="op">}</span><span class="fst">.</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1089" href="#t1089">1089</a></span><span class="t">            <span class="key">if</span> <span class="nam">sz_inferred</span> <span class="op">&gt;</span> <span class="num">0</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1090" href="#t1090">1090</a></span><span class="t">                <span class="nam">message</span> <span class="op">+=</span> <span class="fst">f&quot;</span><span class="fst"> </span><span class="op">{</span><span class="nam">_format_triple_effect</span><span class="op">(</span><span class="nam">sz_inferred</span><span class="op">,</span> <span class="str">&#x27;inferred by the reasoner&#x27;</span><span class="op">)</span><span class="op">}</span><span class="fst">.</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1091" href="#t1091">1091</a></span><span class="t">        <span class="key">return</span> <span class="nam">MutationResponse</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
@@ -1321,7 +1321,7 @@
             <a class="nav" href="z_1c2248b53860ce78_dataset_model_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-11-06 23:48 +0000
+            created at 2026-11-07 00:02 +0000
         </p>
     </div>
 </footer>
