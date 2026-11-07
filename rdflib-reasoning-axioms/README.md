@@ -211,3 +211,24 @@ present but malformed, such as a broken RDF list or invalid facet list,
 | Annotation property range | `AnnotationPropertyRange` | Not started | |
 | Annotation value | `Annotation`, `AnnotationWithAnnotation` | Not started | |
 | Annotated axioms | `AxiomAnnotationMainTriple`, `AxiomAnnotationMultipleTriple`, `AxiomAnnotationBlankNode` | Not started | |
+
+### Forward-only mapping packagings not reconstructed
+
+Some OWL 2 Mapping to RDF rows are forward-only packaging (or n-ary authoring
+shapes). Reverse parse recovers an equivalent but different structural set.
+This package prioritizes **graph → axioms**, so it does not add
+`StructuralElement` types whose only job is to preserve those packagings.
+Rationale: [DR-033 Intentional Exclusion of Forward-Only OWL 2 Mapping Packaging](../docs/dev/decision-records/DR-033%20Intentional%20Exclusion%20of%20Forward-Only%20OWL%202%20Mapping%20Packaging.md).
+
+Searchable names (what reverse recovers instead):
+
+- `ObjectPropertyAssertionInverseOf` — mapping forward encoding of
+  `ObjectPropertyAssertion(ObjectInverseOf(OP) a1 a2)` as `a2 OP a1`; reverse
+  recovers ordinary `ObjectPropertyAssertion` on `OP` (not InverseOf authorship)
+- `EquivalentClasses` (n-ary packaging) — reverse recovers binary
+  `EquivalentClasses`
+- `EquivalentObjectProperties` (n-ary packaging) — reverse recovers binary
+  `EquivalentObjectProperties`
+- `EquivalentDataProperties` (n-ary packaging) — reverse recovers binary
+  `EquivalentDataProperties`
+- `SameIndividual` (n-ary packaging) — reverse recovers binary `SameIndividual`
