@@ -3,8 +3,9 @@
 This module is the stable assembly surface for callers that want to construct a
 reasoner-backed RDFLib dataset, store, or per-context RETE engine factory
 without wiring the lower-level RETE components by hand. Start with a
-:class:`ReasonerSpecification` constant such as :data:`RDFS_RETE_MATERIALIZED`
-or :data:`NO_RULES`, then ask it for the RDFLib integration object you need.
+:class:`ReasonerSpecification` constant such as :data:`RDFS_RETE_MATERIALIZED`,
+:data:`OWL2_RL_RETE_MATERIALIZED`, or :data:`NO_RULES`, then ask it for the
+RDFLib integration object you need.
 
 Examples:
     Create a materializing RDFS dataset backed by RDFLib's in-memory store::
@@ -71,6 +72,7 @@ from .rete_errors import (
 from .rete_factory import RETEEngineFactory, RETEEngineFactoryConfig
 from .rete_store import RETEStore
 from .rules import Rule
+from .rulesets.owl2_rl import OWL2_RL_RULES
 from .rulesets.rdfs import PRODUCTION_RDFS_RULES
 
 ContradictionPolicy = Literal["raise", "record", "drop"]
@@ -228,6 +230,23 @@ This specification is is intended to be extended in cases where you want
 RDFS entailment plus some domain-specific rules and/or callbacks.
 """
 
+
+OWL2_RL_RETE_MATERIALIZED: Final[ReasonerSpecification] = replace(
+    NO_RULES,
+    name="owl2-rl-rete-materialized",
+    rules=OWL2_RL_RULES,
+    builtins=Builtins(),
+)
+"""Canonical materializing OWL 2 RL RETE reasoner specification.
+
+Extends the :data:`NO_RULES` specification with
+:data:`~rdflib_reasoning.engine.rulesets.OWL2_RL_RULES` (entailment families
+plus contradiction diagnostics) and the default
+:class:`~rdflib_reasoning.engine.Builtins`. Contradiction-producing rules use
+the dual-channel diagnostics path; the default recorder policy raises when a
+contradiction is detected.
+"""
+
 __all__ = [
     "BlankNodePredicateError",
     "BlankNodePredicateWarning",
@@ -239,6 +258,7 @@ __all__ = [
     "LiteralPredicateWarning",
     "LiteralSubjectPolicy",
     "NO_RULES",
+    "OWL2_RL_RETE_MATERIALIZED",
     "PredicateTermPolicy",
     "RDFS_RETE_MATERIALIZED",
     "RDFTermConstraintError",

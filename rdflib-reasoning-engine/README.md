@@ -40,9 +40,29 @@ graph.add((EX.Person, RDFS.subClassOf, EX.Mammal))
 assert (EX.alice, RDF.type, EX.Mammal) in graph
 ```
 
+The OWL 2 RL materialization path is the same shape. The following uses class
+equivalence (`cax-eqc1`):
+
+```python
+from rdflib import Namespace
+from rdflib.namespace import OWL, RDF
+from rdflib_reasoning.engine import OWL2_RL_RETE_MATERIALIZED
+
+EX = Namespace("urn:example:")
+
+dataset = OWL2_RL_RETE_MATERIALIZED.dataset()
+graph = dataset.default_graph
+
+graph.add((EX.Person, OWL.equivalentClass, EX.Human))
+graph.add((EX.alice, RDF.type, EX.Person))
+
+assert (EX.alice, RDF.type, EX.Human) in graph
+```
+
 Advanced integrations that need direct per-context engine construction can derive
 a fresh `RETEEngineFactory` from the same specification with
-`RDFS_RETE_MATERIALIZED.engine_factory()`.
+`RDFS_RETE_MATERIALIZED.engine_factory()` or
+`OWL2_RL_RETE_MATERIALIZED.engine_factory()`.
 
 ## Feature Matrix
 

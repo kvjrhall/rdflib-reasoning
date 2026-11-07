@@ -3,7 +3,9 @@
 Most applications should construct reasoners through the canonical profiles in
 :mod:`rdflib_reasoning.engine.api`, especially
 :data:`rdflib_reasoning.engine.api.RDFS_RETE_MATERIALIZED` for materializing
-RDFS entailment and :data:`rdflib_reasoning.engine.api.NO_RULES` for a
+RDFS entailment,
+:data:`rdflib_reasoning.engine.api.OWL2_RL_RETE_MATERIALIZED` for materializing
+OWL 2 RL entailment, and :data:`rdflib_reasoning.engine.api.NO_RULES` for a
 reasoner-shaped no-op profile.
 
 The package root re-exports the common engine, rule, proof, derivation, and
@@ -14,6 +16,7 @@ entrypoint for stable construction.
 
 from .api import (
     NO_RULES,
+    OWL2_RL_RETE_MATERIALIZED,
     RDFS_RETE_MATERIALIZED,
     BlankNodePredicateError,
     BlankNodePredicateWarning,
@@ -119,6 +122,7 @@ __all__ = [
     "LiteralPredicateError",
     "LiteralPredicateWarning",
     "NO_RULES",
+    "OWL2_RL_RETE_MATERIALIZED",
     "RDFS_RETE_MATERIALIZED",
     "PatternTerm",
     "PredicateCondition",
