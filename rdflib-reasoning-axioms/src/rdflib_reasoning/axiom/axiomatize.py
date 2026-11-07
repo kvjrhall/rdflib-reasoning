@@ -48,6 +48,7 @@ from .object_expression import (
     DisjointClasses,
     DisjointClassesNary,
     DisjointUnion,
+    EquivalentClasses,
     ObjectComplementOf,
     ObjectIntersectionOf,
     ObjectInverseOf,
@@ -64,10 +65,13 @@ from .property_axiom import (
     DisjointDataPropertiesNary,
     DisjointObjectProperties,
     DisjointObjectPropertiesNary,
+    EquivalentDataProperties,
+    EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
     ObjectPropertyDomain,
     ObjectPropertyRange,
+    SameIndividual,
     SubDataPropertyOf,
     SubObjectPropertyOf,
     SubObjectPropertyOfChain,
@@ -169,9 +173,11 @@ class _Axiomatizer:
         self._parse_property_domain_axioms()
         self._parse_property_range_axioms()
         self._parse_property_disjoint_with_axioms()
-        self._parse_datatype_definitions()
+        self._parse_equivalent_class_axioms()
+        self._parse_equivalent_property_axioms()
         self._parse_has_keys()
         self._parse_different_individuals()
+        self._parse_same_individuals()
         self._parse_inverse_functional_object_properties()
         self._parse_reflexive_object_properties()
         self._parse_irreflexive_object_properties()
@@ -1411,27 +1417,94 @@ class _Axiomatizer:
                 )
             self._add_element(element, triple)
 
-    def _parse_datatype_definitions(self) -> None:
+    def _parse_equivalent_class_axioms(self) -> None:
+        """Lift ``owl:equivalentClass`` as DatatypeDefinition or EquivalentClasses.
+
+        Prefer ``DatatypeDefinition`` when the subject is typed ``rdfs:Datatype``
+        (and is an IRI). Otherwise lift as binary ``EquivalentClasses``. Raise
+        when both ``rdfs:Datatype`` and ``owl:Class`` typing are present.
+        """
         triples = sorted(self._match(predicate=OWL.equivalentClass), key=_triple_key)
         for triple in triples:
+            if triple in self.consumed:
+                continue
             subject, _, object_ = triple
-            if not isinstance(subject, URIRef):
-                raise MalformedGraphError(
-                    "DatatypeDefinition datatype MUST be an IRI; got "
-                    f"{_format_node(subject)}."
-                )
             if not isinstance(object_, IdentifiedNode):
                 raise MalformedGraphError(
-                    "DatatypeDefinition data range MUST be an RDF resource; got "
+                    "owl:equivalentClass object MUST be an RDF resource; got "
                     f"{_format_node(object_)}."
                 )
-            element = self._build_element(
-                "DatatypeDefinition",
-                DatatypeDefinition,
-                context=self.context,
-                datatype=subject,
-                data_range=object_,
-            )
+            is_datatype = self._has(subject, RDF.type, RDFS.Datatype)
+            is_class = self._has(subject, RDF.type, OWL.Class)
+            if is_datatype and is_class:
+                raise MalformedGraphError(
+                    "owl:equivalentClass subject cannot be typed as both "
+                    f"rdfs:Datatype and owl:Class: {_format_node(subject)}."
+                )
+            if is_datatype:
+                if not isinstance(subject, URIRef):
+                    raise MalformedGraphError(
+                        "DatatypeDefinition datatype MUST be an IRI; got "
+                        f"{_format_node(subject)}."
+                    )
+                element = self._build_element(
+                    "DatatypeDefinition",
+                    DatatypeDefinition,
+                    context=self.context,
+                    datatype=subject,
+                    data_range=object_,
+                )
+            else:
+                element = self._build_element(
+                    "EquivalentClasses",
+                    EquivalentClasses,
+                    context=self.context,
+                    class_expression_1=subject,
+                    class_expression_2=object_,
+                )
+            self._add_element(element, triple)
+
+    def _parse_equivalent_property_axioms(self) -> None:
+        """Lift ``owl:equivalentProperty`` as object or data equivalence.
+
+        Prefer ``EquivalentDataProperties`` when the subject is typed
+        ``owl:DatatypeProperty``; otherwise lift as
+        ``EquivalentObjectProperties``.
+        """
+        triples = sorted(
+            self._match(predicate=OWL.equivalentProperty),
+            key=_triple_key,
+        )
+        for triple in triples:
+            if triple in self.consumed:
+                continue
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "owl:equivalentProperty operand MUST be an RDF resource; got "
+                    f"{_format_node(object_)}."
+                )
+            if self._is_data_property(subject):
+                if not isinstance(subject, URIRef) or not isinstance(object_, URIRef):
+                    raise MalformedGraphError(
+                        "EquivalentDataProperties operands MUST be IRIs; got "
+                        f"{_format_node(subject)} / {_format_node(object_)}."
+                    )
+                element = self._build_element(
+                    "EquivalentDataProperties",
+                    EquivalentDataProperties,
+                    context=self.context,
+                    data_property_expression_1=subject,
+                    data_property_expression_2=object_,
+                )
+            else:
+                element = self._build_element(
+                    "EquivalentObjectProperties",
+                    EquivalentObjectProperties,
+                    context=self.context,
+                    object_property_expression_1=subject,
+                    object_property_expression_2=object_,
+                )
             self._add_element(element, triple)
 
     def _parse_has_keys(self) -> None:
@@ -1474,6 +1547,24 @@ class _Axiomatizer:
             element = self._build_element(
                 "DifferentIndividuals",
                 DifferentIndividuals,
+                context=self.context,
+                individual_1=subject,
+                individual_2=object_,
+            )
+            self._add_element(element, triple)
+
+    def _parse_same_individuals(self) -> None:
+        triples = sorted(self._match(predicate=OWL.sameAs), key=_triple_key)
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "SameIndividual operand MUST be an RDF resource; got "
+                    f"{_format_node(object_)}."
+                )
+            element = self._build_element(
+                "SameIndividual",
+                SameIndividual,
                 context=self.context,
                 individual_1=subject,
                 individual_2=object_,

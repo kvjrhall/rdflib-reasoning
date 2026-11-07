@@ -13,8 +13,12 @@ Binary relational:
 - :class:`DataPropertyDomain` / :class:`DataPropertyRange`
 - :class:`InverseObjectProperties`
 - :class:`DatatypeDefinition` --- binary ``DT owl:equivalentClass DR`` only
+- :class:`EquivalentObjectProperties` / :class:`EquivalentDataProperties`
+  --- binary ``owl:equivalentProperty`` (n-ary forms serialize to chains)
 - :class:`DisjointObjectProperties` / :class:`DisjointDataProperties`
 - :class:`DifferentIndividuals` --- binary ``owl:differentFrom``
+- :class:`SameIndividual` --- binary ``owl:sameAs`` (n-ary forms serialize
+  to chains)
 
 Seq-backed:
 
@@ -318,8 +322,10 @@ class InverseObjectProperties(StructuralElement):
 class DatatypeDefinition(StructuralElement):
     """Element ``DatatypeDefinition( DT DR )`` of the OWL 2 structural specification.
 
-    Binary form only: a single ``owl:equivalentClass`` triple. This is not the
-    n-ary ``EquivalentClasses`` chain pattern.
+    Binary form only: a single ``owl:equivalentClass`` triple. Shares that
+    predicate with binary
+    :class:`~rdflib_reasoning.axiom.object_expression.EquivalentClasses`; graph
+    lifting prefers this class when the subject is typed ``rdfs:Datatype``.
 
     Triples::
 
@@ -343,6 +349,80 @@ class DatatypeDefinition(StructuralElement):
     @override
     def as_triples(self) -> Sequence[Triple]:
         return ((self.datatype, OWL.equivalentClass, self.data_range),)
+
+
+class EquivalentObjectProperties(StructuralElement):
+    """Element ``EquivalentObjectProperties( OPE1 OPE2 )`` of the OWL 2 structural specification.
+
+    Binary form only. An n-ary structural equivalence axiom serializes to
+    multiple ``owl:equivalentProperty`` triples; reverse parse yields binaries.
+    Shares that predicate with :class:`EquivalentDataProperties`.
+
+    Triples::
+
+        OPE1 owl:equivalentProperty OPE2 .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["EquivalentObjectProperties"] = "EquivalentObjectProperties"
+
+    object_property_expression_1: N3Resource
+    object_property_expression_2: N3Resource
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        return self.object_property_expression_1
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return (
+            (
+                self.object_property_expression_1,
+                OWL.equivalentProperty,
+                self.object_property_expression_2,
+            ),
+        )
+
+
+class EquivalentDataProperties(StructuralElement):
+    """Element ``EquivalentDataProperties( DPE1 DPE2 )`` of the OWL 2 structural specification.
+
+    Binary form only. Shares ``owl:equivalentProperty`` with
+    :class:`EquivalentObjectProperties`; lifting prefers the data form when the
+    subject is typed ``owl:DatatypeProperty``.
+
+    Triples::
+
+        DPE1 owl:equivalentProperty DPE2 .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["EquivalentDataProperties"] = "EquivalentDataProperties"
+
+    data_property_expression_1: N3IRIRef
+    data_property_expression_2: N3IRIRef
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        return self.data_property_expression_1
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return (
+            (
+                self.data_property_expression_1,
+                OWL.equivalentProperty,
+                self.data_property_expression_2,
+            ),
+        )
 
 
 class DisjointObjectProperties(StructuralElement):
@@ -597,6 +677,36 @@ class DifferentIndividuals(StructuralElement):
         return ((self.individual_1, OWL.differentFrom, self.individual_2),)
 
 
+class SameIndividual(StructuralElement):
+    """Element ``SameIndividual( a1 a2 )`` of the OWL 2 structural specification.
+
+    Binary form only. An n-ary structural ``SameIndividual( a1 ... an )``
+    serializes to n-1 ``owl:sameAs`` triples; reverse parse yields binaries.
+
+    Triples::
+
+        a1 owl:sameAs a2 .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["SameIndividual"] = "SameIndividual"
+
+    individual_1: N3Resource
+    individual_2: N3Resource
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        return self.individual_1
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return ((self.individual_1, OWL.sameAs, self.individual_2),)
+
+
 class DifferentIndividualsNary(StructuralElement):
     """Element ``DifferentIndividuals( a1 ... an )``, n > 2.
 
@@ -661,10 +771,13 @@ __all__ = [
     "DisjointDataPropertiesNary",
     "DisjointObjectProperties",
     "DisjointObjectPropertiesNary",
+    "EquivalentDataProperties",
+    "EquivalentObjectProperties",
     "HasKey",
     "InverseObjectProperties",
     "ObjectPropertyDomain",
     "ObjectPropertyRange",
+    "SameIndividual",
     "SubDataPropertyOf",
     "SubObjectPropertyOf",
     "SubObjectPropertyOfChain",

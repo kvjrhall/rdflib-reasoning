@@ -110,10 +110,11 @@ Implemented rows in this matrix / parsers in `axiomatize`):
 - Data restrictions: unary and n-ary `DataSomeValuesFrom` /
   `DataAllValuesFrom`, `DataHasValue`, unqualified and qualified
   `DataMinCardinality` / `DataMaxCardinality` / `DataExactCardinality`
-- Class axioms: `SubClassOf`, binary `DisjointClasses`, n-ary
-  `DisjointClassesNary`, `DisjointUnion`
+- Class axioms: `SubClassOf`, binary `DisjointClasses`, binary
+  `EquivalentClasses`, n-ary `DisjointClassesNary`, `DisjointUnion`
 - Object property axioms: `SubObjectPropertyOf`, `SubObjectPropertyOfChain`,
-  binary / n-ary `DisjointObjectProperties`, `ObjectPropertyDomain`,
+  binary / n-ary `DisjointObjectProperties`, binary
+  `EquivalentObjectProperties`, `ObjectPropertyDomain`,
   `ObjectPropertyRange`, `InverseObjectProperties` (IRI-subject
   `owl:inverseOf`)
 - Object property characteristics: `FunctionalObjectProperty`,
@@ -121,20 +122,24 @@ Implemented rows in this matrix / parsers in `axiomatize`):
   `IrreflexiveObjectProperty`, `SymmetricObjectProperty`,
   `AsymmetricObjectProperty`, `TransitiveObjectProperty`
 - Data property axioms: `SubDataPropertyOf`, binary / n-ary
-  `DisjointDataProperties`, `DataPropertyDomain`, `DataPropertyRange`,
-  `FunctionalDataProperty`, `DatatypeDefinition` (binary
-  `owl:equivalentClass` only)
-- Keys and different-individuals: `HasKey`, binary `DifferentIndividuals`,
-  n-ary `DifferentIndividualsNary` (`owl:members` only)
+  `DisjointDataProperties`, binary `EquivalentDataProperties`,
+  `DataPropertyDomain`, `DataPropertyRange`, `FunctionalDataProperty`,
+  `DatatypeDefinition` (binary `owl:equivalentClass` with
+  `rdfs:Datatype` tip)
+- Keys and individuals: `HasKey`, binary `DifferentIndividuals`, n-ary
+  `DifferentIndividualsNary` (`owl:members` only), binary `SameIndividual`
 
 Ambiguous object/data shapes (restrictions and shared property predicates such
 as `rdfs:subPropertyOf`, `rdfs:domain`, `rdfs:range`,
-`owl:propertyDisjointWith`, and `owl:FunctionalProperty`) are disambiguated by
-co-occurring `owl:DatatypeProperty` / object-property typing when present;
-untyped properties default to the data-family parsers for restrictions and to
-the object-family parsers for shared property axioms unless a
+`owl:propertyDisjointWith`, `owl:equivalentProperty`, and
+`owl:FunctionalProperty`) are disambiguated by co-occurring
+`owl:DatatypeProperty` / object-property typing when present; untyped
+properties default to the data-family parsers for restrictions and to the
+object-family parsers for shared property axioms unless a
 `owl:DatatypeProperty` tip is present. `FunctionalDataProperty` likewise
-requires a `owl:DatatypeProperty` tip.
+requires a `owl:DatatypeProperty` tip. `owl:equivalentClass` lifts as
+`DatatypeDefinition` when the subject is typed `rdfs:Datatype`, otherwise as
+binary `EquivalentClasses`.
 
 Traversal is strict in this baseline. If any input triple cannot be claimed by a
 currently supported pattern, `axiomatize` raises `UnsupportedGraphError`
@@ -144,19 +149,19 @@ present but malformed, such as a broken RDF list or invalid facet list,
 
 ### Class axioms
 
-| Feature | Spec reference | Status |
-| --- | --- | --- |
-| Subclass axiom | `SubClassOf` | Implemented |
-| Equivalent classes | `EquivalentClasses` | Not started |
-| Disjoint classes | `DisjointClasses`, `DisjointClassesNary` | Implemented |
-| Disjoint union | `DisjointUnion` | Implemented |
+| Feature | Spec reference | Status | Notes |
+| --- | --- | --- | --- |
+| Subclass axiom | `SubClassOf` | Implemented | |
+| Equivalent classes | `EquivalentClasses` | Implemented | Binary only (`CE1 owl:equivalentClass CE2`); n-ary structural forms serialize to chains of binaries |
+| Disjoint classes | `DisjointClasses`, `DisjointClassesNary` | Implemented | |
+| Disjoint union | `DisjointUnion` | Implemented | |
 
 ### Object property axioms
 
 | Feature | Spec reference | Status | Notes |
 | --- | --- | --- | --- |
 | Subobject property axiom | `SubObjectPropertyOf`, `SubObjectPropertyOfChain` | Implemented | Simple binary via `rdfs:subPropertyOf`; chain via owned `owl:propertyChainAxiom` Seq |
-| Equivalent object properties | `EquivalentObjectProperties` | Not started | |
+| Equivalent object properties | `EquivalentObjectProperties` | Implemented | Binary `owl:equivalentProperty` only (n-ary serializes to a chain) |
 | Disjoint object properties | `DisjointObjectProperties`, `DisjointObjectPropertiesNary` | Implemented | Binary `owl:propertyDisjointWith`; n-ary `owl:AllDisjointProperties` + owned `owl:members` Seq |
 | Object property domain | `ObjectPropertyDomain` | Implemented | Binary `rdfs:domain` |
 | Object property range | `ObjectPropertyRange` | Implemented | Binary `rdfs:range` |
@@ -174,19 +179,19 @@ present but malformed, such as a broken RDF list or invalid facet list,
 | Feature | Spec reference | Status | Notes |
 | --- | --- | --- | --- |
 | Subdata property axiom | `SubDataPropertyOf` | Implemented | Same RDF as object form; `axiomatize` prefers data when subject typed `owl:DatatypeProperty` |
-| Equivalent data properties | `EquivalentDataProperties` | Not started | |
+| Equivalent data properties | `EquivalentDataProperties` | Implemented | Binary `owl:equivalentProperty`; needs `owl:DatatypeProperty` tip (else object form) |
 | Disjoint data properties | `DisjointDataProperties`, `DisjointDataPropertiesNary` | Implemented | Same RDF as object forms; data preferred when properties typed `owl:DatatypeProperty` |
 | Data property domain | `DataPropertyDomain` | Implemented | Same RDF as object form; data preferred with `owl:DatatypeProperty` tip |
 | Data property range | `DataPropertyRange` | Implemented | Same RDF as object form; data preferred with `owl:DatatypeProperty` tip |
 | Functional data property | `FunctionalDataProperty` | Implemented | |
-| Datatype definition | `DatatypeDefinition` | Implemented | Binary `DT owl:equivalentClass DR` only (not n-ary `EquivalentClasses`) |
+| Datatype definition | `DatatypeDefinition` | Implemented | Binary `DT owl:equivalentClass DR`; preferred over `EquivalentClasses` when subject typed `rdfs:Datatype` |
 
 ### Keys, assertions, and annotations
 
 | Feature | Spec reference | Status | Notes |
 | --- | --- | --- | --- |
 | Has-key axiom | `HasKey` | Implemented | Owned `owl:hasKey` Seq of property node refs |
-| Same individual | `SameIndividual` | Not started | |
+| Same individual | `SameIndividual` | Implemented | Binary `owl:sameAs` only (n-ary serializes to a chain) |
 | Different individuals | `DifferentIndividuals`, `DifferentIndividualsNary` | Implemented | Binary `owl:differentFrom`; n-ary `owl:AllDifferent` + `owl:members` (not `distinctMembers`) |
 | Class assertion | `ClassAssertion` | Not started | |
 | Object property assertion | `ObjectPropertyAssertion`, `ObjectPropertyAssertionInverseOf` | Not started | |

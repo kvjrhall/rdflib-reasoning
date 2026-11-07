@@ -37,6 +37,7 @@ from rdflib_reasoning.axiom.object_expression import (
     DisjointClasses,
     DisjointClassesNary,
     DisjointUnion,
+    EquivalentClasses,
     ObjectComplementOf,
     ObjectIntersectionOf,
     ObjectInverseOf,
@@ -53,10 +54,13 @@ from rdflib_reasoning.axiom.property_axiom import (
     DisjointDataPropertiesNary,
     DisjointObjectProperties,
     DisjointObjectPropertiesNary,
+    EquivalentDataProperties,
+    EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
     ObjectPropertyDomain,
     ObjectPropertyRange,
+    SameIndividual,
     SubDataPropertyOf,
     SubObjectPropertyOf,
     SubObjectPropertyOfChain,
@@ -272,6 +276,11 @@ def _current_object_expression_elements() -> tuple[StructuralElement, ...]:
             class_expression_1=_uri("Boy"),
             class_expression_2=_uri("Girl"),
         ),
+        EquivalentClasses(
+            context=CTX,
+            class_expression_1=_uri("BoyEq"),
+            class_expression_2=_uri("MaleChild"),
+        ),
         DisjointClassesNary(
             context=CTX,
             name_value=_uri("all-disjoint-classes"),
@@ -362,10 +371,10 @@ def _current_property_axiom_elements() -> tuple[StructuralElement, ...]:
             object_property_expression_1=_uri("hasParent"),
             object_property_expression_2=_uri("hasChild"),
         ),
-        DatatypeDefinition(
+        EquivalentObjectProperties(
             context=CTX,
-            datatype=_uri("AdultAge"),
-            data_range=_uri("adultAgeRange"),
+            object_property_expression_1=_uri("eqPropA"),
+            object_property_expression_2=_uri("eqPropB"),
         ),
         DisjointObjectProperties(
             context=CTX,
@@ -398,6 +407,11 @@ def _current_property_axiom_elements() -> tuple[StructuralElement, ...]:
             context=CTX,
             individual_1=_uri("alice"),
             individual_2=_uri("bob"),
+        ),
+        SameIndividual(
+            context=CTX,
+            individual_1=_uri("meg"),
+            individual_2=_uri("megan"),
         ),
         DifferentIndividualsNary(
             context=CTX,
@@ -449,6 +463,11 @@ def test_axiomatize_lifts_data_property_axioms_with_declarations() -> None:
         data_property_expression_1=decl_a.name,
         data_property_expression_2=decl_b.name,
     )
+    equivalent = EquivalentDataProperties(
+        context=CTX,
+        data_property_expression_1=decl_a.name,
+        data_property_expression_2=decl_b.name,
+    )
     disjoint_nary = DisjointDataPropertiesNary(
         context=CTX,
         name_value=_uri("all-disjoint-data-props"),
@@ -471,6 +490,7 @@ def test_axiomatize_lifts_data_property_axioms_with_declarations() -> None:
         domain,
         range_,
         disjoint,
+        equivalent,
         disjoint_nary,
     ):
         for triple in element.as_triples:
@@ -482,8 +502,52 @@ def test_axiomatize_lifts_data_property_axioms_with_declarations() -> None:
     assert DataPropertyDomain in kinds
     assert DataPropertyRange in kinds
     assert DisjointDataProperties in kinds
+    assert EquivalentDataProperties in kinds
     assert DisjointDataPropertiesNary in kinds
     assert DeclarationDataProperty in kinds
+
+
+def test_axiomatize_datatype_definition_with_datatype_tip() -> None:
+    """``owl:equivalentClass`` with ``rdfs:Datatype`` tip lifts as DatatypeDefinition."""
+    decl = DeclarationDatatype(context=CTX, name_value=_uri("AdultAge"))
+    definition = DatatypeDefinition(
+        context=CTX,
+        datatype=decl.name,
+        data_range=_uri("adultAgeRange"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, definition):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DatatypeDefinition in kinds
+    assert DeclarationDatatype in kinds
+    found = next(e for e in actual if isinstance(e, DatatypeDefinition))
+    assert found == definition
+
+
+def test_axiomatize_equivalent_class_chain_yields_binary_axioms() -> None:
+    """A chain of ``owl:equivalentClass`` triples lifts as one binary axiom each."""
+    ce1 = _uri("CE1")
+    ce2 = _uri("CE2")
+    ce3 = _uri("CE3")
+    graph = _graph_from_triples(
+        (
+            (ce1, OWL.equivalentClass, ce2),
+            (ce2, OWL.equivalentClass, ce3),
+        )
+    )
+
+    actual = axiomatize(graph)
+
+    assert len(actual) == 2
+    assert all(isinstance(element, EquivalentClasses) for element in actual)
+    pairs = {
+        (element.class_expression_1, element.class_expression_2) for element in actual
+    }
+    assert pairs == {(ce1, ce2), (ce2, ce3)}
 
 
 def test_axiomatize_orders_elements_and_falls_back_to_declaration() -> None:
@@ -532,8 +596,13 @@ def test_axiomatize_does_not_mutate_caller_graph() -> None:
             (_uri("subject"), _uri("comment"), Literal("note")),
         ),
         (
-            # SameIndividual chains are outside current axiomatization coverage.
-            (_uri("a"), OWL.sameAs, _uri("b")),
+            # Class assertions are outside current axiomatization coverage when
+            # the type is not a declaration/characteristic fallback.
+            (_uri("alice"), RDF.type, _uri("Person")),
+        ),
+        (
+            # Negative property assertions are outside current coverage.
+            (_uri("npa"), RDF.type, OWL.NegativePropertyAssertion),
         ),
     ),
 )

@@ -13,10 +13,13 @@ from rdflib_reasoning.axiom.property_axiom import (
     DisjointDataPropertiesNary,
     DisjointObjectProperties,
     DisjointObjectPropertiesNary,
+    EquivalentDataProperties,
+    EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
     ObjectPropertyDomain,
     ObjectPropertyRange,
+    SameIndividual,
     SubDataPropertyOf,
     SubObjectPropertyOf,
     SubObjectPropertyOfChain,
@@ -226,6 +229,46 @@ def test_datatype_definition_as_triples() -> None:
     assert axiom.as_triples == ((dt, OWL.equivalentClass, dr),)
     _assert_python_json_round_trip(DatatypeDefinition, axiom)
     _assert_model_json_schema_smoke(DatatypeDefinition, "DatatypeDefinition")
+
+
+def test_equivalent_object_and_data_properties_binary() -> None:
+    ctx = URIRef("http://example.com/g")
+    p1 = URIRef("http://example.com/p1")
+    p2 = URIRef("http://example.com/p2")
+    obj = EquivalentObjectProperties(
+        context=ctx,
+        object_property_expression_1=p1,
+        object_property_expression_2=p2,
+    )
+    data = EquivalentDataProperties(
+        context=ctx,
+        data_property_expression_1=p1,
+        data_property_expression_2=p2,
+    )
+
+    assert obj.as_triples == ((p1, OWL.equivalentProperty, p2),)
+    assert data.as_triples == ((p1, OWL.equivalentProperty, p2),)
+    _assert_python_json_round_trip(EquivalentObjectProperties, obj)
+    _assert_python_json_round_trip(EquivalentDataProperties, data)
+    _assert_model_json_schema_smoke(
+        EquivalentObjectProperties,
+        "EquivalentObjectProperties",
+    )
+    _assert_model_json_schema_smoke(
+        EquivalentDataProperties, "EquivalentDataProperties"
+    )
+
+
+def test_same_individual_as_triples() -> None:
+    ctx = URIRef("http://example.com/g")
+    a = URIRef("http://example.com/alice")
+    b = URIRef("http://example.com/bob")
+    axiom = SameIndividual(context=ctx, individual_1=a, individual_2=b)
+
+    assert axiom.name == a
+    assert axiom.as_triples == ((a, OWL.sameAs, b),)
+    _assert_python_json_round_trip(SameIndividual, axiom)
+    _assert_model_json_schema_smoke(SameIndividual, "SameIndividual")
 
 
 def test_disjoint_object_and_data_properties_binary() -> None:

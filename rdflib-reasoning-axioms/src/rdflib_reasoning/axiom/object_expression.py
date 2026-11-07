@@ -26,6 +26,9 @@ Class axioms:
 
 - :class:`DisjointClasses` --- binary ``DisjointClasses( CE1 CE2 )`` via
   ``owl:disjointWith``.
+- :class:`EquivalentClasses` --- binary ``EquivalentClasses( CE1 CE2 )`` via
+  ``owl:equivalentClass`` (n-ary structural forms serialize to multiple
+  triples; reverse parse yields binaries).
 - :class:`DisjointClassesNary` --- ``DisjointClasses( CE1 ... CEn )``,
   ``n > 2``; ``owl:AllDisjointClasses`` with owned ``owl:members`` Seq.
 - :class:`DisjointUnion` --- ``DisjointUnion( C CE1 ... CEn )``, ``n >= 2``;
@@ -314,6 +317,48 @@ class DisjointClasses(StructuralElement):
         )
 
 
+class EquivalentClasses(StructuralElement):
+    """Element ``EquivalentClasses( CE1 CE2 )`` of the OWL 2 structural specification.
+
+    Binary form only. An n-ary structural ``EquivalentClasses( CE1 ... CEn )``
+    serializes to n-1 ``owl:equivalentClass`` triples; OWL 2 RDF reverse mapping
+    parses each triple as a binary axiom. This class models that binary parse
+    shape. Shares ``owl:equivalentClass`` with
+    :class:`~rdflib_reasoning.axiom.property_axiom.DatatypeDefinition`.
+
+    Both operands are RDF node references. If an operand is itself represented by
+    another structural element, that element belongs to a separate partition.
+
+    Triples::
+
+        CE1 owl:equivalentClass CE2 .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["EquivalentClasses"] = "EquivalentClasses"
+
+    class_expression_1: N3Resource
+    class_expression_2: N3Resource
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        return self.class_expression_1
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return (
+            (
+                self.class_expression_1,
+                OWL.equivalentClass,
+                self.class_expression_2,
+            ),
+        )
+
+
 class DisjointClassesNary(StructuralElement):
     """Element ``DisjointClasses( CE1 ... CEn )``, n > 2, of the OWL 2 structural specification.
 
@@ -422,6 +467,7 @@ __all__ = [
     "DisjointClasses",
     "DisjointClassesNary",
     "DisjointUnion",
+    "EquivalentClasses",
     "ObjectComplementOf",
     "ObjectIntersectionOf",
     "ObjectInverseOf",

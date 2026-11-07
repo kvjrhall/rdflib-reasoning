@@ -6,6 +6,7 @@ from rdflib_reasoning.axiom.object_expression import (
     DisjointClasses,
     DisjointClassesNary,
     DisjointUnion,
+    EquivalentClasses,
     ObjectComplementOf,
     ObjectIntersectionOf,
     ObjectInverseOf,
@@ -185,6 +186,23 @@ def test_disjoint_classes_as_triples() -> None:
 
     assert axiom.name == ce1
     assert axiom.as_triples == ((ce1, OWL.disjointWith, ce2),)
+
+
+def test_equivalent_classes_as_triples() -> None:
+    ctx = URIRef("http://example.com/g")
+    ce1 = URIRef("http://example.com/Boy")
+    ce2 = URIRef("http://example.com/MaleChild")
+    axiom = EquivalentClasses(
+        context=ctx,
+        class_expression_1=ce1,
+        class_expression_2=ce2,
+    )
+
+    assert axiom.name == ce1
+    assert axiom.as_triples == ((ce1, OWL.equivalentClass, ce2),)
+    _assert_python_json_round_trip(EquivalentClasses, axiom)
+    _assert_model_json_schema_smoke(EquivalentClasses, "EquivalentClasses")
+    assert axiom.as_quads == tuple((*t, axiom.context) for t in axiom.as_triples)
 
 
 def test_disjoint_classes_nary_as_triples() -> None:
