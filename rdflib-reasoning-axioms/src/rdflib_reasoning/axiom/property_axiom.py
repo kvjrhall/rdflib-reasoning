@@ -803,8 +803,10 @@ class SameIndividual(StructuralElement):
 class DifferentIndividualsNary(StructuralElement):
     """Element ``DifferentIndividuals( a1 ... an )``, n > 2.
 
-    Uses the ``owl:members`` form from the OWL 2 RDF mapping (not
-    ``owl:distinctMembers``).
+    Serializes with the OWL 2 RDF forward-mapping form ``owl:members``.
+    Graph lifting also accepts the OWL 1 legacy reverse-mapping form
+    ``owl:distinctMembers`` for the same structural axiom; round-trip
+    therefore normalizes legacy graphs to ``owl:members``.
 
     Triples::
 

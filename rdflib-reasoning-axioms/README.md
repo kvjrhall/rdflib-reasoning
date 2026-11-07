@@ -128,7 +128,8 @@ Implemented rows in this matrix / parsers in `axiomatize`):
   `DatatypeDefinition` (binary `owl:equivalentClass` with
   `rdfs:Datatype` tip)
 - Keys and individuals: `HasKey`, binary `DifferentIndividuals`, n-ary
-  `DifferentIndividualsNary` (`owl:members` only), binary `SameIndividual`,
+  `DifferentIndividualsNary` (`owl:members`; also lifts legacy
+  `owl:distinctMembers`), binary `SameIndividual`,
   `ClassAssertion` when the `rdf:type` object is a known class expression
   (declaration, parsed CE/restriction, CE operand, `owl:Thing` /
   `owl:Nothing`), `ObjectPropertyAssertion` when the predicate is a known
@@ -198,7 +199,7 @@ present but malformed, such as a broken RDF list or invalid facet list,
 | --- | --- | --- | --- |
 | Has-key axiom | `HasKey` | Implemented | Owned `owl:hasKey` Seq of property node refs |
 | Same individual | `SameIndividual` | Implemented | Binary `owl:sameAs` only (n-ary serializes to a chain) |
-| Different individuals | `DifferentIndividuals`, `DifferentIndividualsNary` | Implemented | Binary `owl:differentFrom`; n-ary `owl:AllDifferent` + `owl:members` (not `distinctMembers`) |
+| Different individuals | `DifferentIndividuals`, `DifferentIndividualsNary` | Implemented | Binary `owl:differentFrom`; n-ary `owl:AllDifferent` + `owl:members` (serialize); reverse also lifts OWL 1 legacy `owl:distinctMembers` and normalizes to `owl:members` |
 | Class assertion | `ClassAssertion` | Implemented | `a rdf:type CE` when `CE` is a known class expression; unknown type objects remain unconsumed |
 | Object property assertion | `ObjectPropertyAssertion` | Implemented | `a1 OPE a2` when `OPE` is a known object property (incl. `ObjectInverseOf` BNode predicates); forward-mapping InverseOf individual-swap is not a distinct reverse element; unknown predicates / literals remain unconsumed |
 | Negative object property assertion | `NegativeObjectPropertyAssertion` | Not started | |

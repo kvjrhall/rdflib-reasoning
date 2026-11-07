@@ -617,14 +617,20 @@ class _Axiomatizer:
             if type_triple in self.consumed:
                 continue
             subject = type_triple[0]
-            if self._has_any(subject, OWL.distinctMembers):
-                raise UnsupportedGraphError(
-                    "DifferentIndividualsNary via owl:distinctMembers is not "
-                    f"supported; use owl:members at {_format_node(subject)}."
+            has_members = self._has_any(subject, OWL.members)
+            has_distinct_members = self._has_any(subject, OWL.distinctMembers)
+            if has_members and has_distinct_members:
+                raise MalformedGraphError(
+                    "DifferentIndividualsNary at "
+                    f"{_format_node(subject)} MUST NOT combine owl:members and "
+                    "owl:distinctMembers; use exactly one list predicate."
                 )
-            list_head, members_triple = self._require_single_object(
+            # owl:members is the OWL 2 forward-mapping form; owl:distinctMembers
+            # is the OWL 1 legacy reverse-mapping alternate for the same axiom.
+            list_predicate = OWL.members if has_members else OWL.distinctMembers
+            list_head, list_triple = self._require_single_object(
                 subject,
-                OWL.members,
+                list_predicate,
                 label="DifferentIndividualsNary",
             )
             if not isinstance(list_head, IdentifiedNode):
@@ -649,7 +655,7 @@ class _Axiomatizer:
                 name_value=subject,
                 members=seq,
             )
-            self._add_element(element, type_triple, members_triple, *seq_triples)
+            self._add_element(element, type_triple, list_triple, *seq_triples)
 
     def _parse_disjoint_classes(self) -> None:
         triples = sorted(self._match(predicate=OWL.disjointWith), key=_triple_key)

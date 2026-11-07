@@ -449,6 +449,55 @@ def test_axiomatize_round_trips_current_property_axiom_elements(
     assert actual[0] == element
 
 
+def test_axiomatize_different_individuals_nary_from_distinct_members() -> None:
+    """Legacy owl:distinctMembers lifts to DifferentIndividualsNary (members form)."""
+    expected = DifferentIndividualsNary(
+        context=CTX,
+        name_value=_uri("all-different-legacy"),
+        members=_ternary_seq(
+            "legacy-diff-list",
+            "legacy-diff-list-mid",
+            "legacy-diff-list-tail",
+            _uri("aliceL"),
+            _uri("bobL"),
+            _uri("carolL"),
+        ),
+    )
+    graph = Graph(identifier=CTX)
+    for triple in expected.members.as_triples:
+        graph.add(triple)
+    graph.add((expected.name, RDF.type, OWL.AllDifferent))
+    graph.add((expected.name, OWL.distinctMembers, expected.members.name))
+
+    actual = axiomatize(graph)
+    assert actual == (expected,)
+    assert (expected.name, OWL.members, expected.members.name) in expected.as_triples
+    assert (expected.name, OWL.distinctMembers, expected.members.name) not in (
+        expected.as_triples
+    )
+
+
+def test_axiomatize_different_individuals_nary_rejects_both_list_predicates() -> None:
+    members = _ternary_seq(
+        "both-diff-list",
+        "both-diff-list-mid",
+        "both-diff-list-tail",
+        _uri("aliceB"),
+        _uri("bobB"),
+        _uri("carolB"),
+    )
+    subject = _uri("all-different-both")
+    graph = Graph(identifier=CTX)
+    for triple in members.as_triples:
+        graph.add(triple)
+    graph.add((subject, RDF.type, OWL.AllDifferent))
+    graph.add((subject, OWL.members, members.name))
+    graph.add((subject, OWL.distinctMembers, members.name))
+
+    with pytest.raises(MalformedGraphError, match="MUST NOT combine"):
+        axiomatize(graph)
+
+
 def test_axiomatize_lifts_data_property_axioms_with_declarations() -> None:
     """Data forms share RDF with object forms; DatatypeProperty tips the scale."""
     decl_a = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
