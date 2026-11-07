@@ -2,7 +2,7 @@ import warnings
 from collections.abc import Generator
 
 import pytest
-from rdflib import XSD, BNode, Literal, Node, URIRef
+from rdflib import RDF, XSD, BNode, Literal, Node, URIRef
 from rdflib_reasoning.engine.builtins import (
     DEFAULT_CALLBACK_BUILTINS,
     DEFAULT_PREDICATE_BUILTINS,
@@ -325,11 +325,21 @@ def test_literal_in_datatype_predicate(context: RuleContext) -> None:
     one = Literal("1", datatype=XSD.integer)
     assert LiteralInDatatypePredicate().test(context, one, XSD.integer)
     assert LiteralInDatatypePredicate().test(context, one, XSD.decimal)
+    assert LiteralInDatatypePredicate().test(context, one, XSD.float)
+    assert LiteralInDatatypePredicate().test(context, one, XSD.double)
     assert not LiteralInDatatypePredicate().test(context, one, XSD.negativeInteger)
     assert not LiteralInDatatypePredicate().test(
         context, one, URIRef("urn:example:NotADatatype")
     )
     assert not LiteralInDatatypePredicate().test(context, BNode(), XSD.integer)
+    assert LiteralInDatatypePredicate().test(
+        context, Literal("<a/>", datatype=RDF.XMLLiteral), RDF.XMLLiteral
+    )
+
+
+def test_literal_in_datatype_arity(context: RuleContext) -> None:
+    with pytest.raises(BuiltinInputError):
+        LiteralInDatatypePredicate().test(context, Literal(1))
 
 
 def test_literal_not_in_datatype_predicate(context: RuleContext) -> None:
@@ -340,6 +350,9 @@ def test_literal_not_in_datatype_predicate(context: RuleContext) -> None:
         warnings.simplefilter("ignore")
         ill_typed = Literal("not-a-number", datatype=XSD.integer)
     assert LiteralNotInDatatypePredicate().test(context, ill_typed, XSD.integer)
+    assert LiteralNotInDatatypePredicate().test(
+        context, Literal("128", datatype=XSD.integer), XSD.byte
+    )
 
 
 def test_default_registry_includes_literal_predicates() -> None:

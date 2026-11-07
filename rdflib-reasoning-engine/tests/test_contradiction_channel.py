@@ -93,11 +93,22 @@ def test_contradiction_consequent_records_non_mutating_diagnostics() -> None:
 def test_owl2_rl_contradiction_profile_contains_expected_false_family_rules() -> None:
     expected = {
         "eq-diff1",
+        "eq-diff2",
+        "eq-diff3",
         "prp-irp",
         "prp-asyp",
+        "prp-pdw",
+        "prp-adp",
         "prp-npa1",
         "prp-npa2",
         "cls-nothing2",
+        "cls-com",
+        "cls-maxc1",
+        "cls-maxqc1",
+        "cls-maxqc2",
+        "cax-dw",
+        "cax-adc",
+        "dt-not-type",
     }
     present = {rule.id.rule_id for rule in OWL2_RL_CONTRADICTION_RULES}
 

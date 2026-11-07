@@ -110,6 +110,9 @@ experiments:
 - [notebooks/demo-rdfs-inference.ipynb](./notebooks/demo-rdfs-inference.ipynb):
   shortest end-to-end walkthrough of RDFLib-backed RDFS materialization plus a
   proof view showing which rule applications justify one inferred triple
+- [notebooks/demo-owl2-rl-inference.ipynb](./notebooks/demo-owl2-rl-inference.ipynb):
+  OWL 2 RL counterpart showing class-equivalence and subclass typing
+  materialization plus proof inspection for one inferred triple
 - [notebooks/demo-rdfs-retraction.ipynb](./notebooks/demo-rdfs-retraction.ipynb):
   update-aware companion showing that ordinary statement removal retracts
   dependent RDFS inferences

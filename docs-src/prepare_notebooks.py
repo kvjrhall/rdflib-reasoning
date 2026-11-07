@@ -15,6 +15,7 @@ GITHUB_BLOB_MAIN = "https://github.com/kvjrhall/rdflib-reasoning/blob/main"
 
 NOTEBOOKS = (
     "demo-rdfs-inference.ipynb",
+    "demo-owl2-rl-inference.ipynb",
     "demo-rdfs-retraction.ipynb",
     "demo-contradiction-rules.ipynb",
     "demo-proof-reconstructor.ipynb",

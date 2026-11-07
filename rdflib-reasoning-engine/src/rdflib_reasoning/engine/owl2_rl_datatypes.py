@@ -254,6 +254,9 @@ def _string_in_datatype(text: str, datatype: URIRef) -> bool:
 
 def _binary_in_datatype(literal: Literal, datatype: URIRef) -> bool:
     """Return whether ``literal`` is in a binary datatype value space."""
+    # Ill-typed binaries have ``value is None`` and are rejected by the caller.
+    if literal.value is None:
+        return False
     lexical = str(literal)
     if datatype == XSD.hexBinary:
         if len(lexical) % 2 != 0:
@@ -268,7 +271,7 @@ def _binary_in_datatype(literal: Literal, datatype: URIRef) -> bool:
             base64.b64decode(lexical, validate=True)
         except ValueError, TypeError:
             return False
-        return True
+        return isinstance(literal.value, (bytes, bytearray))
     return False
 
 

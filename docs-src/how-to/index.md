@@ -9,6 +9,7 @@ thing reliably.
 :caption: Guides
 
 run-rdfs-inference
+run-owl2-rl-inference
 retract-inferences
 inspect-a-proof
 enable-contradiction-diagnostics

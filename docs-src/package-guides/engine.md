@@ -3,12 +3,12 @@
 The `rdflib-reasoning-engine` package provides the RDFLib-integrated reasoning
 core. Its current baseline centers on RDFLib-backed fixed-point materialization,
 dependency-aware retraction, contradiction diagnostics when contradiction rules
-are enabled, derivation logging, and RDFS rule support.
+are enabled, derivation logging, and RDFS plus OWL 2 RL rule support.
 
 Use this package when you need:
 
 - forward-chaining rule execution over RDFLib-backed data;
-- RDFS entailment support;
+- RDFS or OWL 2 RL entailment support;
 - statement retraction through ordinary RDFLib `Graph.remove(...)` calls;
 - contradiction diagnostics through enabled OWL 2 RL contradiction rules or
   custom rules using `ContradictionConsequent`;
@@ -18,12 +18,14 @@ Use this package when you need:
 For a quick tour of the direct engine surface, see:
 
 - [RDFS inference demo](../tutorials/notebooks/demo-rdfs-inference.ipynb)
+- [OWL 2 RL inference demo](../tutorials/notebooks/demo-owl2-rl-inference.ipynb)
 - [RDFS retraction demo](../tutorials/notebooks/demo-rdfs-retraction.ipynb)
 - [Contradiction rules demo](../tutorials/notebooks/demo-contradiction-rules.ipynb)
 
 For focused tasks, see:
 
 - [Run RDFS inference](../how-to/run-rdfs-inference.md)
+- [Run OWL 2 RL inference](../how-to/run-owl2-rl-inference.md)
 - [Retract inferences](../how-to/retract-inferences.md)
 - [Inspect a proof](../how-to/inspect-a-proof.md)
 - [Enable contradiction diagnostics](../how-to/enable-contradiction-diagnostics.md)
