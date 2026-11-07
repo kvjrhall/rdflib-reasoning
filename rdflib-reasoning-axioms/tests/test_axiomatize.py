@@ -66,6 +66,7 @@ from rdflib_reasoning.axiom.property_axiom import (
     EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
+    NegativeDataPropertyAssertion,
     ObjectPropertyAssertion,
     ObjectPropertyDomain,
     ObjectPropertyRange,
@@ -869,6 +870,88 @@ def test_axiomatize_undeclared_literal_predicate_is_unsupported() -> None:
                 ((_uri("alice"), _uri("age"), Literal(42, datatype=XSD.integer)),)
             )
         )
+
+
+def test_axiomatize_negative_data_property_assertion_with_declaration_tip() -> None:
+    decl = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    assertion = NegativeDataPropertyAssertion(
+        context=CTX,
+        name_value=BNode("npaAge"),
+        data_property_expression=decl.name,
+        individual=_uri("alice"),
+        value=Literal(42, datatype=XSD.integer),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationDataProperty in kinds
+    assert NegativeDataPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, NegativeDataPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_negative_data_property_assertion_from_subproperty_operand() -> None:
+    decl_child = DeclarationDataProperty(context=CTX, name_value=_uri("ageYears"))
+    decl_parent = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    sub = SubDataPropertyOf(
+        context=CTX,
+        sub_data_property_expression=decl_child.name,
+        super_data_property_expression=decl_parent.name,
+    )
+    assertion = NegativeDataPropertyAssertion(
+        context=CTX,
+        name_value=BNode("npaAgeYears"),
+        data_property_expression=decl_child.name,
+        individual=_uri("alice"),
+        value=Literal(30, datatype=XSD.integer),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl_child, decl_parent, sub, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    found = next(e for e in actual if isinstance(e, NegativeDataPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_negative_data_property_undeclared_predicate_is_unsupported() -> (
+    None
+):
+    node = BNode("npaUndeclared")
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(
+            _graph_from_triples(
+                (
+                    (node, RDF.type, OWL.NegativePropertyAssertion),
+                    (node, OWL.sourceIndividual, _uri("alice")),
+                    (node, OWL.assertionProperty, _uri("age")),
+                    (node, OWL.targetValue, Literal(42, datatype=XSD.integer)),
+                )
+            )
+        )
+
+
+def test_axiomatize_npa_target_individual_not_negative_data_assertion() -> None:
+    """targetIndividual NPAs are not NegativeDataPropertyAssertion."""
+    decl = DeclarationDataProperty(context=CTX, name_value=_uri("friend"))
+    node = BNode("npaFriend")
+    graph = Graph(identifier=CTX)
+    for triple in decl.as_triples:
+        graph.add(triple)
+    graph.add((node, RDF.type, OWL.NegativePropertyAssertion))
+    graph.add((node, OWL.sourceIndividual, _uri("alice")))
+    graph.add((node, OWL.assertionProperty, decl.name))
+    graph.add((node, OWL.targetIndividual, _uri("bob")))
+
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(graph)
+    # And specifically not lifted as the data form even with a known DPE tip.
+    # (UnsupportedGraphError above already asserts the NPA was not claimed.)
 
 
 def test_axiomatize_known_dpe_with_resource_object_not_data_assertion() -> None:

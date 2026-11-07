@@ -18,6 +18,7 @@ from rdflib_reasoning.axiom.property_axiom import (
     EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
+    NegativeDataPropertyAssertion,
     ObjectPropertyAssertion,
     ObjectPropertyDomain,
     ObjectPropertyRange,
@@ -323,6 +324,47 @@ def test_data_property_assertion_rejects_non_literal_value() -> None:
     with pytest.raises(ValidationError, match="RDF literal"):
         DataPropertyAssertion(
             context=URIRef("http://example.com/g"),
+            data_property_expression=URIRef("http://example.com/age"),
+            individual=URIRef("http://example.com/alice"),
+            value=URIRef("http://example.com/not-a-literal"),
+        )
+
+
+def test_negative_data_property_assertion_as_triples() -> None:
+    ctx = URIRef("http://example.com/g")
+    # URI node keeps JSON round-trip lexical form stable (same pattern as
+    # DifferentIndividualsNary unit tests); axiomatize still uses BNodes.
+    node = URIRef("http://example.com/npa")
+    individual = URIRef("http://example.com/alice")
+    prop = URIRef("http://example.com/age")
+    value = Literal(42, datatype=XSD.integer)
+    axiom = NegativeDataPropertyAssertion(
+        context=ctx,
+        name_value=node,
+        data_property_expression=prop,
+        individual=individual,
+        value=value,
+    )
+
+    assert axiom.name == node
+    assert axiom.as_triples == (
+        (node, RDF.type, OWL.NegativePropertyAssertion),
+        (node, OWL.sourceIndividual, individual),
+        (node, OWL.assertionProperty, prop),
+        (node, OWL.targetValue, value),
+    )
+    _assert_python_json_round_trip(NegativeDataPropertyAssertion, axiom)
+    _assert_model_json_schema_smoke(
+        NegativeDataPropertyAssertion,
+        "NegativeDataPropertyAssertion",
+    )
+
+
+def test_negative_data_property_assertion_rejects_non_literal_value() -> None:
+    with pytest.raises(ValidationError, match="RDF literal"):
+        NegativeDataPropertyAssertion(
+            context=URIRef("http://example.com/g"),
+            name_value=BNode("npa"),
             data_property_expression=URIRef("http://example.com/age"),
             individual=URIRef("http://example.com/alice"),
             value=URIRef("http://example.com/not-a-literal"),

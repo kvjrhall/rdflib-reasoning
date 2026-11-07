@@ -134,7 +134,9 @@ Implemented rows in this matrix / parsers in `axiomatize`):
   (declaration, parsed CE/restriction, CE operand, `owl:Thing` /
   `owl:Nothing`), `ObjectPropertyAssertion` when the predicate is a known
   object property and the object is a resource, `DataPropertyAssertion`
-  when the predicate is a known data property and the object is a literal
+  when the predicate is a known data property and the object is a literal,
+  `NegativeDataPropertyAssertion` when an `owl:NegativePropertyAssertion`
+  node uses `owl:targetValue` and a known data property
 
 Ambiguous object/data shapes (restrictions and shared property predicates such
 as `rdfs:subPropertyOf`, `rdfs:domain`, `rdfs:range`,
@@ -204,7 +206,7 @@ present but malformed, such as a broken RDF list or invalid facet list,
 | Object property assertion | `ObjectPropertyAssertion` | Implemented | `a1 OPE a2` when `OPE` is a known object property (incl. `ObjectInverseOf` BNode predicates); forward-mapping InverseOf individual-swap is not a distinct reverse element; unknown predicates / literals remain unconsumed |
 | Negative object property assertion | `NegativeObjectPropertyAssertion` | Not started | |
 | Data property assertion | `DataPropertyAssertion` | Implemented | `a DPE lt` when `DPE` is a known data property; unknown predicates / non-literals remain unconsumed |
-| Negative data property assertion | `NegativeDataPropertyAssertion` | Not started | |
+| Negative data property assertion | `NegativeDataPropertyAssertion` | Implemented | Reified `owl:NegativePropertyAssertion` + `owl:targetValue` when `owl:assertionProperty` is a known DPE; `owl:targetIndividual` left for object form; unknown DPEs remain unconsumed |
 | Annotation assertion | `AnnotationAssertion` | Not started | |
 | Subannotation property axiom | `SubAnnotationPropertyOf` | Not started | |
 | Annotation property domain | `AnnotationPropertyDomain` | Not started | |

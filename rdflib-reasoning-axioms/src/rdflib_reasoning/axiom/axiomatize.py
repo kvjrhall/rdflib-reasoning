@@ -72,6 +72,7 @@ from .property_axiom import (
     EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
+    NegativeDataPropertyAssertion,
     ObjectPropertyAssertion,
     ObjectPropertyDomain,
     ObjectPropertyRange,
@@ -199,6 +200,7 @@ class _Axiomatizer:
         self._parse_class_assertions()
         self._parse_object_property_assertions()
         self._parse_data_property_assertions()
+        self._parse_negative_data_property_assertions()
         self._raise_if_unconsumed_triples()
         return tuple(sorted(self.elements, key=_element_sort_key))
 
@@ -1939,6 +1941,76 @@ class _Axiomatizer:
                 value=object_,
             )
             self._add_element(element, triple)
+
+    def _parse_negative_data_property_assertions(self) -> None:
+        """Lift NPA nodes with ``owl:targetValue`` when assertionProperty is a known DPE."""
+        known = self._known_data_properties()
+        triples = sorted(
+            self._match(predicate=RDF.type, object_=OWL.NegativePropertyAssertion),
+            key=_triple_key,
+        )
+        for type_triple in triples:
+            if type_triple in self.consumed:
+                continue
+            subject = type_triple[0]
+            has_target_individual = self._has_any(subject, OWL.targetIndividual)
+            has_target_value = self._has_any(subject, OWL.targetValue)
+            if has_target_individual and has_target_value:
+                raise MalformedGraphError(
+                    "NegativePropertyAssertion at "
+                    f"{_format_node(subject)} MUST NOT combine "
+                    "owl:targetIndividual and owl:targetValue."
+                )
+            if has_target_individual:
+                # Leave for NegativeObjectPropertyAssertion.
+                continue
+            if not has_target_value:
+                continue
+            source, source_triple = self._require_single_object(
+                subject,
+                OWL.sourceIndividual,
+                label="NegativeDataPropertyAssertion",
+            )
+            assertion_property, property_triple = self._require_single_object(
+                subject,
+                OWL.assertionProperty,
+                label="NegativeDataPropertyAssertion",
+            )
+            target_value, target_triple = self._require_single_object(
+                subject,
+                OWL.targetValue,
+                label="NegativeDataPropertyAssertion",
+            )
+            if not isinstance(source, IdentifiedNode):
+                raise MalformedGraphError(
+                    "NegativeDataPropertyAssertion owl:sourceIndividual MUST be "
+                    f"an RDF resource; got {_format_node(source)}."
+                )
+            if not isinstance(target_value, Literal):
+                raise MalformedGraphError(
+                    "NegativeDataPropertyAssertion owl:targetValue MUST be an "
+                    f"RDF literal; got {_format_node(target_value)}."
+                )
+            if assertion_property not in known:
+                continue
+            if not isinstance(assertion_property, URIRef):
+                continue
+            element = self._build_element(
+                "NegativeDataPropertyAssertion",
+                NegativeDataPropertyAssertion,
+                context=self.context,
+                name_value=subject,
+                data_property_expression=assertion_property,
+                individual=source,
+                value=target_value,
+            )
+            self._add_element(
+                element,
+                type_triple,
+                source_triple,
+                property_triple,
+                target_triple,
+            )
 
     def _parse_rdf_type_elements(
         self,

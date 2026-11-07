@@ -21,6 +21,7 @@ Binary relational:
   to chains)
 - :class:`ObjectPropertyAssertion` --- ``a OPE b`` (resource value; known OPE)
 - :class:`DataPropertyAssertion` --- ``a DPE lt`` (literal value; known DPE)
+- :class:`NegativeDataPropertyAssertion` --- reified NPA with ``owl:targetValue``
 
 Seq-backed:
 
@@ -743,6 +744,62 @@ class DataPropertyAssertion(StructuralElement):
         return ((self.individual, self.data_property_expression, self.value),)
 
 
+class NegativeDataPropertyAssertion(StructuralElement):
+    """Element ``NegativeDataPropertyAssertion( DPE a lt )`` of the OWL 2 structural specification.
+
+    Reified RDF form headed by ``owl:NegativePropertyAssertion`` with a literal
+    ``owl:targetValue``. Graph lifting claims a node only when
+    ``owl:assertionProperty`` is a known data property expression. Nodes that
+    use ``owl:targetIndividual`` remain unconsumed (object-property form).
+
+    Triples::
+
+        _:x rdf:type owl:NegativePropertyAssertion .
+        _:x owl:sourceIndividual a .
+        _:x owl:assertionProperty DPE .
+        _:x owl:targetValue lt .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["NegativeDataPropertyAssertion"] = "NegativeDataPropertyAssertion"
+
+    name_value: N3Resource = Field(
+        ...,
+        validation_alias=AliasChoices("name", "name_value"),
+        serialization_alias="name",
+    )
+    data_property_expression: N3IRIRef
+    individual: N3Resource
+    value: N3Node
+
+    @model_validator(mode="after")
+    def _require_literal_value(self) -> Self:
+        if not isinstance(self.value, RDFLiteral):
+            raise ValueError(
+                "NegativeDataPropertyAssertion value MUST be an RDF literal; got "
+                f"{type(self.value).__name__}."
+            )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        """NegativePropertyAssertion node identifier (alias of ``name_value``)."""
+        return self.name_value
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return (
+            (self.name, RDF.type, OWL.NegativePropertyAssertion),
+            (self.name, OWL.sourceIndividual, self.individual),
+            (self.name, OWL.assertionProperty, self.data_property_expression),
+            (self.name, OWL.targetValue, self.value),
+        )
+
+
 class DifferentIndividuals(StructuralElement):
     """Element ``DifferentIndividuals( a1 a2 )`` of the OWL 2 structural specification.
 
@@ -871,6 +928,7 @@ __all__ = [
     "EquivalentObjectProperties",
     "HasKey",
     "InverseObjectProperties",
+    "NegativeDataPropertyAssertion",
     "ObjectPropertyAssertion",
     "ObjectPropertyDomain",
     "ObjectPropertyRange",
