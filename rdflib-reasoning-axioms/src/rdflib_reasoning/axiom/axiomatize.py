@@ -1958,6 +1958,29 @@ class _Axiomatizer:
         examples = ", ".join(
             _format_triple(triple) for triple in sorted(leftovers, key=_triple_key)[:5]
         )
+        # OWL 2 Mapping to RDF Section 3 (RDF graphs -> structural specification)
+        # applies declaration, expression, and axiom patterns, removing each
+        # matched triple from G. When that process finishes, G MUST be empty.
+        # Unconsumed triples here are that residue (count + samples below).
+        #
+        # Until every structural mapping form is Implemented, keep the
+        # coverage-oriented message so leftovers are not blamed as mapping
+        # violations when they may simply be not-yet-supported. Once coverage
+        # is complete, prefer a message aligned with the empty-G requirement,
+        # for example:
+        #
+        # raise UnsupportedGraphError(
+        #     "OWL 2 RDF mapping requires the graph to be empty after all "
+        #     "declaration, expression, and axiom patterns are applied; "
+        #     f"{len(leftovers)} triple(s) remain unparsed. First unmatched: "
+        #     f"{examples}."
+        # )
+        #
+        # One important residue class after ClassAssertion exists: rdf:type
+        # triples whose object never entered the CE map (CE(y) = epsilon), so
+        # ClassAssertion does not match. Those MUST NOT be reinterpreted as
+        # ObjectPropertyAssertion. Other leftover families include open-predicate
+        # assertions, annotation axioms, and ontology-header triples.
         raise UnsupportedGraphError(
             f"Unsupported RDF graph content: {len(leftovers)} triple(s) were not "
             f"matched by current axiomatization patterns. First unmatched: "
