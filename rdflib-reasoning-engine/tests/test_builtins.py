@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Generator
 
 import pytest
@@ -8,6 +9,11 @@ from rdflib_reasoning.engine.builtins import (
     Builtins,
     CallbackHook,
     DifferentTermsPredicate,
+    IsLiteralPredicate,
+    LiteralDifferentValuePredicate,
+    LiteralInDatatypePredicate,
+    LiteralNotInDatatypePredicate,
+    LiteralSameValuePredicate,
     NotLiteralPredicate,
     PredicateHook,
     RuleContext,
@@ -265,3 +271,80 @@ def test_term_not_in_bnode_3_true(context: RuleContext) -> None:
 def test_term_not_in_bnode_3_false(context: RuleContext) -> None:
     node = BNode()
     assert not TermNotInPredicate().test(context, node, node, BNode())
+
+
+def test_is_literal_0_args(context: RuleContext) -> None:
+    with pytest.raises(BuiltinInputError):
+        IsLiteralPredicate().test(context)
+
+
+def test_is_literal_true_and_false(context: RuleContext) -> None:
+    assert IsLiteralPredicate().test(context, Literal(1))
+    assert not IsLiteralPredicate().test(context, BNode())
+    assert not IsLiteralPredicate().test(context, Literal(1), URIRef("urn:test:s"))
+
+
+def test_literal_same_value_arity(context: RuleContext) -> None:
+    with pytest.raises(BuiltinInputError):
+        LiteralSameValuePredicate().test(context, Literal(1))
+
+
+def test_literal_same_value_cross_type(context: RuleContext) -> None:
+    left = Literal("1", datatype=XSD.integer)
+    right = Literal("1.0", datatype=XSD.decimal)
+    assert LiteralSameValuePredicate().test(context, left, right)
+    assert not LiteralSameValuePredicate().test(
+        context, left, Literal("2", datatype=XSD.integer)
+    )
+    assert not LiteralSameValuePredicate().test(context, left, URIRef("urn:test:s"))
+
+
+def test_literal_same_value_ill_typed_incomparable(context: RuleContext) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ill_typed = Literal("not-a-number", datatype=XSD.integer)
+    assert not LiteralSameValuePredicate().test(
+        context, ill_typed, Literal("1", datatype=XSD.integer)
+    )
+
+
+def test_literal_different_value(context: RuleContext) -> None:
+    left = Literal("1", datatype=XSD.integer)
+    right = Literal("2", datatype=XSD.integer)
+    assert LiteralDifferentValuePredicate().test(context, left, right)
+    assert not LiteralDifferentValuePredicate().test(context, left, left)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ill_typed = Literal("not-a-number", datatype=XSD.integer)
+    assert not LiteralDifferentValuePredicate().test(
+        context, ill_typed, Literal("1", datatype=XSD.integer)
+    )
+
+
+def test_literal_in_datatype_predicate(context: RuleContext) -> None:
+    one = Literal("1", datatype=XSD.integer)
+    assert LiteralInDatatypePredicate().test(context, one, XSD.integer)
+    assert LiteralInDatatypePredicate().test(context, one, XSD.decimal)
+    assert not LiteralInDatatypePredicate().test(context, one, XSD.negativeInteger)
+    assert not LiteralInDatatypePredicate().test(
+        context, one, URIRef("urn:example:NotADatatype")
+    )
+    assert not LiteralInDatatypePredicate().test(context, BNode(), XSD.integer)
+
+
+def test_literal_not_in_datatype_predicate(context: RuleContext) -> None:
+    one = Literal("1", datatype=XSD.integer)
+    assert LiteralNotInDatatypePredicate().test(context, one, XSD.negativeInteger)
+    assert not LiteralNotInDatatypePredicate().test(context, one, XSD.integer)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ill_typed = Literal("not-a-number", datatype=XSD.integer)
+    assert LiteralNotInDatatypePredicate().test(context, ill_typed, XSD.integer)
+
+
+def test_default_registry_includes_literal_predicates() -> None:
+    assert "is_literal" in DEFAULT_PREDICATE_BUILTINS
+    assert "literal_same_value" in DEFAULT_PREDICATE_BUILTINS
+    assert "literal_different_value" in DEFAULT_PREDICATE_BUILTINS
+    assert "literal_in_datatype" in DEFAULT_PREDICATE_BUILTINS
+    assert "literal_not_in_datatype" in DEFAULT_PREDICATE_BUILTINS

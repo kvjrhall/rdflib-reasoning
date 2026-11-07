@@ -206,13 +206,13 @@ Contradiction outcomes use `ContradictionConsequent`, not predicate builtins.
 | `different_terms` | ✅ | RDFS production: `rdfs2` (exclude `rdfs:Resource` domain), `rdfs7`, `rdfs9`. Intended OWL 2 RL: optional ≠ guards where two bound fillers must be distinct (for example production variants of `cls-maxc2`, `cls-maxqc3`, `cls-maxqc4`, `prp-fp`, `prp-ifp`) | True when every argument is a distinct RDFLib node (syntactic identity, not datatype value-space equality) |
 | `same_term` | ✅ | Available inverse of `different_terms`; no checked-in RDFS/RL rule uses it yet | True when every argument is the same RDFLib node (syntactic identity) |
 | `not_literal` | ✅ | RDFS: `rdfs3` (range object must be a legal RDF 1.1 subject); conformant `rdfs4b`. Intended OWL 2 RL: `prp-rng` and other rules that conclude `rdf:type` on a bound object | True when no argument is an RDF literal |
-| `is_literal` | ⬜ | Intended OWL 2 RL: `dt-type2`, `dt-eq`, `dt-diff`, `dt-not-type` (and related literal filters) | True when every argument is an RDF literal (convenience inverse of `not_literal`) |
+| `is_literal` | ✅ | Intended OWL 2 RL: `dt-type2`, `dt-eq`, `dt-diff`, `dt-not-type` (and related literal filters) | True when every argument is an RDF literal (convenience inverse of `not_literal`) |
 | `term_in` | ✅ | Available inverse of `term_not_in`; no checked-in RDFS/RL rule uses it yet | True when the first argument equals one of the remaining arguments |
 | `term_not_in` | ✅ | RDFS production: `rdfs3` (suppress selected vocabulary objects such as `rdfs:Class` / `rdfs:Resource`) | True when the first argument equals none of the remaining arguments |
-| `literal_same_value` | ⬜ | Intended OWL 2 RL: `dt-eq` | True when two literals denote the same data value (value-space / RDF equality, not node identity) |
-| `literal_different_value` | ⬜ | Intended OWL 2 RL: `dt-diff` | True when two literals denote different data values |
-| `literal_in_datatype` | ⬜ | Intended OWL 2 RL: `dt-type2` (and supporting checks for datatype membership) | True when a literal's data value is contained in the value space of a datatype IRI |
-| `literal_not_in_datatype` | ⬜ | Intended OWL 2 RL: `dt-not-type` (contradiction diagnostics channel) | True when a literal's data value is not contained in the value space of a datatype IRI |
+| `literal_same_value` | ✅ | Intended OWL 2 RL: `dt-eq` | True when two literals denote the same data value (value-space / RDF equality, not node identity) |
+| `literal_different_value` | ✅ | Intended OWL 2 RL: `dt-diff` | True when two literals denote different data values |
+| `literal_in_datatype` | ✅ | Intended OWL 2 RL: `dt-type2` (and supporting checks for datatype membership) | True when a literal's data value is contained in the value space of a datatype IRI |
+| `literal_not_in_datatype` | ✅ | Intended OWL 2 RL: `dt-not-type` (contradiction diagnostics channel) | True when a literal's data value is not contained in the value space of a datatype IRI |
 
 ## Current integration baseline
 
