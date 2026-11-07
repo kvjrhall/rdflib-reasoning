@@ -74,95 +74,97 @@ This matrix tracks the intermediate RDFS rule target using the cached RDF 1.1 Se
 
 ### OWL 2 RL contradiction diagnostics (false-family, non-mutating)
 
-These rules do not materialize new entailment triples into logical closure. They emit `ContradictionConsequent` actions and `ContradictionRecord` diagnostics (dual-channel model per DR-027). Coverage is limited by the current rule IR and builtins; see `rdflib_reasoning.engine.rulesets.owl2_rl_contradictions`. Each row tracks exactly one OWL 2 RL rule identifier from [`docs/specs/owl2-reasoning-profiles/INDEX.md`](../docs/specs/owl2-reasoning-profiles/INDEX.md).
+These rules do not materialize new entailment triples into logical closure. They emit `ContradictionConsequent` actions and `ContradictionRecord` diagnostics (dual-channel model per DR-027). The composed export is `OWL2_RL_CONTRADICTION_RULES` (also included in `OWL2_RL_RULES`). LIST-backed false rules expand pairwise member lists of length 2. `dt-not-type` is encoded with the OWL 2 RL antecedent `T(lt, rdf:type, dt)`, but under the default RDF 1.1 `literal_subject_policy` that premise cannot enter working memory, so the rule does not fire on concrete RDF 1.1 graphs. Each row tracks exactly one OWL 2 RL rule identifier from [`docs/specs/owl2-reasoning-profiles/INDEX.md`](../docs/specs/owl2-reasoning-profiles/INDEX.md).
 
 | Feature | Spec reference | Status |
 | --- | --- | --- |
 | Equality conflict (sameAs and differentFrom) | `eq-diff1` | ✅ |
-| AllDifferent members equality conflict | `eq-diff2` | ⬜ |
-| DistinctMembers equality conflict | `eq-diff3` | ⬜ |
+| AllDifferent members equality conflict | `eq-diff2` | ✅ |
+| DistinctMembers equality conflict | `eq-diff3` | ✅ |
 | Irreflexive property used reflexively | `prp-irp` | ✅ |
 | Asymmetric property used in both directions | `prp-asyp` | ✅ |
-| Property disjointness conflict | `prp-pdw` | ⬜ |
-| AllDisjointProperties conflict | `prp-adp` | ⬜ |
+| Property disjointness conflict | `prp-pdw` | ✅ |
+| AllDisjointProperties conflict | `prp-adp` | ✅ |
 | Negative object property assertion vs positive assertion | `prp-npa1` | ✅ |
 | Negative data property assertion vs positive assertion | `prp-npa2` | ✅ |
 | Individual typed as `owl:Nothing` | `cls-nothing2` | ✅ |
-| Complement class overlap | `cls-com` | ⬜ |
-| Max cardinality zero violation | `cls-maxc1` | ⬜ |
-| Qualified max cardinality zero violation | `cls-maxqc1` | ⬜ |
-| Thing-qualified max cardinality zero violation | `cls-maxqc2` | ⬜ |
-| Disjoint class overlap | `cax-dw` | ⬜ |
-| AllDisjointClasses overlap | `cax-adc` | ⬜ |
-| Datatype value-space violation | `dt-not-type` | ⬜ |
+| Complement class overlap | `cls-com` | ✅ |
+| Max cardinality zero violation | `cls-maxc1` | ✅ |
+| Qualified max cardinality zero violation | `cls-maxqc1` | ✅ |
+| Thing-qualified max cardinality zero violation | `cls-maxqc2` | ✅ |
+| Disjoint class overlap | `cax-dw` | ✅ |
+| AllDisjointClasses overlap | `cax-adc` | ✅ |
+| Datatype value-space violation | `dt-not-type` | ✅ |
 
 ### OWL 2 RL entailment rules (triple materialization)
 
-The authoritative local reference for this matrix is [`docs/specs/owl2-reasoning-profiles/INDEX.md`](../docs/specs/owl2-reasoning-profiles/INDEX.md), which indexes Section 4.3 of the cached OWL 2 Profiles specification. Status here refers to **forward-chaining materialization** of OWL 2 RL entailment rules. Rule identifiers that have `false` consequents in the specification are listed under [OWL 2 RL contradiction diagnostics](#owl-2-rl-contradiction-diagnostics-false-family-non-mutating) above. Each row tracks exactly one OWL 2 RL rule identifier.
+The authoritative local reference for this matrix is [`docs/specs/owl2-reasoning-profiles/INDEX.md`](../docs/specs/owl2-reasoning-profiles/INDEX.md), which indexes Section 4.3 of the cached OWL 2 Profiles specification. Status here refers to **forward-chaining materialization** of OWL 2 RL entailment rules composed as `OWL2_RL_ENTAILMENT_RULES` (and `OWL2_RL_RULES` with contradictions). Rule identifiers that have `false` consequents in the specification are listed under [OWL 2 RL contradiction diagnostics](#owl-2-rl-contradiction-diagnostics-false-family-non-mutating) above. Each row tracks exactly one OWL 2 RL rule identifier.
+
+**Profile notes.** LIST-dependent rules use finite Table 3 expansions (`cls-*` / contradiction member lists length 2; `prp-spo2` chains lengths 1–3; `prp-key` lengths 1–2; `scm-int` / `scm-uni` arities 1–3). Longer lists are outside the exported expansions. `dt-type2`, `dt-eq`, and `dt-diff` conclude generalized-RDF triples with literal subjects; under the default RDF 1.1 `literal_subject_policy` those conclusions are rejected or warned-and-skipped rather than materialized into working memory.
 
 | Feature | Spec reference | Status |
 | --- | --- | --- |
-| Reflexive equality | `eq-ref` | ⬜ |
-| Symmetric equality | `eq-sym` | ⬜ |
-| Transitive equality | `eq-trans` | ⬜ |
-| Subject equality replacement | `eq-rep-s` | ⬜ |
-| Predicate equality replacement | `eq-rep-p` | ⬜ |
-| Object equality replacement | `eq-rep-o` | ⬜ |
-| Built-in annotation property typing | `prp-ap` | ⬜ |
-| Property domain inference | `prp-dom` | ⬜ |
-| Property range inference | `prp-rng` | ⬜ |
-| Functional property equality | `prp-fp` | ⬜ |
-| Inverse-functional property equality | `prp-ifp` | ⬜ |
-| Symmetric property assertion | `prp-symp` | ⬜ |
-| Transitive property assertion | `prp-trp` | ⬜ |
-| Subproperty assertion inheritance | `prp-spo1` | ⬜ |
-| Property chain assertion | `prp-spo2` | ⬜ |
-| Equivalent property forward assertion | `prp-eqp1` | ⬜ |
-| Equivalent property reverse assertion | `prp-eqp2` | ⬜ |
-| Inverse property forward assertion | `prp-inv1` | ⬜ |
-| Inverse property reverse assertion | `prp-inv2` | ⬜ |
-| HasKey individual equality | `prp-key` | ⬜ |
-| `owl:Thing` class typing | `cls-thing` | ⬜ |
-| `owl:Nothing` class typing | `cls-nothing1` | ⬜ |
-| Intersection membership introduction | `cls-int1` | ⬜ |
-| Intersection membership projection | `cls-int2` | ⬜ |
-| Union membership introduction | `cls-uni` | ⬜ |
-| SomeValuesFrom membership | `cls-svf1` | ⬜ |
-| SomeValuesFrom Thing membership | `cls-svf2` | ⬜ |
-| AllValuesFrom value typing | `cls-avf` | ⬜ |
-| HasValue property assertion | `cls-hv1` | ⬜ |
-| HasValue membership | `cls-hv2` | ⬜ |
-| Max cardinality equality | `cls-maxc2` | ⬜ |
-| Qualified max cardinality equality | `cls-maxqc3` | ⬜ |
-| Thing-qualified max cardinality equality | `cls-maxqc4` | ⬜ |
-| OneOf membership | `cls-oo` | ⬜ |
-| Subclass membership inheritance | `cax-sco` | ⬜ |
-| Equivalent class forward membership | `cax-eqc1` | ⬜ |
-| Equivalent class reverse membership | `cax-eqc2` | ⬜ |
-| Supported datatype typing | `dt-type1` | ⬜ |
-| Literal datatype membership | `dt-type2` | ⬜ |
-| Literal same-value equality | `dt-eq` | ⬜ |
-| Literal different-value inequality | `dt-diff` | ⬜ |
-| Class schema closure | `scm-cls` | ⬜ |
-| Subclass transitivity | `scm-sco` | ⬜ |
-| Equivalent class to subclasses | `scm-eqc1` | ⬜ |
-| Mutual subclasses to equivalent class | `scm-eqc2` | ⬜ |
-| Object property schema closure | `scm-op` | ⬜ |
-| Datatype property schema closure | `scm-dp` | ⬜ |
-| Subproperty transitivity | `scm-spo` | ⬜ |
-| Equivalent property to subproperties | `scm-eqp1` | ⬜ |
-| Mutual subproperties to equivalent property | `scm-eqp2` | ⬜ |
-| Domain subclass propagation | `scm-dom1` | ⬜ |
-| Domain subproperty propagation | `scm-dom2` | ⬜ |
-| Range subclass propagation | `scm-rng1` | ⬜ |
-| Range subproperty propagation | `scm-rng2` | ⬜ |
-| HasValue schema subclass | `scm-hv` | ⬜ |
-| SomeValuesFrom filler subclass | `scm-svf1` | ⬜ |
-| SomeValuesFrom property subclass | `scm-svf2` | ⬜ |
-| AllValuesFrom filler subclass | `scm-avf1` | ⬜ |
-| AllValuesFrom property subclass | `scm-avf2` | ⬜ |
-| Intersection schema projection | `scm-int` | ⬜ |
-| Union schema injection | `scm-uni` | ⬜ |
+| Reflexive equality | `eq-ref` | ✅ |
+| Symmetric equality | `eq-sym` | ✅ |
+| Transitive equality | `eq-trans` | ✅ |
+| Subject equality replacement | `eq-rep-s` | ✅ |
+| Predicate equality replacement | `eq-rep-p` | ✅ |
+| Object equality replacement | `eq-rep-o` | ✅ |
+| Built-in annotation property typing | `prp-ap` | ✅ |
+| Property domain inference | `prp-dom` | ✅ |
+| Property range inference | `prp-rng` | ✅ |
+| Functional property equality | `prp-fp` | ✅ |
+| Inverse-functional property equality | `prp-ifp` | ✅ |
+| Symmetric property assertion | `prp-symp` | ✅ |
+| Transitive property assertion | `prp-trp` | ✅ |
+| Subproperty assertion inheritance | `prp-spo1` | ✅ |
+| Property chain assertion | `prp-spo2` | ✅ |
+| Equivalent property forward assertion | `prp-eqp1` | ✅ |
+| Equivalent property reverse assertion | `prp-eqp2` | ✅ |
+| Inverse property forward assertion | `prp-inv1` | ✅ |
+| Inverse property reverse assertion | `prp-inv2` | ✅ |
+| HasKey individual equality | `prp-key` | ✅ |
+| `owl:Thing` class typing | `cls-thing` | ✅ |
+| `owl:Nothing` class typing | `cls-nothing1` | ✅ |
+| Intersection membership introduction | `cls-int1` | ✅ |
+| Intersection membership projection | `cls-int2` | ✅ |
+| Union membership introduction | `cls-uni` | ✅ |
+| SomeValuesFrom membership | `cls-svf1` | ✅ |
+| SomeValuesFrom Thing membership | `cls-svf2` | ✅ |
+| AllValuesFrom value typing | `cls-avf` | ✅ |
+| HasValue property assertion | `cls-hv1` | ✅ |
+| HasValue membership | `cls-hv2` | ✅ |
+| Max cardinality equality | `cls-maxc2` | ✅ |
+| Qualified max cardinality equality | `cls-maxqc3` | ✅ |
+| Thing-qualified max cardinality equality | `cls-maxqc4` | ✅ |
+| OneOf membership | `cls-oo` | ✅ |
+| Subclass membership inheritance | `cax-sco` | ✅ |
+| Equivalent class forward membership | `cax-eqc1` | ✅ |
+| Equivalent class reverse membership | `cax-eqc2` | ✅ |
+| Supported datatype typing | `dt-type1` | ✅ |
+| Literal datatype membership | `dt-type2` | ✅ |
+| Literal same-value equality | `dt-eq` | ✅ |
+| Literal different-value inequality | `dt-diff` | ✅ |
+| Class schema closure | `scm-cls` | ✅ |
+| Subclass transitivity | `scm-sco` | ✅ |
+| Equivalent class to subclasses | `scm-eqc1` | ✅ |
+| Mutual subclasses to equivalent class | `scm-eqc2` | ✅ |
+| Object property schema closure | `scm-op` | ✅ |
+| Datatype property schema closure | `scm-dp` | ✅ |
+| Subproperty transitivity | `scm-spo` | ✅ |
+| Equivalent property to subproperties | `scm-eqp1` | ✅ |
+| Mutual subproperties to equivalent property | `scm-eqp2` | ✅ |
+| Domain subclass propagation | `scm-dom1` | ✅ |
+| Domain subproperty propagation | `scm-dom2` | ✅ |
+| Range subclass propagation | `scm-rng1` | ✅ |
+| Range subproperty propagation | `scm-rng2` | ✅ |
+| HasValue schema subclass | `scm-hv` | ✅ |
+| SomeValuesFrom filler subclass | `scm-svf1` | ✅ |
+| SomeValuesFrom property subclass | `scm-svf2` | ✅ |
+| AllValuesFrom filler subclass | `scm-avf1` | ✅ |
+| AllValuesFrom property subclass | `scm-avf2` | ✅ |
+| Intersection schema projection | `scm-int` | ✅ |
+| Union schema injection | `scm-uni` | ✅ |
 
 ### Engine capabilities
 
@@ -197,22 +199,23 @@ logical closure (DR-005). Rule IDs below cite current RDFS production / conforma
 profiles and intended OWL 2 RL usage; blank usage cells mean the predicate is
 shipped for general guards but is not yet referenced by a checked-in ruleset.
 
-OWL 2 RL `LIST[…]` atoms are **not** planned as predicate builtins: they expand
-to `rdf:first` / `rdf:rest` triple conditions (or equivalent engine list joins).
-Contradiction outcomes use `ContradictionConsequent`, not predicate builtins.
+OWL 2 RL `LIST[…]` atoms are **not** predicate builtins: checked-in rules expand
+them to `rdf:first` / `rdf:rest` triple conditions via finite Table 3 expansions
+(see entailment profile notes above). Contradiction outcomes use
+`ContradictionConsequent`, not predicate builtins.
 
 | Builtin | Status | RDFS / OWL 2 RL rule usage | Description |
 | --- | --- | --- | --- |
-| `different_terms` | ✅ | RDFS production: `rdfs2` (exclude `rdfs:Resource` domain), `rdfs7`, `rdfs9`. Intended OWL 2 RL: optional ≠ guards where two bound fillers must be distinct (for example production variants of `cls-maxc2`, `cls-maxqc3`, `cls-maxqc4`, `prp-fp`, `prp-ifp`) | True when every argument is a distinct RDFLib node (syntactic identity, not datatype value-space equality) |
+| `different_terms` | ✅ | RDFS production: `rdfs2` (exclude `rdfs:Resource` domain), `rdfs7`, `rdfs9`. OWL 2 RL: ≠ guards on `cls-maxc2`, `cls-maxqc3`, `cls-maxqc4`, `prp-fp`, `prp-ifp`, `prp-key`, and selected schema/property rules | True when every argument is a distinct RDFLib node (syntactic identity, not datatype value-space equality) |
 | `same_term` | ✅ | Available inverse of `different_terms`; no checked-in RDFS/RL rule uses it yet | True when every argument is the same RDFLib node (syntactic identity) |
-| `not_literal` | ✅ | RDFS: `rdfs3` (range object must be a legal RDF 1.1 subject); conformant `rdfs4b`. Intended OWL 2 RL: `prp-rng` and other rules that conclude `rdf:type` on a bound object | True when no argument is an RDF literal |
-| `is_literal` | ✅ | Intended OWL 2 RL: `dt-type2`, `dt-eq`, `dt-diff`, `dt-not-type` (and related literal filters) | True when every argument is an RDF literal (convenience inverse of `not_literal`) |
+| `not_literal` | ✅ | RDFS: `rdfs3` (range object must be a legal RDF 1.1 subject); conformant `rdfs4b`. OWL 2 RL: `prp-rng` | True when no argument is an RDF literal |
+| `is_literal` | ✅ | OWL 2 RL: `dt-type2`, `dt-eq`, `dt-diff`, `dt-not-type` | True when every argument is an RDF literal (convenience inverse of `not_literal`) |
 | `term_in` | ✅ | Available inverse of `term_not_in`; no checked-in RDFS/RL rule uses it yet | True when the first argument equals one of the remaining arguments |
 | `term_not_in` | ✅ | RDFS production: `rdfs3` (suppress selected vocabulary objects such as `rdfs:Class` / `rdfs:Resource`) | True when the first argument equals none of the remaining arguments |
-| `literal_same_value` | ✅ | Intended OWL 2 RL: `dt-eq` | True when two literals denote the same data value (value-space / RDF equality, not node identity) |
-| `literal_different_value` | ✅ | Intended OWL 2 RL: `dt-diff` | True when two literals denote different data values |
-| `literal_in_datatype` | ✅ | Intended OWL 2 RL: `dt-type2` (and supporting checks for datatype membership) | True when a literal's data value is contained in the value space of a datatype IRI |
-| `literal_not_in_datatype` | ✅ | Intended OWL 2 RL: `dt-not-type` (contradiction diagnostics channel) | True when a literal's data value is not contained in the value space of a datatype IRI |
+| `literal_same_value` | ✅ | OWL 2 RL: `dt-eq` | True when two literals denote the same data value (value-space / RDF equality, not node identity) |
+| `literal_different_value` | ✅ | OWL 2 RL: `dt-diff` | True when two literals denote different data values |
+| `literal_in_datatype` | ✅ | OWL 2 RL: `dt-type2` | True when a literal's data value is contained in the value space of a datatype IRI |
+| `literal_not_in_datatype` | ✅ | OWL 2 RL: `dt-not-type` (contradiction diagnostics channel) | True when a literal's data value is not contained in the value space of a datatype IRI |
 
 ## Current integration baseline
 
