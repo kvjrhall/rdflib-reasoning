@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import ClassVar, Literal, override
 
 from pydantic import computed_field
-from rdflib import OWL, RDFS, IdentifiedNode
+from rdflib import OWL, RDF, RDFS, IdentifiedNode
 
 from .common import N3Resource, Triple
 from .structural_element import DeclarationElement, StructuralElement
@@ -63,7 +63,40 @@ class SubClassOf(StructuralElement):
         )
 
 
+class ClassAssertion(StructuralElement):
+    """Element ``ClassAssertion( CE a )`` of the OWL 2 structural specification.
+
+    Binary RDF form ``a rdf:type CE``. Graph lifting claims a triple only when
+    ``CE`` is a known class expression (declaration, parsed class expression /
+    restriction, CE operand of an already-parsed axiom, or ``owl:Thing`` /
+    ``owl:Nothing``). Unknown type objects remain unconsumed.
+
+    Triples::
+
+        a rdf:type CE .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["ClassAssertion"] = "ClassAssertion"
+
+    individual: N3Resource
+    class_expression: N3Resource
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        return self.individual
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return ((self.individual, RDF.type, self.class_expression),)
+
+
 __all__ = [
+    "ClassAssertion",
     "DeclarationClass",
     "SubClassOf",
 ]

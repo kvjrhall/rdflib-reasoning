@@ -15,7 +15,7 @@ from typing import Final
 from pydantic import ValidationError
 from rdflib import OWL, RDF, RDFS, XSD, Graph, IdentifiedNode, Literal, Node, URIRef
 
-from .class_axiom import DeclarationClass, SubClassOf
+from .class_axiom import ClassAssertion, DeclarationClass, SubClassOf
 from .common import Triple
 from .datatype import (
     DataAllValuesFrom,
@@ -45,6 +45,7 @@ from .declaration import (
     NamedIndividual,
 )
 from .object_expression import (
+    ClassExpression,
     DisjointClasses,
     DisjointClassesNary,
     DisjointUnion,
@@ -96,6 +97,7 @@ from .restriction import (
     ObjectMaxCardinalityQualified,
     ObjectMinCardinality,
     ObjectMinCardinalityQualified,
+    ObjectRestriction,
     ObjectSomeValuesFrom,
 )
 from .structural_element import Seq, SeqEntry, StructuralElement
@@ -191,6 +193,7 @@ class _Axiomatizer:
         self._parse_declaration_data_properties()
         self._parse_declaration_annotation_properties()
         self._parse_named_individuals()
+        self._parse_class_assertions()
         self._raise_if_unconsumed_triples()
         return tuple(sorted(self.elements, key=_element_sort_key))
 
@@ -1691,6 +1694,90 @@ class _Axiomatizer:
             "NamedIndividual",
             NamedIndividual,
         )
+
+    def _known_class_expressions(self) -> set[IdentifiedNode]:
+        """Return nodes known to be class expressions for ClassAssertion gating.
+
+        Seeds builtins ``owl:Thing`` / ``owl:Nothing``, then harvests CE names and
+        CE operands from already-parsed structural elements (declarations,
+        class expressions / restrictions, and CE-bearing axioms).
+        """
+        known: set[IdentifiedNode] = {OWL.Thing, OWL.Nothing}
+
+        def add(node: Node) -> None:
+            if isinstance(node, IdentifiedNode):
+                known.add(node)
+
+        def add_seq_members(seq: Seq) -> None:
+            for value in _seq_values(seq):
+                add(value)
+
+        for element in self.elements:
+            if isinstance(
+                element, (DeclarationClass, ClassExpression, ObjectRestriction)
+            ):
+                add(element.name)
+            if isinstance(element, SubClassOf):
+                add(element.sub_class_expression)
+                add(element.super_class_expression)
+            elif isinstance(element, EquivalentClasses):
+                add(element.class_expression_1)
+                add(element.class_expression_2)
+            elif isinstance(element, DisjointClasses):
+                add(element.class_expression_1)
+                add(element.class_expression_2)
+            elif isinstance(element, DisjointClassesNary):
+                add_seq_members(element.members)
+            elif isinstance(element, DisjointUnion):
+                add(element.union_class)
+                add_seq_members(element.disjoint_union_of)
+            elif isinstance(element, ObjectComplementOf):
+                add(element.complement_of)
+            elif isinstance(element, ObjectIntersectionOf):
+                add_seq_members(element.intersection_of)
+            elif isinstance(element, ObjectUnionOf):
+                add_seq_members(element.union_of)
+            elif isinstance(element, (ObjectPropertyDomain, ObjectPropertyRange)):
+                add(element.class_expression)
+            elif isinstance(element, DataPropertyDomain):
+                add(element.class_expression)
+            elif isinstance(element, HasKey):
+                add(element.class_expression)
+            elif isinstance(element, ObjectSomeValuesFrom):
+                add(element.some_values_from)
+            elif isinstance(element, ObjectAllValuesFrom):
+                add(element.all_values_from)
+            elif isinstance(
+                element,
+                (
+                    ObjectMinCardinalityQualified,
+                    ObjectMaxCardinalityQualified,
+                    ObjectExactCardinalityQualified,
+                ),
+            ):
+                add(element.on_class)
+        return known
+
+    def _parse_class_assertions(self) -> None:
+        """Lift ``x rdf:type y`` when ``y`` is a known class expression."""
+        known = self._known_class_expressions()
+        triples = sorted(self._match(predicate=RDF.type), key=_triple_key)
+        for triple in triples:
+            if triple in self.consumed:
+                continue
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                continue
+            if object_ not in known:
+                continue
+            element = self._build_element(
+                "ClassAssertion",
+                ClassAssertion,
+                context=self.context,
+                individual=subject,
+                class_expression=object_,
+            )
+            self._add_element(element, triple)
 
     def _parse_rdf_type_elements(
         self,

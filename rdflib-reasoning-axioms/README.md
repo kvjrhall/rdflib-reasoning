@@ -111,7 +111,8 @@ Implemented rows in this matrix / parsers in `axiomatize`):
   `DataAllValuesFrom`, `DataHasValue`, unqualified and qualified
   `DataMinCardinality` / `DataMaxCardinality` / `DataExactCardinality`
 - Class axioms: `SubClassOf`, binary `DisjointClasses`, binary
-  `EquivalentClasses`, n-ary `DisjointClassesNary`, `DisjointUnion`
+  `EquivalentClasses`, n-ary `DisjointClassesNary`, `DisjointUnion`,
+  `ClassAssertion` (only when the type object is a known CE)
 - Object property axioms: `SubObjectPropertyOf`, `SubObjectPropertyOfChain`,
   binary / n-ary `DisjointObjectProperties`, binary
   `EquivalentObjectProperties`, `ObjectPropertyDomain`,
@@ -127,7 +128,10 @@ Implemented rows in this matrix / parsers in `axiomatize`):
   `DatatypeDefinition` (binary `owl:equivalentClass` with
   `rdfs:Datatype` tip)
 - Keys and individuals: `HasKey`, binary `DifferentIndividuals`, n-ary
-  `DifferentIndividualsNary` (`owl:members` only), binary `SameIndividual`
+  `DifferentIndividualsNary` (`owl:members` only), binary `SameIndividual`,
+  `ClassAssertion` when the `rdf:type` object is a known class expression
+  (declaration, parsed CE/restriction, CE operand, `owl:Thing` /
+  `owl:Nothing`)
 
 Ambiguous object/data shapes (restrictions and shared property predicates such
 as `rdfs:subPropertyOf`, `rdfs:domain`, `rdfs:range`,
@@ -193,7 +197,7 @@ present but malformed, such as a broken RDF list or invalid facet list,
 | Has-key axiom | `HasKey` | Implemented | Owned `owl:hasKey` Seq of property node refs |
 | Same individual | `SameIndividual` | Implemented | Binary `owl:sameAs` only (n-ary serializes to a chain) |
 | Different individuals | `DifferentIndividuals`, `DifferentIndividualsNary` | Implemented | Binary `owl:differentFrom`; n-ary `owl:AllDifferent` + `owl:members` (not `distinctMembers`) |
-| Class assertion | `ClassAssertion` | Not started | |
+| Class assertion | `ClassAssertion` | Implemented | `a rdf:type CE` when `CE` is a known class expression; unknown type objects remain unconsumed |
 | Object property assertion | `ObjectPropertyAssertion`, `ObjectPropertyAssertionInverseOf` | Not started | |
 | Negative object property assertion | `NegativeObjectPropertyAssertion` | Not started | |
 | Data property assertion | `DataPropertyAssertion` | Not started | |

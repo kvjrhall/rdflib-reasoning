@@ -16,7 +16,11 @@ from rdflib_reasoning.axiom.axiomatize import (
     UnsupportedGraphError,
     axiomatize,
 )
-from rdflib_reasoning.axiom.class_axiom import DeclarationClass, SubClassOf
+from rdflib_reasoning.axiom.class_axiom import (
+    ClassAssertion,
+    DeclarationClass,
+    SubClassOf,
+)
 from rdflib_reasoning.axiom.datatype import (
     DataAllValuesFrom,
     DataAllValuesFromNary,
@@ -32,7 +36,10 @@ from rdflib_reasoning.axiom.datatype import (
     FacetEntry,
     FacetList,
 )
-from rdflib_reasoning.axiom.declaration import DeclarationDataProperty
+from rdflib_reasoning.axiom.declaration import (
+    DeclarationDataProperty,
+    DeclarationObjectProperty,
+)
 from rdflib_reasoning.axiom.object_expression import (
     DisjointClasses,
     DisjointClassesNary,
@@ -65,6 +72,7 @@ from rdflib_reasoning.axiom.property_axiom import (
     SubObjectPropertyOf,
     SubObjectPropertyOfChain,
 )
+from rdflib_reasoning.axiom.restriction import ObjectSomeValuesFrom
 from rdflib_reasoning.axiom.structural_element import Seq, SeqEntry, StructuralElement
 
 EX = "http://example.com/"
@@ -596,8 +604,8 @@ def test_axiomatize_does_not_mutate_caller_graph() -> None:
             (_uri("subject"), _uri("comment"), Literal("note")),
         ),
         (
-            # Class assertions are outside current axiomatization coverage when
-            # the type is not a declaration/characteristic fallback.
+            # ClassAssertion requires a known CE; undeclared type objects remain
+            # unconsumed under the strict CE gate.
             (_uri("alice"), RDF.type, _uri("Person")),
         ),
         (
@@ -611,6 +619,64 @@ def test_axiomatize_fails_for_unsupported_structures(
 ) -> None:
     with pytest.raises(UnsupportedGraphError):
         axiomatize(_graph_from_triples(triples))
+
+
+def test_axiomatize_class_assertion_with_declaration_tip() -> None:
+    declaration = DeclarationClass(context=CTX, name_value=_uri("Person"))
+    assertion = ClassAssertion(
+        context=CTX,
+        individual=_uri("alice"),
+        class_expression=declaration.name,
+    )
+    graph = Graph(identifier=CTX)
+    for element in (declaration, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationClass in kinds
+    assert ClassAssertion in kinds
+    found = next(e for e in actual if isinstance(e, ClassAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_class_assertion_to_object_restriction() -> None:
+    restriction = ObjectSomeValuesFrom(
+        context=CTX,
+        name_value=BNode("parentRestriction"),
+        on_property=_uri("hasParent"),
+        some_values_from=_uri("Person"),
+    )
+    assertion = ClassAssertion(
+        context=CTX,
+        individual=_uri("alice"),
+        class_expression=restriction.name,
+    )
+    # Object-property tip so unary someValuesFrom lifts as Object*, not Data*.
+    prop_decl = DeclarationObjectProperty(
+        context=CTX,
+        name_value=_uri("hasParent"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (prop_decl, restriction, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert ObjectSomeValuesFrom in kinds
+    assert ClassAssertion in kinds
+    found = next(e for e in actual if isinstance(e, ClassAssertion))
+    assert found.individual == assertion.individual
+    assert found.class_expression == restriction.name
+
+
+def test_axiomatize_rdf_type_owl_class_is_declaration_not_assertion() -> None:
+    declaration = DeclarationClass(context=CTX, name_value=_uri("Person"))
+    actual = axiomatize(_graph_from_element(declaration))
+    assert actual == (declaration,)
+    assert not any(isinstance(element, ClassAssertion) for element in actual)
 
 
 def test_axiomatize_lifts_multiple_subclass_axioms_with_same_subject() -> None:
