@@ -19,9 +19,10 @@
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/\_\_init\_\_.py                            |        9 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/api.py                                     |       34 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/batch\_dispatcher.py                       |       73 |        2 |     97% |  146, 178 |
-| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/builtins.py                                |       96 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/builtins.py                                |      141 |        3 |     98% |326, 329, 361 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/derivation.py                              |      122 |        7 |     94% |97, 101, 113, 204, 268, 314, 339 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/errors.py                                  |        5 |        0 |    100% |           |
+| rdflib-reasoning-engine/src/rdflib\_reasoning/engine/owl2\_rl\_datatypes.py                     |      209 |       91 |     56% |108, 112, 134, 137-142, 160, 164, 166, 168, 171-180, 186-196, 199-209, 213, 223-224, 227, 239, 242, 245-252, 257-272, 279, 284, 321, 332, 336-339, 343-349, 352-358, 363 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/proof.py                                   |      101 |        1 |     99% |        14 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/proof\_notebook.py                         |       24 |        2 |     92% |    50, 57 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/proof\_rendering.py                        |      183 |       26 |     86% |87, 130, 152-154, 161, 180, 187, 205, 214-227, 239-245, 257-258 |
@@ -66,7 +67,7 @@
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_index.py        |      165 |        2 |     99% |   296-297 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_model.py        |       15 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary\_configuration.py       |       90 |        5 |     94% |19, 31, 33, 36, 82 |
-| **TOTAL**                                                                                       | **6919** |  **492** | **93%** |           |
+| **TOTAL**                                                                                       | **7173** |  **586** | **92%** |           |
 
 
 ## Setup coverage badge
