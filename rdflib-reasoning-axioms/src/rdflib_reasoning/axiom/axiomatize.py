@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Final
+from typing import Final, cast
 
 from pydantic import ValidationError
 from rdflib import OWL, RDF, RDFS, XSD, Graph, IdentifiedNode, Literal, Node, URIRef
@@ -72,6 +72,7 @@ from .property_axiom import (
     EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
+    ObjectPropertyAssertion,
     ObjectPropertyDomain,
     ObjectPropertyRange,
     SameIndividual,
@@ -196,6 +197,7 @@ class _Axiomatizer:
         self._parse_declaration_annotation_properties()
         self._parse_named_individuals()
         self._parse_class_assertions()
+        self._parse_object_property_assertions()
         self._parse_data_property_assertions()
         self._raise_if_unconsumed_triples()
         return tuple(sorted(self.elements, key=_element_sort_key))
@@ -1782,6 +1784,89 @@ class _Axiomatizer:
             )
             self._add_element(element, triple)
 
+    def _known_object_properties(self) -> set[IdentifiedNode]:
+        """Return nodes known to be object properties for assertion gating.
+
+        Harvests OPE names and operands from already-parsed structural elements
+        (declarations, characteristics, object restrictions, ObjectInverseOf,
+        and object-property axioms).
+        """
+        known: set[IdentifiedNode] = set()
+
+        def add(node: Node) -> None:
+            if isinstance(node, IdentifiedNode):
+                known.add(node)
+
+        def add_seq_members(seq: Seq) -> None:
+            for value in _seq_values(seq):
+                add(value)
+
+        for element in self.elements:
+            if isinstance(
+                element,
+                (
+                    DeclarationObjectProperty,
+                    FunctionalObjectProperty,
+                    InverseFunctionalObjectProperty,
+                    ReflexiveObjectProperty,
+                    IrreflexiveObjectProperty,
+                    SymmetricObjectProperty,
+                    AsymmetricObjectProperty,
+                    TransitiveObjectProperty,
+                    ObjectInverseOf,
+                ),
+            ):
+                add(element.name)
+            elif isinstance(element, ObjectRestriction):
+                on_property = getattr(element, "on_property", None)
+                if on_property is not None:
+                    add(on_property)
+            elif isinstance(element, SubObjectPropertyOf):
+                add(element.sub_object_property_expression)
+                add(element.super_object_property_expression)
+            elif isinstance(element, SubObjectPropertyOfChain):
+                add(element.object_property_expression)
+                add_seq_members(element.property_chain)
+            elif isinstance(element, EquivalentObjectProperties):
+                add(element.object_property_expression_1)
+                add(element.object_property_expression_2)
+            elif isinstance(element, DisjointObjectProperties):
+                add(element.object_property_expression_1)
+                add(element.object_property_expression_2)
+            elif isinstance(element, DisjointObjectPropertiesNary):
+                add_seq_members(element.members)
+            elif isinstance(element, InverseObjectProperties):
+                add(element.object_property_expression_1)
+                add(element.object_property_expression_2)
+            elif isinstance(element, (ObjectPropertyDomain, ObjectPropertyRange)):
+                add(element.object_property_expression)
+        return known
+
+    def _parse_object_property_assertions(self) -> None:
+        """Lift ``x p z`` when ``p`` is a known object property and ``z`` is a resource."""
+        known = self._known_object_properties()
+        leftovers = sorted(
+            self.triples.difference(self.consumed),
+            key=_triple_key,
+        )
+        for triple in leftovers:
+            subject, predicate, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                continue
+            if predicate not in known:
+                continue
+            if not isinstance(predicate, IdentifiedNode):
+                continue
+            element = self._build_element(
+                "ObjectPropertyAssertion",
+                ObjectPropertyAssertion,
+                context=self.context,
+                object_property_expression=predicate,
+                individual=subject,
+                value=object_,
+            )
+            self._add_element(element, triple)
+
     def _known_data_properties(self) -> set[IdentifiedNode]:
         """Return nodes known to be data properties for assertion gating.
 
@@ -2136,8 +2221,9 @@ class _Axiomatizer:
         # One important residue class after ClassAssertion exists: rdf:type
         # triples whose object never entered the CE map (CE(y) = epsilon), so
         # ClassAssertion does not match. Those MUST NOT be reinterpreted as
-        # ObjectPropertyAssertion. Other leftover families include open-predicate
-        # assertions, annotation axioms, and ontology-header triples.
+        # ObjectPropertyAssertion (and the OPE gate never claims rdf:type).
+        # Other leftover families include open-predicate assertions,
+        # annotation axioms, and ontology-header triples.
         raise UnsupportedGraphError(
             f"Unsupported RDF graph content: {len(leftovers)} triple(s) were not "
             f"matched by current axiomatization patterns. First unmatched: "
@@ -2177,15 +2263,18 @@ def _validate_triple(subject: Node, predicate: Node, object_: Node) -> Triple:
         raise MalformedGraphError(
             f"Triple subject MUST be an RDF resource; got {subject!r}."
         )
-    if not isinstance(predicate, URIRef):
+    # Allow blank-node predicates so ObjectInverseOf OPEs can appear as the
+    # predicate of ObjectPropertyAssertion (OWL 2 generalized RDF shape).
+    # Triple's alias remains URIRef-narrow for typical RDF projections.
+    if not isinstance(predicate, IdentifiedNode):
         raise MalformedGraphError(
-            f"Triple predicate MUST be an IRI; got {predicate!r}."
+            f"Triple predicate MUST be an RDF resource; got {predicate!r}."
         )
     if not isinstance(object_, Node):
         raise MalformedGraphError(
             f"Triple object MUST be an RDF node; got {object_!r}."
         )
-    return subject, predicate, object_
+    return cast(Triple, (subject, predicate, object_))
 
 
 _FALLBACK_DECLARATION_TYPES: Final[tuple[type[StructuralElement], ...]] = (

@@ -19,6 +19,7 @@ Binary relational:
 - :class:`DifferentIndividuals` --- binary ``owl:differentFrom``
 - :class:`SameIndividual` --- binary ``owl:sameAs`` (n-ary forms serialize
   to chains)
+- :class:`ObjectPropertyAssertion` --- ``a OPE b`` (resource value; known OPE)
 - :class:`DataPropertyAssertion` --- ``a DPE lt`` (literal value; known DPE)
 
 Seq-backed:
@@ -31,7 +32,7 @@ Seq-backed:
 
 from collections.abc import Sequence
 from itertools import chain
-from typing import ClassVar, Literal, Self, override
+from typing import ClassVar, Literal, Self, cast, override
 
 from pydantic import AliasChoices, Field, computed_field, model_validator
 from rdflib import OWL, RDF, RDFS, IdentifiedNode
@@ -652,6 +653,54 @@ class HasKey(StructuralElement):
         )
 
 
+class ObjectPropertyAssertion(StructuralElement):
+    """Element ``ObjectPropertyAssertion( OPE a1 a2 )`` of the OWL 2 structural specification.
+
+    Binary RDF form ``a1 OPE a2`` with a resource (individual) value. Graph
+    lifting claims a triple only when ``OPE`` is a known object property
+    expression (declaration, object-property characteristic, object restriction
+    ``onProperty``, ``ObjectInverseOf`` blank node, or OPE operand of an
+    already-parsed axiom). Unknown predicates remain unconsumed.
+
+    Triples::
+
+        a1 OPE a2 .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["ObjectPropertyAssertion"] = "ObjectPropertyAssertion"
+
+    object_property_expression: N3Resource
+    individual: N3Resource
+    value: N3Resource
+
+    @model_validator(mode="after")
+    def _require_resource_value(self) -> Self:
+        if not isinstance(self.value, IdentifiedNode):
+            raise ValueError(
+                "ObjectPropertyAssertion value MUST be an RDF resource "
+                f"(IdentifiedNode); got {type(self.value).__name__}."
+            )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        return self.individual
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        # OPE may be a blank-node ObjectInverseOf; Triple's predicate alias is
+        # URIRef-narrow for typical RDF, so cast the generalized OWL shape.
+        return cast(
+            Sequence[Triple],
+            ((self.individual, self.object_property_expression, self.value),),
+        )
+
+
 class DataPropertyAssertion(StructuralElement):
     """Element ``DataPropertyAssertion( DPE a lt )`` of the OWL 2 structural specification.
 
@@ -820,6 +869,7 @@ __all__ = [
     "EquivalentObjectProperties",
     "HasKey",
     "InverseObjectProperties",
+    "ObjectPropertyAssertion",
     "ObjectPropertyDomain",
     "ObjectPropertyRange",
     "SameIndividual",

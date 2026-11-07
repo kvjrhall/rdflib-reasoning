@@ -131,8 +131,9 @@ Implemented rows in this matrix / parsers in `axiomatize`):
   `DifferentIndividualsNary` (`owl:members` only), binary `SameIndividual`,
   `ClassAssertion` when the `rdf:type` object is a known class expression
   (declaration, parsed CE/restriction, CE operand, `owl:Thing` /
-  `owl:Nothing`), `DataPropertyAssertion` when the predicate is a known
-  data property and the object is a literal
+  `owl:Nothing`), `ObjectPropertyAssertion` when the predicate is a known
+  object property and the object is a resource, `DataPropertyAssertion`
+  when the predicate is a known data property and the object is a literal
 
 Ambiguous object/data shapes (restrictions and shared property predicates such
 as `rdfs:subPropertyOf`, `rdfs:domain`, `rdfs:range`,
@@ -199,7 +200,7 @@ present but malformed, such as a broken RDF list or invalid facet list,
 | Same individual | `SameIndividual` | Implemented | Binary `owl:sameAs` only (n-ary serializes to a chain) |
 | Different individuals | `DifferentIndividuals`, `DifferentIndividualsNary` | Implemented | Binary `owl:differentFrom`; n-ary `owl:AllDifferent` + `owl:members` (not `distinctMembers`) |
 | Class assertion | `ClassAssertion` | Implemented | `a rdf:type CE` when `CE` is a known class expression; unknown type objects remain unconsumed |
-| Object property assertion | `ObjectPropertyAssertion`, `ObjectPropertyAssertionInverseOf` | Not started | |
+| Object property assertion | `ObjectPropertyAssertion` | Implemented | `a1 OPE a2` when `OPE` is a known object property (incl. `ObjectInverseOf` BNode predicates); forward-mapping InverseOf individual-swap is not a distinct reverse element; unknown predicates / literals remain unconsumed |
 | Negative object property assertion | `NegativeObjectPropertyAssertion` | Not started | |
 | Data property assertion | `DataPropertyAssertion` | Implemented | `a DPE lt` when `DPE` is a known data property; unknown predicates / non-literals remain unconsumed |
 | Negative data property assertion | `NegativeDataPropertyAssertion` | Not started | |

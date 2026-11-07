@@ -18,6 +18,7 @@ from rdflib_reasoning.axiom.property_axiom import (
     EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
+    ObjectPropertyAssertion,
     ObjectPropertyDomain,
     ObjectPropertyRange,
     SameIndividual,
@@ -270,6 +271,34 @@ def test_same_individual_as_triples() -> None:
     assert axiom.as_triples == ((a, OWL.sameAs, b),)
     _assert_python_json_round_trip(SameIndividual, axiom)
     _assert_model_json_schema_smoke(SameIndividual, "SameIndividual")
+
+
+def test_object_property_assertion_as_triples() -> None:
+    ctx = URIRef("http://example.com/g")
+    individual = URIRef("http://example.com/alice")
+    prop = URIRef("http://example.com/knows")
+    value = URIRef("http://example.com/bob")
+    axiom = ObjectPropertyAssertion(
+        context=ctx,
+        object_property_expression=prop,
+        individual=individual,
+        value=value,
+    )
+
+    assert axiom.name == individual
+    assert axiom.as_triples == ((individual, prop, value),)
+    _assert_python_json_round_trip(ObjectPropertyAssertion, axiom)
+    _assert_model_json_schema_smoke(ObjectPropertyAssertion, "ObjectPropertyAssertion")
+
+
+def test_object_property_assertion_rejects_literal_value() -> None:
+    with pytest.raises(ValidationError, match="identified node"):
+        ObjectPropertyAssertion(
+            context=URIRef("http://example.com/g"),
+            object_property_expression=URIRef("http://example.com/knows"),
+            individual=URIRef("http://example.com/alice"),
+            value=Literal("not-a-resource"),  # type: ignore[arg-type]
+        )
 
 
 def test_data_property_assertion_as_triples() -> None:

@@ -66,6 +66,7 @@ from rdflib_reasoning.axiom.property_axiom import (
     EquivalentObjectProperties,
     HasKey,
     InverseObjectProperties,
+    ObjectPropertyAssertion,
     ObjectPropertyDomain,
     ObjectPropertyRange,
     SameIndividual,
@@ -678,6 +679,93 @@ def test_axiomatize_rdf_type_owl_class_is_declaration_not_assertion() -> None:
     actual = axiomatize(_graph_from_element(declaration))
     assert actual == (declaration,)
     assert not any(isinstance(element, ClassAssertion) for element in actual)
+
+
+def test_axiomatize_object_property_assertion_with_declaration_tip() -> None:
+    decl = DeclarationObjectProperty(context=CTX, name_value=_uri("knows"))
+    assertion = ObjectPropertyAssertion(
+        context=CTX,
+        object_property_expression=decl.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationObjectProperty in kinds
+    assert ObjectPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, ObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_object_property_assertion_from_subproperty_operand() -> None:
+    decl_child = DeclarationObjectProperty(context=CTX, name_value=_uri("knowsWell"))
+    decl_parent = DeclarationObjectProperty(context=CTX, name_value=_uri("knows"))
+    sub = SubObjectPropertyOf(
+        context=CTX,
+        sub_object_property_expression=decl_child.name,
+        super_object_property_expression=decl_parent.name,
+    )
+    assertion = ObjectPropertyAssertion(
+        context=CTX,
+        object_property_expression=decl_child.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl_child, decl_parent, sub, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    found = next(e for e in actual if isinstance(e, ObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_object_property_assertion_from_object_inverse_of() -> None:
+    inv = ObjectInverseOf(
+        context=CTX,
+        name_value=BNode("invKnows"),
+        inverse_of=_uri("knows"),
+    )
+    assertion = ObjectPropertyAssertion(
+        context=CTX,
+        object_property_expression=inv.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (inv, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert ObjectInverseOf in kinds
+    assert ObjectPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, ObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_undeclared_resource_predicate_is_unsupported() -> None:
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(_graph_from_triples(((_uri("alice"), _uri("knows"), _uri("bob")),)))
+
+
+def test_axiomatize_known_ope_with_literal_object_not_object_assertion() -> None:
+    """Literal objects are not ObjectPropertyAssertion even with a known OPE."""
+    decl = DeclarationObjectProperty(context=CTX, name_value=_uri("labelProp"))
+    graph = Graph(identifier=CTX)
+    for triple in decl.as_triples:
+        graph.add(triple)
+    graph.add((_uri("alice"), decl.name, Literal("note")))
+
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(graph)
 
 
 def test_axiomatize_data_property_assertion_with_declaration_tip() -> None:
