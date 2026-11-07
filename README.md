@@ -5,11 +5,16 @@
 | Name                                                                                            |    Stmts |     Miss |   Cover |   Missing |
 |------------------------------------------------------------------------------------------------ | -------: | -------: | ------: | --------: |
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/\_\_init\_\_.py                             |        2 |        0 |    100% |           |
-| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/axiomatize.py                               |      325 |       40 |     88% |132, 139, 148, 156, 172, 180, 203, 211, 221, 248, 252, 269, 279, 306, 316, 344, 348, 363, 373, 440, 463-464, 479, 496, 513-514, 526, 536, 546, 554, 573, 596, 610, 625, 668, 685, 711, 731, 735, 739 |
-| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/class\_axiom.py                             |       27 |        0 |    100% |           |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/axiomatize.py                               |      973 |      110 |     89% |299, 306, 326, 333, 350, 374, 398, 429, 458, 463, 487, 489, 510, 517, 537, 545, 555, 575, 583, 593, 622, 641, 651, 669, 685, 693, 703, 730, 738, 748, 770, 778, 806, 859, 863, 868, 879, 895, 915, 978, 982, 990, 1028, 1032, 1049, 1059, 1096, 1106, 1134, 1138, 1155, 1165, 1202, 1212, 1245, 1251, 1253, 1291, 1297, 1326, 1336, 1354, 1381, 1411, 1417, 1448, 1451, 1458, 1464, 1498, 1501, 1507, 1536, 1543, 1561, 1579, 1599, 1667, 1785, 1869, 1889, 1894, 1920, 1925, 1932, 2006, 2031, 2057, 2062, 2069, 2121-2122, 2137, 2154, 2171-2172, 2184, 2194, 2204, 2212, 2231, 2254, 2268, 2283, 2326, 2343, 2393, 2413, 2420, 2424 |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/class\_axiom.py                             |       40 |        0 |    100% |           |
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/common.py                                   |        8 |        0 |    100% |           |
-| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/datatype.py                                 |      177 |        1 |     99% |       553 |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/datatype.py                                 |      276 |        3 |     99% |86, 88, 899 |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/declaration.py                              |       32 |        0 |    100% |           |
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/n3\_terms.py                                |       81 |        1 |     99% |        64 |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/object\_expression.py                       |      149 |        0 |    100% |           |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/property\_axiom.py                          |      365 |        4 |     99% |529, 682, 780, 947 |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/property\_characteristic.py                 |       60 |        0 |    100% |           |
+| rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/restriction.py                              |      133 |        1 |     99% |        41 |
 | rdflib-reasoning-axioms/src/rdflib\_reasoning/axiom/structural\_element.py                      |      144 |       12 |     92% |112, 131-138, 162, 168, 342 |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/\_\_init\_\_.py                            |        9 |        0 |    100% |           |
 | rdflib-reasoning-engine/src/rdflib\_reasoning/engine/api.py                                     |       34 |        0 |    100% |           |
@@ -61,7 +66,7 @@
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_index.py        |      165 |        2 |     99% |   296-297 |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary/search\_model.py        |       15 |        0 |    100% |           |
 | rdflib-reasoning-middleware/src/rdflib\_reasoning/middleware/vocabulary\_configuration.py       |       90 |        5 |     94% |19, 31, 33, 36, 82 |
-| **TOTAL**                                                                                       | **5420** |  **415** | **92%** |           |
+| **TOTAL**                                                                                       | **6919** |  **492** | **93%** |           |
 
 
 ## Setup coverage badge
