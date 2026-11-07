@@ -21,6 +21,7 @@ Binary relational:
   to chains)
 - :class:`ObjectPropertyAssertion` --- ``a OPE b`` (resource value; known OPE)
 - :class:`DataPropertyAssertion` --- ``a DPE lt`` (literal value; known DPE)
+- :class:`NegativeObjectPropertyAssertion` --- reified NPA with ``owl:targetIndividual``
 - :class:`NegativeDataPropertyAssertion` --- reified NPA with ``owl:targetValue``
 
 Seq-backed:
@@ -744,13 +745,71 @@ class DataPropertyAssertion(StructuralElement):
         return ((self.individual, self.data_property_expression, self.value),)
 
 
+class NegativeObjectPropertyAssertion(StructuralElement):
+    """Element ``NegativeObjectPropertyAssertion( OPE a1 a2 )`` of the OWL 2 structural specification.
+
+    Reified RDF form headed by ``owl:NegativePropertyAssertion`` with a resource
+    ``owl:targetIndividual``. Graph lifting claims a node only when
+    ``owl:assertionProperty`` is a known object property expression. Nodes that
+    use ``owl:targetValue`` are claimed as
+    :class:`NegativeDataPropertyAssertion` instead.
+
+    Triples::
+
+        _:x rdf:type owl:NegativePropertyAssertion .
+        _:x owl:sourceIndividual a1 .
+        _:x owl:assertionProperty OPE .
+        _:x owl:targetIndividual a2 .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["NegativeObjectPropertyAssertion"] = "NegativeObjectPropertyAssertion"
+
+    name_value: N3Resource = Field(
+        ...,
+        validation_alias=AliasChoices("name", "name_value"),
+        serialization_alias="name",
+    )
+    object_property_expression: N3Resource
+    individual: N3Resource
+    value: N3Resource
+
+    @model_validator(mode="after")
+    def _require_resource_value(self) -> Self:
+        if not isinstance(self.value, IdentifiedNode):
+            raise ValueError(
+                "NegativeObjectPropertyAssertion value MUST be an RDF resource "
+                f"(IdentifiedNode); got {type(self.value).__name__}."
+            )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        """NegativePropertyAssertion node identifier (alias of ``name_value``)."""
+        return self.name_value
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return (
+            (self.name, RDF.type, OWL.NegativePropertyAssertion),
+            (self.name, OWL.sourceIndividual, self.individual),
+            (self.name, OWL.assertionProperty, self.object_property_expression),
+            (self.name, OWL.targetIndividual, self.value),
+        )
+
+
 class NegativeDataPropertyAssertion(StructuralElement):
     """Element ``NegativeDataPropertyAssertion( DPE a lt )`` of the OWL 2 structural specification.
 
     Reified RDF form headed by ``owl:NegativePropertyAssertion`` with a literal
     ``owl:targetValue``. Graph lifting claims a node only when
     ``owl:assertionProperty`` is a known data property expression. Nodes that
-    use ``owl:targetIndividual`` remain unconsumed (object-property form).
+    use ``owl:targetIndividual`` are claimed as
+    :class:`NegativeObjectPropertyAssertion` instead.
 
     Triples::
 
@@ -929,6 +988,7 @@ __all__ = [
     "HasKey",
     "InverseObjectProperties",
     "NegativeDataPropertyAssertion",
+    "NegativeObjectPropertyAssertion",
     "ObjectPropertyAssertion",
     "ObjectPropertyDomain",
     "ObjectPropertyRange",

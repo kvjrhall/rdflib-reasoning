@@ -135,6 +135,8 @@ Implemented rows in this matrix / parsers in `axiomatize`):
   `owl:Nothing`), `ObjectPropertyAssertion` when the predicate is a known
   object property and the object is a resource, `DataPropertyAssertion`
   when the predicate is a known data property and the object is a literal,
+  `NegativeObjectPropertyAssertion` when an `owl:NegativePropertyAssertion`
+  node uses `owl:targetIndividual` and a known object property,
   `NegativeDataPropertyAssertion` when an `owl:NegativePropertyAssertion`
   node uses `owl:targetValue` and a known data property
 
@@ -204,9 +206,9 @@ present but malformed, such as a broken RDF list or invalid facet list,
 | Different individuals | `DifferentIndividuals`, `DifferentIndividualsNary` | Implemented | Binary `owl:differentFrom`; n-ary `owl:AllDifferent` + `owl:members` (serialize); reverse also lifts OWL 1 legacy `owl:distinctMembers` and normalizes to `owl:members` |
 | Class assertion | `ClassAssertion` | Implemented | `a rdf:type CE` when `CE` is a known class expression; unknown type objects remain unconsumed |
 | Object property assertion | `ObjectPropertyAssertion` | Implemented | `a1 OPE a2` when `OPE` is a known object property (incl. `ObjectInverseOf` BNode predicates); forward-mapping InverseOf individual-swap is not a distinct reverse element; unknown predicates / literals remain unconsumed |
-| Negative object property assertion | `NegativeObjectPropertyAssertion` | Not started | |
+| Negative object property assertion | `NegativeObjectPropertyAssertion` | Implemented | Reified `owl:NegativePropertyAssertion` + `owl:targetIndividual` when `owl:assertionProperty` is a known OPE (incl. `ObjectInverseOf` BNodes); unknown OPEs / `owl:targetValue` remain for other parsers or unconsumed |
 | Data property assertion | `DataPropertyAssertion` | Implemented | `a DPE lt` when `DPE` is a known data property; unknown predicates / non-literals remain unconsumed |
-| Negative data property assertion | `NegativeDataPropertyAssertion` | Implemented | Reified `owl:NegativePropertyAssertion` + `owl:targetValue` when `owl:assertionProperty` is a known DPE; `owl:targetIndividual` left for object form; unknown DPEs remain unconsumed |
+| Negative data property assertion | `NegativeDataPropertyAssertion` | Implemented | Reified `owl:NegativePropertyAssertion` + `owl:targetValue` when `owl:assertionProperty` is a known DPE; `owl:targetIndividual` claimed by object form; unknown DPEs remain unconsumed |
 | Annotation assertion | `AnnotationAssertion` | Not started | |
 | Subannotation property axiom | `SubAnnotationPropertyOf` | Not started | |
 | Annotation property domain | `AnnotationPropertyDomain` | Not started | |

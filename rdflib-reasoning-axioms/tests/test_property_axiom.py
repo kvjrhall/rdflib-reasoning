@@ -19,6 +19,7 @@ from rdflib_reasoning.axiom.property_axiom import (
     HasKey,
     InverseObjectProperties,
     NegativeDataPropertyAssertion,
+    NegativeObjectPropertyAssertion,
     ObjectPropertyAssertion,
     ObjectPropertyDomain,
     ObjectPropertyRange,
@@ -327,6 +328,47 @@ def test_data_property_assertion_rejects_non_literal_value() -> None:
             data_property_expression=URIRef("http://example.com/age"),
             individual=URIRef("http://example.com/alice"),
             value=URIRef("http://example.com/not-a-literal"),
+        )
+
+
+def test_negative_object_property_assertion_as_triples() -> None:
+    ctx = URIRef("http://example.com/g")
+    # URI node keeps JSON round-trip lexical form stable (same pattern as
+    # NegativeDataPropertyAssertion unit tests); axiomatize still uses BNodes.
+    node = URIRef("http://example.com/npa")
+    individual = URIRef("http://example.com/alice")
+    prop = URIRef("http://example.com/knows")
+    value = URIRef("http://example.com/bob")
+    axiom = NegativeObjectPropertyAssertion(
+        context=ctx,
+        name_value=node,
+        object_property_expression=prop,
+        individual=individual,
+        value=value,
+    )
+
+    assert axiom.name == node
+    assert axiom.as_triples == (
+        (node, RDF.type, OWL.NegativePropertyAssertion),
+        (node, OWL.sourceIndividual, individual),
+        (node, OWL.assertionProperty, prop),
+        (node, OWL.targetIndividual, value),
+    )
+    _assert_python_json_round_trip(NegativeObjectPropertyAssertion, axiom)
+    _assert_model_json_schema_smoke(
+        NegativeObjectPropertyAssertion,
+        "NegativeObjectPropertyAssertion",
+    )
+
+
+def test_negative_object_property_assertion_rejects_literal_value() -> None:
+    with pytest.raises(ValidationError, match="identified node"):
+        NegativeObjectPropertyAssertion(
+            context=URIRef("http://example.com/g"),
+            name_value=URIRef("http://example.com/npa"),
+            object_property_expression=URIRef("http://example.com/knows"),
+            individual=URIRef("http://example.com/alice"),
+            value=Literal("not-a-resource"),  # type: ignore[arg-type]
         )
 
 

@@ -73,6 +73,7 @@ from .property_axiom import (
     HasKey,
     InverseObjectProperties,
     NegativeDataPropertyAssertion,
+    NegativeObjectPropertyAssertion,
     ObjectPropertyAssertion,
     ObjectPropertyDomain,
     ObjectPropertyRange,
@@ -199,6 +200,7 @@ class _Axiomatizer:
         self._parse_named_individuals()
         self._parse_class_assertions()
         self._parse_object_property_assertions()
+        self._parse_negative_object_property_assertions()
         self._parse_data_property_assertions()
         self._parse_negative_data_property_assertions()
         self._raise_if_unconsumed_triples()
@@ -1875,6 +1877,76 @@ class _Axiomatizer:
             )
             self._add_element(element, triple)
 
+    def _parse_negative_object_property_assertions(self) -> None:
+        """Lift NPA nodes with ``owl:targetIndividual`` when assertionProperty is a known OPE."""
+        known = self._known_object_properties()
+        triples = sorted(
+            self._match(predicate=RDF.type, object_=OWL.NegativePropertyAssertion),
+            key=_triple_key,
+        )
+        for type_triple in triples:
+            if type_triple in self.consumed:
+                continue
+            subject = type_triple[0]
+            has_target_individual = self._has_any(subject, OWL.targetIndividual)
+            has_target_value = self._has_any(subject, OWL.targetValue)
+            if has_target_individual and has_target_value:
+                raise MalformedGraphError(
+                    "NegativePropertyAssertion at "
+                    f"{_format_node(subject)} MUST NOT combine "
+                    "owl:targetIndividual and owl:targetValue."
+                )
+            if has_target_value:
+                # Leave for NegativeDataPropertyAssertion.
+                continue
+            if not has_target_individual:
+                continue
+            source, source_triple = self._require_single_object(
+                subject,
+                OWL.sourceIndividual,
+                label="NegativeObjectPropertyAssertion",
+            )
+            assertion_property, property_triple = self._require_single_object(
+                subject,
+                OWL.assertionProperty,
+                label="NegativeObjectPropertyAssertion",
+            )
+            target_individual, target_triple = self._require_single_object(
+                subject,
+                OWL.targetIndividual,
+                label="NegativeObjectPropertyAssertion",
+            )
+            if not isinstance(source, IdentifiedNode):
+                raise MalformedGraphError(
+                    "NegativeObjectPropertyAssertion owl:sourceIndividual MUST be "
+                    f"an RDF resource; got {_format_node(source)}."
+                )
+            if not isinstance(target_individual, IdentifiedNode):
+                raise MalformedGraphError(
+                    "NegativeObjectPropertyAssertion owl:targetIndividual MUST be "
+                    f"an RDF resource; got {_format_node(target_individual)}."
+                )
+            if assertion_property not in known:
+                continue
+            if not isinstance(assertion_property, IdentifiedNode):
+                continue
+            element = self._build_element(
+                "NegativeObjectPropertyAssertion",
+                NegativeObjectPropertyAssertion,
+                context=self.context,
+                name_value=subject,
+                object_property_expression=assertion_property,
+                individual=source,
+                value=target_individual,
+            )
+            self._add_element(
+                element,
+                type_triple,
+                source_triple,
+                property_triple,
+                target_triple,
+            )
+
     def _known_data_properties(self) -> set[IdentifiedNode]:
         """Return nodes known to be data properties for assertion gating.
 
@@ -1962,7 +2034,7 @@ class _Axiomatizer:
                     "owl:targetIndividual and owl:targetValue."
                 )
             if has_target_individual:
-                # Leave for NegativeObjectPropertyAssertion.
+                # Claimed earlier by NegativeObjectPropertyAssertion when OPE-known.
                 continue
             if not has_target_value:
                 continue
