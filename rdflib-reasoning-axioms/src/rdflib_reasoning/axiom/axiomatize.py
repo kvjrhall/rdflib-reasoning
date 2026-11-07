@@ -13,14 +13,22 @@ from dataclasses import dataclass, field
 from typing import Final
 
 from pydantic import ValidationError
-from rdflib import OWL, RDF, RDFS, Graph, IdentifiedNode, Literal, Node, URIRef
+from rdflib import OWL, RDF, RDFS, XSD, Graph, IdentifiedNode, Literal, Node, URIRef
 
 from .class_axiom import DeclarationClass, SubClassOf
 from .common import Triple
 from .datatype import (
+    DataAllValuesFrom,
     DataAllValuesFromNary,
     DataComplementOf,
+    DataExactCardinality,
+    DataExactCardinalityQualified,
+    DataHasValue,
     DataIntersectionOf,
+    DataMaxCardinality,
+    DataMaxCardinalityQualified,
+    DataMinCardinality,
+    DataMinCardinalityQualified,
     DataOneOf,
     DataSomeValuesFrom,
     DataSomeValuesFromNary,
@@ -30,9 +38,77 @@ from .datatype import (
     FacetEntry,
     FacetList,
 )
+from .declaration import (
+    DeclarationAnnotationProperty,
+    DeclarationDataProperty,
+    DeclarationObjectProperty,
+    NamedIndividual,
+)
+from .object_expression import (
+    DisjointClasses,
+    DisjointClassesNary,
+    DisjointUnion,
+    ObjectComplementOf,
+    ObjectIntersectionOf,
+    ObjectInverseOf,
+    ObjectOneOf,
+    ObjectUnionOf,
+)
+from .property_axiom import (
+    DataPropertyDomain,
+    DataPropertyRange,
+    DatatypeDefinition,
+    DifferentIndividuals,
+    DifferentIndividualsNary,
+    DisjointDataProperties,
+    DisjointDataPropertiesNary,
+    DisjointObjectProperties,
+    DisjointObjectPropertiesNary,
+    HasKey,
+    InverseObjectProperties,
+    ObjectPropertyDomain,
+    ObjectPropertyRange,
+    SubDataPropertyOf,
+    SubObjectPropertyOf,
+    SubObjectPropertyOfChain,
+)
+from .property_characteristic import (
+    AsymmetricObjectProperty,
+    FunctionalDataProperty,
+    FunctionalObjectProperty,
+    InverseFunctionalObjectProperty,
+    IrreflexiveObjectProperty,
+    ReflexiveObjectProperty,
+    SymmetricObjectProperty,
+    TransitiveObjectProperty,
+)
+from .restriction import (
+    ObjectAllValuesFrom,
+    ObjectExactCardinality,
+    ObjectExactCardinalityQualified,
+    ObjectHasSelf,
+    ObjectHasValue,
+    ObjectMaxCardinality,
+    ObjectMaxCardinalityQualified,
+    ObjectMinCardinality,
+    ObjectMinCardinalityQualified,
+    ObjectSomeValuesFrom,
+)
 from .structural_element import Seq, SeqEntry, StructuralElement
 
 _STRUCTURAL_LIST_PREDICATES: Final[frozenset[URIRef]] = frozenset({RDF.first, RDF.rest})
+_OBJECT_PROPERTY_TYPE_HINTS: Final[frozenset[URIRef]] = frozenset(
+    {
+        OWL.ObjectProperty,
+        OWL.InverseFunctionalProperty,
+        OWL.ReflexiveProperty,
+        OWL.IrreflexiveProperty,
+        OWL.SymmetricProperty,
+        OWL.AsymmetricProperty,
+        OWL.TransitiveProperty,
+    }
+)
+_TRUE_BOOLEAN: Final[Literal] = Literal(True, datatype=XSD.boolean)
 
 
 class AxiomatizationError(ValueError):
@@ -64,16 +140,51 @@ class _Axiomatizer:
     elements: list[StructuralElement] = field(default_factory=list)
 
     def run(self) -> tuple[StructuralElement, ...]:
+        # Richer expression / axiom patterns first; declaration-shaped fallbacks last.
         self._parse_data_intersections()
+        self._parse_object_intersections()
         self._parse_data_unions()
+        self._parse_object_unions()
         self._parse_data_complements()
+        self._parse_object_complements()
         self._parse_data_one_ofs()
+        self._parse_object_one_ofs()
         self._parse_datatype_restrictions()
-        self._parse_data_some_values_froms()
-        self._parse_data_all_values_from_narys()
+        self._parse_object_has_selfs()
+        self._parse_has_values()
+        self._parse_qualified_cardinalities()
+        self._parse_unqualified_cardinalities()
+        self._parse_some_values_froms()
+        self._parse_all_values_froms()
+        self._parse_inverse_object_properties()
+        self._parse_object_inverse_ofs()
+        self._parse_disjoint_unions()
+        self._parse_disjoint_classes_nary()
+        self._parse_disjoint_object_properties_nary()
+        self._parse_different_individuals_nary()
+        self._parse_disjoint_classes()
         self._parse_subclass_axioms()
+        self._parse_sub_property_axioms()
+        self._parse_property_chain_axioms()
+        self._parse_property_domain_axioms()
+        self._parse_property_range_axioms()
+        self._parse_property_disjoint_with_axioms()
+        self._parse_datatype_definitions()
+        self._parse_has_keys()
+        self._parse_different_individuals()
+        self._parse_inverse_functional_object_properties()
+        self._parse_reflexive_object_properties()
+        self._parse_irreflexive_object_properties()
+        self._parse_symmetric_object_properties()
+        self._parse_asymmetric_object_properties()
+        self._parse_transitive_object_properties()
+        self._parse_functional_properties()
         self._parse_declaration_datatypes()
         self._parse_declaration_classes()
+        self._parse_declaration_object_properties()
+        self._parse_declaration_data_properties()
+        self._parse_declaration_annotation_properties()
+        self._parse_named_individuals()
         self._raise_if_unconsumed_triples()
         return tuple(sorted(self.elements, key=_element_sort_key))
 
@@ -96,6 +207,25 @@ class _Axiomatizer:
                 )
                 self._add_element(element, type_triple, owner_triple, *seq_triples)
 
+    def _parse_object_intersections(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.intersectionOf):
+            if self._has(subject, RDF.type, OWL.Class):
+                type_triple, owner_triple, seq, seq_triples = (
+                    self._parse_seq_class_expression_parts(
+                        subject=subject,
+                        predicate=OWL.intersectionOf,
+                        label="ObjectIntersectionOf",
+                    )
+                )
+                element = self._build_element(
+                    "ObjectIntersectionOf",
+                    ObjectIntersectionOf,
+                    context=self.context,
+                    name_value=subject,
+                    intersection_of=seq,
+                )
+                self._add_element(element, type_triple, owner_triple, *seq_triples)
+
     def _parse_data_unions(self) -> None:
         for subject in self._subjects_for_predicate(OWL.unionOf):
             if self._has(subject, RDF.type, RDFS.Datatype):
@@ -109,6 +239,25 @@ class _Axiomatizer:
                 element = self._build_element(
                     "DataUnionOf",
                     DataUnionOf,
+                    context=self.context,
+                    name_value=subject,
+                    union_of=seq,
+                )
+                self._add_element(element, type_triple, owner_triple, *seq_triples)
+
+    def _parse_object_unions(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.unionOf):
+            if self._has(subject, RDF.type, OWL.Class):
+                type_triple, owner_triple, seq, seq_triples = (
+                    self._parse_seq_class_expression_parts(
+                        subject=subject,
+                        predicate=OWL.unionOf,
+                        label="ObjectUnionOf",
+                    )
+                )
+                element = self._build_element(
+                    "ObjectUnionOf",
+                    ObjectUnionOf,
                     context=self.context,
                     name_value=subject,
                     union_of=seq,
@@ -142,6 +291,33 @@ class _Axiomatizer:
                 )
         return type_triple, owner_triple, seq, seq_triples
 
+    def _parse_seq_class_expression_parts(
+        self,
+        *,
+        subject: IdentifiedNode,
+        predicate: URIRef,
+        label: str,
+    ) -> tuple[Triple, Triple, Seq, tuple[Triple, ...]]:
+        type_triple = self._require_triple(subject, RDF.type, OWL.Class)
+        list_head, owner_triple = self._require_single_object(
+            subject,
+            predicate,
+            label=label,
+        )
+        if not isinstance(list_head, IdentifiedNode):
+            raise MalformedGraphError(
+                f"{label} list head MUST be an RDF resource; got "
+                f"{_format_node(list_head)}."
+            )
+        seq, seq_triples = self._parse_seq(list_head, label=label)
+        for value in _seq_values(seq):
+            if not isinstance(value, IdentifiedNode):
+                raise MalformedGraphError(
+                    f"{label} class expression operands MUST be RDF resources; "
+                    f"got {_format_node(value)}."
+                )
+        return type_triple, owner_triple, seq, seq_triples
+
     def _parse_data_complements(self) -> None:
         for subject in self._subjects_for_predicate(OWL.complementOf):
             if not self._has(subject, RDF.type, RDFS.Datatype):
@@ -160,6 +336,30 @@ class _Axiomatizer:
             element = self._build_element(
                 "DataComplementOf",
                 DataComplementOf,
+                context=self.context,
+                name_value=subject,
+                complement_of=complement_of,
+            )
+            self._add_element(element, type_triple, complement_triple)
+
+    def _parse_object_complements(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.complementOf):
+            if not self._has(subject, RDF.type, OWL.Class):
+                continue
+            type_triple = self._require_triple(subject, RDF.type, OWL.Class)
+            complement_of, complement_triple = self._require_single_object(
+                subject,
+                OWL.complementOf,
+                label="ObjectComplementOf",
+            )
+            if not isinstance(complement_of, IdentifiedNode):
+                raise MalformedGraphError(
+                    "ObjectComplementOf operand MUST be an RDF resource; got "
+                    f"{_format_node(complement_of)}."
+                )
+            element = self._build_element(
+                "ObjectComplementOf",
+                ObjectComplementOf,
                 context=self.context,
                 name_value=subject,
                 complement_of=complement_of,
@@ -196,6 +396,264 @@ class _Axiomatizer:
                 one_of=seq,
             )
             self._add_element(element, type_triple, one_of_triple, *seq_triples)
+
+    def _parse_object_one_ofs(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.oneOf):
+            if not self._has(subject, RDF.type, OWL.Class):
+                continue
+            type_triple = self._require_triple(subject, RDF.type, OWL.Class)
+            list_head, one_of_triple = self._require_single_object(
+                subject,
+                OWL.oneOf,
+                label="ObjectOneOf",
+            )
+            if not isinstance(list_head, IdentifiedNode):
+                raise MalformedGraphError(
+                    "ObjectOneOf list head MUST be an RDF resource; got "
+                    f"{_format_node(list_head)}."
+                )
+            seq, seq_triples = self._parse_seq(list_head, label="ObjectOneOf")
+            for value in _seq_values(seq):
+                if not isinstance(value, IdentifiedNode):
+                    raise MalformedGraphError(
+                        "ObjectOneOf list members MUST be individuals "
+                        f"(RDF resources); got {_format_node(value)}."
+                    )
+            element = self._build_element(
+                "ObjectOneOf",
+                ObjectOneOf,
+                context=self.context,
+                name_value=subject,
+                one_of=seq,
+            )
+            self._add_element(element, type_triple, one_of_triple, *seq_triples)
+
+    def _parse_inverse_object_properties(self) -> None:
+        """Lift IRI-subject ``owl:inverseOf`` as ``InverseObjectProperties``.
+
+        Blank-node subjects are left for :meth:`_parse_object_inverse_ofs`
+        (``ObjectInverseOf`` expression form).
+        """
+        triples = sorted(self._match(predicate=OWL.inverseOf), key=_triple_key)
+        for triple in triples:
+            if triple in self.consumed:
+                continue
+            subject, _, object_ = triple
+            if not isinstance(subject, URIRef):
+                continue
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "InverseObjectProperties operand MUST be an RDF resource; "
+                    f"got {_format_node(object_)}."
+                )
+            element = self._build_element(
+                "InverseObjectProperties",
+                InverseObjectProperties,
+                context=self.context,
+                object_property_expression_1=subject,
+                object_property_expression_2=object_,
+            )
+            self._add_element(element, triple)
+
+    def _parse_object_inverse_ofs(self) -> None:
+        """Lift blank-node-subject ``owl:inverseOf`` as ``ObjectInverseOf``.
+
+        IRI subjects are claimed earlier by :meth:`_parse_inverse_object_properties`.
+        """
+        triples = sorted(self._match(predicate=OWL.inverseOf), key=_triple_key)
+        for triple in triples:
+            if triple in self.consumed:
+                continue
+            subject, _, object_ = triple
+            if isinstance(subject, URIRef):
+                continue
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "ObjectInverseOf operand MUST be an RDF resource; got "
+                    f"{_format_node(object_)}."
+                )
+            element = self._build_element(
+                "ObjectInverseOf",
+                ObjectInverseOf,
+                context=self.context,
+                name_value=subject,
+                inverse_of=object_,
+            )
+            self._add_element(element, triple)
+
+    def _parse_disjoint_unions(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.disjointUnionOf):
+            list_head, owner_triple = self._require_single_object(
+                subject,
+                OWL.disjointUnionOf,
+                label="DisjointUnion",
+            )
+            if not isinstance(list_head, IdentifiedNode):
+                raise MalformedGraphError(
+                    "DisjointUnion list head MUST be an RDF resource; got "
+                    f"{_format_node(list_head)}."
+                )
+            seq, seq_triples = self._parse_seq(list_head, label="DisjointUnion")
+            for value in _seq_values(seq):
+                if not isinstance(value, IdentifiedNode):
+                    raise MalformedGraphError(
+                        "DisjointUnion class expression operands MUST be RDF "
+                        f"resources; got {_format_node(value)}."
+                    )
+            element = self._build_element(
+                "DisjointUnion",
+                DisjointUnion,
+                context=self.context,
+                union_class=subject,
+                disjoint_union_of=seq,
+            )
+            self._add_element(element, owner_triple, *seq_triples)
+
+    def _parse_disjoint_classes_nary(self) -> None:
+        triples = sorted(
+            self._match(predicate=RDF.type, object_=OWL.AllDisjointClasses),
+            key=_triple_key,
+        )
+        for type_triple in triples:
+            if type_triple in self.consumed:
+                continue
+            subject = type_triple[0]
+            list_head, members_triple = self._require_single_object(
+                subject,
+                OWL.members,
+                label="DisjointClassesNary",
+            )
+            if not isinstance(list_head, IdentifiedNode):
+                raise MalformedGraphError(
+                    "DisjointClassesNary members list head MUST be an RDF "
+                    f"resource; got {_format_node(list_head)}."
+                )
+            seq, seq_triples = self._parse_seq(
+                list_head,
+                label="DisjointClassesNary",
+            )
+            for value in _seq_values(seq):
+                if not isinstance(value, IdentifiedNode):
+                    raise MalformedGraphError(
+                        "DisjointClassesNary class expression operands MUST be "
+                        f"RDF resources; got {_format_node(value)}."
+                    )
+            element = self._build_element(
+                "DisjointClassesNary",
+                DisjointClassesNary,
+                context=self.context,
+                name_value=subject,
+                members=seq,
+            )
+            self._add_element(element, type_triple, members_triple, *seq_triples)
+
+    def _parse_disjoint_object_properties_nary(self) -> None:
+        triples = sorted(
+            self._match(predicate=RDF.type, object_=OWL.AllDisjointProperties),
+            key=_triple_key,
+        )
+        for type_triple in triples:
+            if type_triple in self.consumed:
+                continue
+            subject = type_triple[0]
+            list_head, members_triple = self._require_single_object(
+                subject,
+                OWL.members,
+                label="DisjointObjectPropertiesNary",
+            )
+            if not isinstance(list_head, IdentifiedNode):
+                raise MalformedGraphError(
+                    "AllDisjointProperties members list head MUST be an RDF "
+                    f"resource; got {_format_node(list_head)}."
+                )
+            seq, seq_triples = self._parse_seq(
+                list_head,
+                label="AllDisjointProperties",
+            )
+            for value in _seq_values(seq):
+                if not isinstance(value, IdentifiedNode):
+                    raise MalformedGraphError(
+                        "AllDisjointProperties members MUST be RDF resources; "
+                        f"got {_format_node(value)}."
+                    )
+            if self._seq_members_are_data_properties(seq):
+                element = self._build_element(
+                    "DisjointDataPropertiesNary",
+                    DisjointDataPropertiesNary,
+                    context=self.context,
+                    name_value=subject,
+                    members=seq,
+                )
+            else:
+                element = self._build_element(
+                    "DisjointObjectPropertiesNary",
+                    DisjointObjectPropertiesNary,
+                    context=self.context,
+                    name_value=subject,
+                    members=seq,
+                )
+            self._add_element(element, type_triple, members_triple, *seq_triples)
+
+    def _parse_different_individuals_nary(self) -> None:
+        triples = sorted(
+            self._match(predicate=RDF.type, object_=OWL.AllDifferent),
+            key=_triple_key,
+        )
+        for type_triple in triples:
+            if type_triple in self.consumed:
+                continue
+            subject = type_triple[0]
+            if self._has_any(subject, OWL.distinctMembers):
+                raise UnsupportedGraphError(
+                    "DifferentIndividualsNary via owl:distinctMembers is not "
+                    f"supported; use owl:members at {_format_node(subject)}."
+                )
+            list_head, members_triple = self._require_single_object(
+                subject,
+                OWL.members,
+                label="DifferentIndividualsNary",
+            )
+            if not isinstance(list_head, IdentifiedNode):
+                raise MalformedGraphError(
+                    "DifferentIndividualsNary members list head MUST be an RDF "
+                    f"resource; got {_format_node(list_head)}."
+                )
+            seq, seq_triples = self._parse_seq(
+                list_head,
+                label="DifferentIndividualsNary",
+            )
+            for value in _seq_values(seq):
+                if not isinstance(value, IdentifiedNode):
+                    raise MalformedGraphError(
+                        "DifferentIndividualsNary members MUST be RDF "
+                        f"resources; got {_format_node(value)}."
+                    )
+            element = self._build_element(
+                "DifferentIndividualsNary",
+                DifferentIndividualsNary,
+                context=self.context,
+                name_value=subject,
+                members=seq,
+            )
+            self._add_element(element, type_triple, members_triple, *seq_triples)
+
+    def _parse_disjoint_classes(self) -> None:
+        triples = sorted(self._match(predicate=OWL.disjointWith), key=_triple_key)
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "DisjointClasses class expression MUST be an RDF resource; "
+                    f"got {_format_node(object_)}."
+                )
+            element = self._build_element(
+                "DisjointClasses",
+                DisjointClasses,
+                context=self.context,
+                class_expression_1=subject,
+                class_expression_2=object_,
+            )
+            self._add_element(element, triple)
 
     def _parse_datatype_restrictions(self) -> None:
         for subject in self._subjects_for_predicate(OWL.withRestrictions):
@@ -242,7 +700,305 @@ class _Axiomatizer:
                 *facet_triples,
             )
 
-    def _parse_data_some_values_froms(self) -> None:
+    def _parse_object_has_selfs(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.hasSelf):
+            if not self._has(subject, RDF.type, OWL.Restriction):
+                continue
+            type_triple = self._require_triple(subject, RDF.type, OWL.Restriction)
+            on_property, on_property_triple = self._require_single_object(
+                subject,
+                OWL.onProperty,
+                label="ObjectHasSelf",
+            )
+            if not isinstance(on_property, URIRef):
+                raise MalformedGraphError(
+                    "ObjectHasSelf owl:onProperty object MUST be an IRI; got "
+                    f"{_format_node(on_property)}."
+                )
+            has_self, has_self_triple = self._require_single_object(
+                subject,
+                OWL.hasSelf,
+                label="ObjectHasSelf",
+            )
+            if has_self != _TRUE_BOOLEAN:
+                raise MalformedGraphError(
+                    "ObjectHasSelf owl:hasSelf object MUST be "
+                    '"true"^^xsd:boolean; got '
+                    f"{_format_node(has_self)}."
+                )
+            element = self._build_element(
+                "ObjectHasSelf",
+                ObjectHasSelf,
+                context=self.context,
+                name_value=subject,
+                on_property=on_property,
+            )
+            self._add_element(
+                element,
+                type_triple,
+                on_property_triple,
+                has_self_triple,
+            )
+
+    def _parse_has_values(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.hasValue):
+            if not self._has(subject, RDF.type, OWL.Restriction):
+                continue
+            type_triple = self._require_triple(subject, RDF.type, OWL.Restriction)
+            on_property, on_property_triple = self._require_single_object(
+                subject,
+                OWL.onProperty,
+                label="HasValue",
+            )
+            if not isinstance(on_property, URIRef):
+                raise MalformedGraphError(
+                    "HasValue owl:onProperty object MUST be an IRI; got "
+                    f"{_format_node(on_property)}."
+                )
+            has_value, has_value_triple = self._require_single_object(
+                subject,
+                OWL.hasValue,
+                label="HasValue",
+            )
+            if isinstance(has_value, Literal):
+                element = self._build_element(
+                    "DataHasValue",
+                    DataHasValue,
+                    context=self.context,
+                    name_value=subject,
+                    on_property=on_property,
+                    has_value=has_value,
+                )
+            elif isinstance(has_value, IdentifiedNode):
+                element = self._build_element(
+                    "ObjectHasValue",
+                    ObjectHasValue,
+                    context=self.context,
+                    name_value=subject,
+                    on_property=on_property,
+                    has_value=has_value,
+                )
+            else:
+                raise MalformedGraphError(
+                    "HasValue owl:hasValue object MUST be an RDF resource or "
+                    f"literal; got {_format_node(has_value)}."
+                )
+            self._add_element(
+                element,
+                type_triple,
+                on_property_triple,
+                has_value_triple,
+            )
+
+    def _parse_qualified_cardinalities(self) -> None:
+        self._parse_qualified_cardinality_family(
+            cardinality_predicate=OWL.minQualifiedCardinality,
+            object_label="ObjectMinCardinalityQualified",
+            object_cls=ObjectMinCardinalityQualified,
+            object_field="min_qualified_cardinality",
+            data_label="DataMinCardinalityQualified",
+            data_cls=DataMinCardinalityQualified,
+            data_field="min_qualified_cardinality",
+        )
+        self._parse_qualified_cardinality_family(
+            cardinality_predicate=OWL.maxQualifiedCardinality,
+            object_label="ObjectMaxCardinalityQualified",
+            object_cls=ObjectMaxCardinalityQualified,
+            object_field="max_qualified_cardinality",
+            data_label="DataMaxCardinalityQualified",
+            data_cls=DataMaxCardinalityQualified,
+            data_field="max_qualified_cardinality",
+        )
+        self._parse_qualified_cardinality_family(
+            cardinality_predicate=OWL.qualifiedCardinality,
+            object_label="ObjectExactCardinalityQualified",
+            object_cls=ObjectExactCardinalityQualified,
+            object_field="qualified_cardinality",
+            data_label="DataExactCardinalityQualified",
+            data_cls=DataExactCardinalityQualified,
+            data_field="qualified_cardinality",
+        )
+
+    def _parse_qualified_cardinality_family(
+        self,
+        *,
+        cardinality_predicate: URIRef,
+        object_label: str,
+        object_cls: Callable[..., StructuralElement],
+        object_field: str,
+        data_label: str,
+        data_cls: Callable[..., StructuralElement],
+        data_field: str,
+    ) -> None:
+        for subject in self._subjects_for_predicate(cardinality_predicate):
+            if not self._has(subject, RDF.type, OWL.Restriction):
+                continue
+            has_on_class = self._has_any(subject, OWL.onClass)
+            has_on_data_range = self._has_any(subject, OWL.onDataRange)
+            if has_on_class and has_on_data_range:
+                raise MalformedGraphError(
+                    f"{object_label}/{data_label} subject cannot use both "
+                    f"owl:onClass and owl:onDataRange: {_format_node(subject)}."
+                )
+            if not has_on_class and not has_on_data_range:
+                raise MalformedGraphError(
+                    f"Qualified cardinality at {_format_node(subject)} MUST "
+                    "include owl:onClass or owl:onDataRange."
+                )
+            type_triple = self._require_triple(subject, RDF.type, OWL.Restriction)
+            on_property, on_property_triple = self._require_single_object(
+                subject,
+                OWL.onProperty,
+                label=object_label if has_on_class else data_label,
+            )
+            if not isinstance(on_property, URIRef):
+                raise MalformedGraphError(
+                    "Qualified cardinality owl:onProperty object MUST be an IRI; "
+                    f"got {_format_node(on_property)}."
+                )
+            cardinality, cardinality_triple = self._require_single_object(
+                subject,
+                cardinality_predicate,
+                label=object_label if has_on_class else data_label,
+            )
+            if has_on_class:
+                on_class, qualifier_triple = self._require_single_object(
+                    subject,
+                    OWL.onClass,
+                    label=object_label,
+                )
+                if not isinstance(on_class, IdentifiedNode):
+                    raise MalformedGraphError(
+                        f"{object_label} owl:onClass object MUST be an RDF "
+                        f"resource; got {_format_node(on_class)}."
+                    )
+                element = self._build_element(
+                    object_label,
+                    object_cls,
+                    context=self.context,
+                    name_value=subject,
+                    on_property=on_property,
+                    on_class=on_class,
+                    **{object_field: cardinality},
+                )
+            else:
+                on_data_range, qualifier_triple = self._require_single_object(
+                    subject,
+                    OWL.onDataRange,
+                    label=data_label,
+                )
+                if not isinstance(on_data_range, IdentifiedNode):
+                    raise MalformedGraphError(
+                        f"{data_label} owl:onDataRange object MUST be an RDF "
+                        f"resource; got {_format_node(on_data_range)}."
+                    )
+                element = self._build_element(
+                    data_label,
+                    data_cls,
+                    context=self.context,
+                    name_value=subject,
+                    on_property=on_property,
+                    on_data_range=on_data_range,
+                    **{data_field: cardinality},
+                )
+            self._add_element(
+                element,
+                type_triple,
+                on_property_triple,
+                cardinality_triple,
+                qualifier_triple,
+            )
+
+    def _parse_unqualified_cardinalities(self) -> None:
+        self._parse_unqualified_cardinality_family(
+            cardinality_predicate=OWL.minCardinality,
+            object_label="ObjectMinCardinality",
+            object_cls=ObjectMinCardinality,
+            object_field="min_cardinality",
+            data_label="DataMinCardinality",
+            data_cls=DataMinCardinality,
+            data_field="min_cardinality",
+        )
+        self._parse_unqualified_cardinality_family(
+            cardinality_predicate=OWL.maxCardinality,
+            object_label="ObjectMaxCardinality",
+            object_cls=ObjectMaxCardinality,
+            object_field="max_cardinality",
+            data_label="DataMaxCardinality",
+            data_cls=DataMaxCardinality,
+            data_field="max_cardinality",
+        )
+        self._parse_unqualified_cardinality_family(
+            cardinality_predicate=OWL.cardinality,
+            object_label="ObjectExactCardinality",
+            object_cls=ObjectExactCardinality,
+            object_field="cardinality",
+            data_label="DataExactCardinality",
+            data_cls=DataExactCardinality,
+            data_field="cardinality",
+        )
+
+    def _parse_unqualified_cardinality_family(
+        self,
+        *,
+        cardinality_predicate: URIRef,
+        object_label: str,
+        object_cls: Callable[..., StructuralElement],
+        object_field: str,
+        data_label: str,
+        data_cls: Callable[..., StructuralElement],
+        data_field: str,
+    ) -> None:
+        for subject in self._subjects_for_predicate(cardinality_predicate):
+            if not self._has(subject, RDF.type, OWL.Restriction):
+                continue
+            # Qualified forms also use a distinct predicate; skip if already claimed.
+            type_probe = (subject, RDF.type, OWL.Restriction)
+            if type_probe in self.consumed:
+                continue
+            type_triple = self._require_triple(subject, RDF.type, OWL.Restriction)
+            on_property, on_property_triple = self._require_single_object(
+                subject,
+                OWL.onProperty,
+                label="Cardinality",
+            )
+            if not isinstance(on_property, URIRef):
+                raise MalformedGraphError(
+                    "Cardinality owl:onProperty object MUST be an IRI; got "
+                    f"{_format_node(on_property)}."
+                )
+            cardinality, cardinality_triple = self._require_single_object(
+                subject,
+                cardinality_predicate,
+                label="Cardinality",
+            )
+            family = self._restriction_property_family(on_property)
+            if family == "object":
+                element = self._build_element(
+                    object_label,
+                    object_cls,
+                    context=self.context,
+                    name_value=subject,
+                    on_property=on_property,
+                    **{object_field: cardinality},
+                )
+            else:
+                element = self._build_element(
+                    data_label,
+                    data_cls,
+                    context=self.context,
+                    name_value=subject,
+                    on_property=on_property,
+                    **{data_field: cardinality},
+                )
+            self._add_element(
+                element,
+                type_triple,
+                on_property_triple,
+                cardinality_triple,
+            )
+
+    def _parse_some_values_froms(self) -> None:
         for subject in self._subjects_for_predicate(OWL.someValuesFrom):
             if not self._has(subject, RDF.type, OWL.Restriction):
                 continue
@@ -250,44 +1006,54 @@ class _Axiomatizer:
             has_on_properties = self._has_any(subject, OWL.onProperties)
             if has_on_property and has_on_properties:
                 raise MalformedGraphError(
-                    "DataSomeValuesFrom subject cannot use both owl:onProperty "
+                    "SomeValuesFrom subject cannot use both owl:onProperty "
                     f"and owl:onProperties: {_format_node(subject)}."
                 )
             if has_on_properties:
                 self._parse_data_some_values_from_nary(subject)
             elif has_on_property:
-                self._parse_data_some_values_from_unary(subject)
+                self._parse_some_values_from_unary(subject)
 
-    def _parse_data_some_values_from_unary(self, subject: IdentifiedNode) -> None:
+    def _parse_some_values_from_unary(self, subject: IdentifiedNode) -> None:
         type_triple = self._require_triple(subject, RDF.type, OWL.Restriction)
         on_property, on_property_triple = self._require_single_object(
             subject,
             OWL.onProperty,
-            label="DataSomeValuesFrom",
+            label="SomeValuesFrom",
         )
         if not isinstance(on_property, URIRef):
             raise MalformedGraphError(
-                "DataSomeValuesFrom owl:onProperty object MUST be an IRI; got "
+                "SomeValuesFrom owl:onProperty object MUST be an IRI; got "
                 f"{_format_node(on_property)}."
             )
         some_values_from, some_values_from_triple = self._require_single_object(
             subject,
             OWL.someValuesFrom,
-            label="DataSomeValuesFrom",
+            label="SomeValuesFrom",
         )
         if not isinstance(some_values_from, IdentifiedNode):
             raise MalformedGraphError(
-                "DataSomeValuesFrom owl:someValuesFrom object MUST be an RDF "
+                "SomeValuesFrom owl:someValuesFrom object MUST be an RDF "
                 f"resource; got {_format_node(some_values_from)}."
             )
-        element = self._build_element(
-            "DataSomeValuesFrom",
-            DataSomeValuesFrom,
-            context=self.context,
-            name_value=subject,
-            on_property=on_property,
-            some_values_from=some_values_from,
-        )
+        if self._restriction_property_family(on_property) == "object":
+            element = self._build_element(
+                "ObjectSomeValuesFrom",
+                ObjectSomeValuesFrom,
+                context=self.context,
+                name_value=subject,
+                on_property=on_property,
+                some_values_from=some_values_from,
+            )
+        else:
+            element = self._build_element(
+                "DataSomeValuesFrom",
+                DataSomeValuesFrom,
+                context=self.context,
+                name_value=subject,
+                on_property=on_property,
+                some_values_from=some_values_from,
+            )
         self._add_element(
             element,
             type_triple,
@@ -338,7 +1104,7 @@ class _Axiomatizer:
             *seq_triples,
         )
 
-    def _parse_data_all_values_from_narys(self) -> None:
+    def _parse_all_values_froms(self) -> None:
         for subject in self._subjects_for_predicate(OWL.allValuesFrom):
             if not self._has(subject, RDF.type, OWL.Restriction):
                 continue
@@ -346,11 +1112,60 @@ class _Axiomatizer:
             has_on_properties = self._has_any(subject, OWL.onProperties)
             if has_on_property and has_on_properties:
                 raise MalformedGraphError(
-                    "DataAllValuesFrom subject cannot use both owl:onProperty "
+                    "AllValuesFrom subject cannot use both owl:onProperty "
                     f"and owl:onProperties: {_format_node(subject)}."
                 )
             if has_on_properties:
                 self._parse_data_all_values_from_nary(subject)
+            elif has_on_property:
+                self._parse_all_values_from_unary(subject)
+
+    def _parse_all_values_from_unary(self, subject: IdentifiedNode) -> None:
+        type_triple = self._require_triple(subject, RDF.type, OWL.Restriction)
+        on_property, on_property_triple = self._require_single_object(
+            subject,
+            OWL.onProperty,
+            label="AllValuesFrom",
+        )
+        if not isinstance(on_property, URIRef):
+            raise MalformedGraphError(
+                "AllValuesFrom owl:onProperty object MUST be an IRI; got "
+                f"{_format_node(on_property)}."
+            )
+        all_values_from, all_values_from_triple = self._require_single_object(
+            subject,
+            OWL.allValuesFrom,
+            label="AllValuesFrom",
+        )
+        if not isinstance(all_values_from, IdentifiedNode):
+            raise MalformedGraphError(
+                "AllValuesFrom owl:allValuesFrom object MUST be an RDF "
+                f"resource; got {_format_node(all_values_from)}."
+            )
+        if self._restriction_property_family(on_property) == "object":
+            element = self._build_element(
+                "ObjectAllValuesFrom",
+                ObjectAllValuesFrom,
+                context=self.context,
+                name_value=subject,
+                on_property=on_property,
+                all_values_from=all_values_from,
+            )
+        else:
+            element = self._build_element(
+                "DataAllValuesFrom",
+                DataAllValuesFrom,
+                context=self.context,
+                name_value=subject,
+                on_property=on_property,
+                all_values_from=all_values_from,
+            )
+        self._add_element(
+            element,
+            type_triple,
+            on_property_triple,
+            all_values_from_triple,
+        )
 
     def _parse_data_all_values_from_nary(self, subject: IdentifiedNode) -> None:
         type_triple = self._require_triple(subject, RDF.type, OWL.Restriction)
@@ -395,22 +1210,36 @@ class _Axiomatizer:
             *seq_triples,
         )
 
-    def _parse_declaration_datatypes(self) -> None:
-        triples = sorted(
-            self._match(predicate=RDF.type, object_=RDFS.Datatype),
-            key=_triple_key,
+    def _restriction_property_family(self, prop: Node) -> str:
+        r"""Return ``"object"`` or ``"data"`` for ambiguous restriction shapes.
+
+        Uses co-occurring property typing in the input graph (looked up, not
+        consumed). Untyped properties default to the data family so existing
+        ``DataSomeValuesFrom`` round-trips remain stable.
+        """
+        if not isinstance(prop, IdentifiedNode):
+            return "data"
+        is_data = self._has(prop, RDF.type, OWL.DatatypeProperty)
+        is_object = any(
+            self._has(prop, RDF.type, hint) for hint in _OBJECT_PROPERTY_TYPE_HINTS
         )
-        for triple in triples:
-            if triple in self.consumed:
-                continue
-            subject = triple[0]
-            element = self._build_element(
-                "DeclarationDatatype",
-                DeclarationDatatype,
-                context=self.context,
-                name_value=subject,
+        if self._has(prop, RDF.type, OWL.FunctionalProperty) and not is_data:
+            is_object = True
+        if is_object and is_data:
+            raise MalformedGraphError(
+                "Restriction onProperty cannot be typed as both object and data "
+                f"property: {_format_node(prop)}."
             )
-            self._add_element(element, triple)
+        if is_object:
+            return "object"
+        return "data"
+
+    def _parse_declaration_datatypes(self) -> None:
+        self._parse_rdf_type_elements(
+            RDFS.Datatype,
+            "DeclarationDatatype",
+            DeclarationDatatype,
+        )
 
     def _parse_subclass_axioms(self) -> None:
         triples = sorted(self._match(predicate=RDFS.subClassOf), key=_triple_key)
@@ -430,20 +1259,366 @@ class _Axiomatizer:
             )
             self._add_element(element, triple)
 
-    def _parse_declaration_classes(self) -> None:
+    def _parse_sub_property_axioms(self) -> None:
+        triples = sorted(self._match(predicate=RDFS.subPropertyOf), key=_triple_key)
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "SubPropertyOf super property expression MUST be an RDF "
+                    f"resource; got {_format_node(object_)}."
+                )
+            if self._is_data_property(subject):
+                if not isinstance(object_, URIRef):
+                    raise MalformedGraphError(
+                        "SubDataPropertyOf super property MUST be an IRI; got "
+                        f"{_format_node(object_)}."
+                    )
+                element = self._build_element(
+                    "SubDataPropertyOf",
+                    SubDataPropertyOf,
+                    context=self.context,
+                    sub_data_property_expression=subject,
+                    super_data_property_expression=object_,
+                )
+            else:
+                element = self._build_element(
+                    "SubObjectPropertyOf",
+                    SubObjectPropertyOf,
+                    context=self.context,
+                    sub_object_property_expression=subject,
+                    super_object_property_expression=object_,
+                )
+            self._add_element(element, triple)
+
+    def _parse_property_chain_axioms(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.propertyChainAxiom):
+            list_head, owner_triple = self._require_single_object(
+                subject,
+                OWL.propertyChainAxiom,
+                label="SubObjectPropertyOfChain",
+            )
+            if not isinstance(list_head, IdentifiedNode):
+                raise MalformedGraphError(
+                    "SubObjectPropertyOfChain list head MUST be an RDF "
+                    f"resource; got {_format_node(list_head)}."
+                )
+            seq, seq_triples = self._parse_seq(
+                list_head,
+                label="SubObjectPropertyOfChain",
+            )
+            for value in _seq_values(seq):
+                if not isinstance(value, IdentifiedNode):
+                    raise MalformedGraphError(
+                        "SubObjectPropertyOfChain operands MUST be RDF "
+                        f"resources; got {_format_node(value)}."
+                    )
+            element = self._build_element(
+                "SubObjectPropertyOfChain",
+                SubObjectPropertyOfChain,
+                context=self.context,
+                object_property_expression=subject,
+                property_chain=seq,
+            )
+            self._add_element(element, owner_triple, *seq_triples)
+
+    def _parse_property_domain_axioms(self) -> None:
+        triples = sorted(self._match(predicate=RDFS.domain), key=_triple_key)
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "Property domain class expression MUST be an RDF resource; "
+                    f"got {_format_node(object_)}."
+                )
+            if self._is_data_property(subject):
+                element = self._build_element(
+                    "DataPropertyDomain",
+                    DataPropertyDomain,
+                    context=self.context,
+                    data_property_expression=subject,
+                    class_expression=object_,
+                )
+            else:
+                element = self._build_element(
+                    "ObjectPropertyDomain",
+                    ObjectPropertyDomain,
+                    context=self.context,
+                    object_property_expression=subject,
+                    class_expression=object_,
+                )
+            self._add_element(element, triple)
+
+    def _parse_property_range_axioms(self) -> None:
+        triples = sorted(self._match(predicate=RDFS.range), key=_triple_key)
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "Property range expression MUST be an RDF resource; got "
+                    f"{_format_node(object_)}."
+                )
+            if self._is_data_property(subject):
+                element = self._build_element(
+                    "DataPropertyRange",
+                    DataPropertyRange,
+                    context=self.context,
+                    data_property_expression=subject,
+                    data_range=object_,
+                )
+            else:
+                element = self._build_element(
+                    "ObjectPropertyRange",
+                    ObjectPropertyRange,
+                    context=self.context,
+                    object_property_expression=subject,
+                    class_expression=object_,
+                )
+            self._add_element(element, triple)
+
+    def _parse_property_disjoint_with_axioms(self) -> None:
         triples = sorted(
-            self._match(predicate=RDF.type, object_=OWL.Class),
+            self._match(predicate=OWL.propertyDisjointWith),
+            key=_triple_key,
+        )
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "propertyDisjointWith operand MUST be an RDF resource; got "
+                    f"{_format_node(object_)}."
+                )
+            if self._is_data_property(subject):
+                if not isinstance(object_, URIRef):
+                    raise MalformedGraphError(
+                        "DisjointDataProperties operand MUST be an IRI; got "
+                        f"{_format_node(object_)}."
+                    )
+                element = self._build_element(
+                    "DisjointDataProperties",
+                    DisjointDataProperties,
+                    context=self.context,
+                    data_property_expression_1=subject,
+                    data_property_expression_2=object_,
+                )
+            else:
+                element = self._build_element(
+                    "DisjointObjectProperties",
+                    DisjointObjectProperties,
+                    context=self.context,
+                    object_property_expression_1=subject,
+                    object_property_expression_2=object_,
+                )
+            self._add_element(element, triple)
+
+    def _parse_datatype_definitions(self) -> None:
+        triples = sorted(self._match(predicate=OWL.equivalentClass), key=_triple_key)
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(subject, URIRef):
+                raise MalformedGraphError(
+                    "DatatypeDefinition datatype MUST be an IRI; got "
+                    f"{_format_node(subject)}."
+                )
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "DatatypeDefinition data range MUST be an RDF resource; got "
+                    f"{_format_node(object_)}."
+                )
+            element = self._build_element(
+                "DatatypeDefinition",
+                DatatypeDefinition,
+                context=self.context,
+                datatype=subject,
+                data_range=object_,
+            )
+            self._add_element(element, triple)
+
+    def _parse_has_keys(self) -> None:
+        for subject in self._subjects_for_predicate(OWL.hasKey):
+            list_head, owner_triple = self._require_single_object(
+                subject,
+                OWL.hasKey,
+                label="HasKey",
+            )
+            if not isinstance(list_head, IdentifiedNode):
+                raise MalformedGraphError(
+                    "HasKey property list head MUST be an RDF resource; got "
+                    f"{_format_node(list_head)}."
+                )
+            seq, seq_triples = self._parse_seq(list_head, label="HasKey")
+            for value in _seq_values(seq):
+                if not isinstance(value, IdentifiedNode):
+                    raise MalformedGraphError(
+                        "HasKey key properties MUST be RDF resources; got "
+                        f"{_format_node(value)}."
+                    )
+            element = self._build_element(
+                "HasKey",
+                HasKey,
+                context=self.context,
+                class_expression=subject,
+                key_properties=seq,
+            )
+            self._add_element(element, owner_triple, *seq_triples)
+
+    def _parse_different_individuals(self) -> None:
+        triples = sorted(self._match(predicate=OWL.differentFrom), key=_triple_key)
+        for triple in triples:
+            subject, _, object_ = triple
+            if not isinstance(object_, IdentifiedNode):
+                raise MalformedGraphError(
+                    "DifferentIndividuals operand MUST be an RDF resource; got "
+                    f"{_format_node(object_)}."
+                )
+            element = self._build_element(
+                "DifferentIndividuals",
+                DifferentIndividuals,
+                context=self.context,
+                individual_1=subject,
+                individual_2=object_,
+            )
+            self._add_element(element, triple)
+
+    def _is_data_property(self, node: IdentifiedNode) -> bool:
+        """Return True when ``node`` is typed ``owl:DatatypeProperty`` in the graph."""
+        return self._has(node, RDF.type, OWL.DatatypeProperty)
+
+    def _seq_members_are_data_properties(self, seq: Seq) -> bool:
+        values = _seq_values(seq)
+        if not values:
+            return False
+        return all(
+            isinstance(value, IdentifiedNode) and self._is_data_property(value)
+            for value in values
+        )
+
+    def _parse_declaration_classes(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.Class,
+            "DeclarationClass",
+            DeclarationClass,
+        )
+
+    def _parse_inverse_functional_object_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.InverseFunctionalProperty,
+            "InverseFunctionalObjectProperty",
+            InverseFunctionalObjectProperty,
+        )
+
+    def _parse_reflexive_object_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.ReflexiveProperty,
+            "ReflexiveObjectProperty",
+            ReflexiveObjectProperty,
+        )
+
+    def _parse_irreflexive_object_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.IrreflexiveProperty,
+            "IrreflexiveObjectProperty",
+            IrreflexiveObjectProperty,
+        )
+
+    def _parse_symmetric_object_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.SymmetricProperty,
+            "SymmetricObjectProperty",
+            SymmetricObjectProperty,
+        )
+
+    def _parse_asymmetric_object_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.AsymmetricProperty,
+            "AsymmetricObjectProperty",
+            AsymmetricObjectProperty,
+        )
+
+    def _parse_transitive_object_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.TransitiveProperty,
+            "TransitiveObjectProperty",
+            TransitiveObjectProperty,
+        )
+
+    def _parse_functional_properties(self) -> None:
+        """Lift ``owl:FunctionalProperty`` as object or data characteristic.
+
+        ``FunctionalObjectProperty`` and ``FunctionalDataProperty`` share this
+        RDF type. Prefer the data form when the subject is also typed
+        ``owl:DatatypeProperty``; otherwise lift as the object form.
+        """
+        triples = sorted(
+            self._match(predicate=RDF.type, object_=OWL.FunctionalProperty),
             key=_triple_key,
         )
         for triple in triples:
             if triple in self.consumed:
                 continue
             subject = triple[0]
+            if self._has(subject, RDF.type, OWL.DatatypeProperty):
+                element = self._build_element(
+                    "FunctionalDataProperty",
+                    FunctionalDataProperty,
+                    context=self.context,
+                    name_value=subject,
+                )
+            else:
+                element = self._build_element(
+                    "FunctionalObjectProperty",
+                    FunctionalObjectProperty,
+                    context=self.context,
+                    name_value=subject,
+                )
+            self._add_element(element, triple)
+
+    def _parse_declaration_object_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.ObjectProperty,
+            "DeclarationObjectProperty",
+            DeclarationObjectProperty,
+        )
+
+    def _parse_declaration_data_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.DatatypeProperty,
+            "DeclarationDataProperty",
+            DeclarationDataProperty,
+        )
+
+    def _parse_declaration_annotation_properties(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.AnnotationProperty,
+            "DeclarationAnnotationProperty",
+            DeclarationAnnotationProperty,
+        )
+
+    def _parse_named_individuals(self) -> None:
+        self._parse_rdf_type_elements(
+            OWL.NamedIndividual,
+            "NamedIndividual",
+            NamedIndividual,
+        )
+
+    def _parse_rdf_type_elements(
+        self,
+        rdf_type: IdentifiedNode,
+        label: str,
+        constructor: Callable[..., StructuralElement],
+    ) -> None:
+        triples = sorted(
+            self._match(predicate=RDF.type, object_=rdf_type),
+            key=_triple_key,
+        )
+        for triple in triples:
+            if triple in self.consumed:
+                continue
             element = self._build_element(
-                "DeclarationClass",
-                DeclarationClass,
+                label,
+                constructor,
                 context=self.context,
-                name_value=subject,
+                name_value=triple[0],
             )
             self._add_element(element, triple)
 
@@ -742,10 +1917,18 @@ def _validate_triple(subject: Node, predicate: Node, object_: Node) -> Triple:
     return subject, predicate, object_
 
 
+_FALLBACK_DECLARATION_TYPES: Final[tuple[type[StructuralElement], ...]] = (
+    DeclarationDatatype,
+    DeclarationClass,
+    DeclarationObjectProperty,
+    DeclarationDataProperty,
+    DeclarationAnnotationProperty,
+    NamedIndividual,
+)
+
+
 def _element_sort_key(element: StructuralElement) -> tuple[tuple[str, str], int, str]:
-    fallback_rank = (
-        1 if isinstance(element, DeclarationDatatype | DeclarationClass) else 0
-    )
+    fallback_rank = 1 if isinstance(element, _FALLBACK_DECLARATION_TYPES) else 0
     return (_node_key(element.name), fallback_rank, element.__class__.__name__)
 
 

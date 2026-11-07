@@ -18,8 +18,10 @@ from rdflib_reasoning.axiom.axiomatize import (
 )
 from rdflib_reasoning.axiom.class_axiom import DeclarationClass, SubClassOf
 from rdflib_reasoning.axiom.datatype import (
+    DataAllValuesFrom,
     DataAllValuesFromNary,
     DataComplementOf,
+    DataHasValue,
     DataIntersectionOf,
     DataOneOf,
     DataSomeValuesFrom,
@@ -29,6 +31,35 @@ from rdflib_reasoning.axiom.datatype import (
     DeclarationDatatype,
     FacetEntry,
     FacetList,
+)
+from rdflib_reasoning.axiom.declaration import DeclarationDataProperty
+from rdflib_reasoning.axiom.object_expression import (
+    DisjointClasses,
+    DisjointClassesNary,
+    DisjointUnion,
+    ObjectComplementOf,
+    ObjectIntersectionOf,
+    ObjectInverseOf,
+    ObjectOneOf,
+    ObjectUnionOf,
+)
+from rdflib_reasoning.axiom.property_axiom import (
+    DataPropertyDomain,
+    DataPropertyRange,
+    DatatypeDefinition,
+    DifferentIndividuals,
+    DifferentIndividualsNary,
+    DisjointDataProperties,
+    DisjointDataPropertiesNary,
+    DisjointObjectProperties,
+    DisjointObjectPropertiesNary,
+    HasKey,
+    InverseObjectProperties,
+    ObjectPropertyDomain,
+    ObjectPropertyRange,
+    SubDataPropertyOf,
+    SubObjectPropertyOf,
+    SubObjectPropertyOfChain,
 )
 from rdflib_reasoning.axiom.structural_element import Seq, SeqEntry, StructuralElement
 
@@ -147,6 +178,18 @@ def _current_datatype_elements() -> tuple[StructuralElement, ...]:
             on_properties=property_seq,
             all_values_from=_uri("range-nary"),
         ),
+        DataAllValuesFrom(
+            context=CTX,
+            name_value=_uri("all-values-from-unary"),
+            on_property=_uri("p-all"),
+            all_values_from=_uri("range-all"),
+        ),
+        DataHasValue(
+            context=CTX,
+            name_value=_uri("data-has-value"),
+            on_property=_uri("p-hv"),
+            has_value=Literal("Ada"),
+        ),
     )
 
 
@@ -157,6 +200,99 @@ def _current_class_elements() -> tuple[StructuralElement, ...]:
             context=CTX,
             sub_class_expression=_uri("ChildClass"),
             super_class_expression=_uri("ParentClass"),
+        ),
+    )
+
+
+def _ternary_seq(
+    head_name: str,
+    mid_name: str,
+    tail_name: str,
+    first: Node,
+    second: Node,
+    third: Node,
+) -> Seq:
+    return Seq(
+        context=CTX,
+        entries=(
+            SeqEntry(cell=_uri(head_name), value=first),
+            SeqEntry(cell=_uri(mid_name), value=second),
+            SeqEntry(cell=_uri(tail_name), value=third),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
+
+
+def _current_object_expression_elements() -> tuple[StructuralElement, ...]:
+    return (
+        ObjectIntersectionOf(
+            context=CTX,
+            name_value=_uri("object-intersection"),
+            intersection_of=_binary_seq(
+                "obj-intersection-list",
+                "obj-intersection-list-tail",
+                _uri("CE-a"),
+                _uri("CE-b"),
+            ),
+        ),
+        ObjectUnionOf(
+            context=CTX,
+            name_value=_uri("object-union"),
+            union_of=_binary_seq(
+                "obj-union-list",
+                "obj-union-list-tail",
+                _uri("CE-c"),
+                _uri("CE-d"),
+            ),
+        ),
+        ObjectComplementOf(
+            context=CTX,
+            name_value=_uri("object-complement"),
+            complement_of=_uri("CE-inner"),
+        ),
+        ObjectOneOf(
+            context=CTX,
+            name_value=_uri("object-one-of"),
+            one_of=_binary_seq(
+                "obj-one-of-list",
+                "obj-one-of-list-tail",
+                _uri("alice"),
+                _uri("bob"),
+            ),
+        ),
+        ObjectInverseOf(
+            context=CTX,
+            # Blank-node subject distinguishes ObjectInverseOf from
+            # InverseObjectProperties (IRI-subject owl:inverseOf).
+            name_value=BNode(),
+            inverse_of=_uri("parentOf"),
+        ),
+        DisjointClasses(
+            context=CTX,
+            class_expression_1=_uri("Boy"),
+            class_expression_2=_uri("Girl"),
+        ),
+        DisjointClassesNary(
+            context=CTX,
+            name_value=_uri("all-disjoint-classes"),
+            members=_ternary_seq(
+                "adc-list",
+                "adc-list-mid",
+                "adc-list-tail",
+                _uri("CE-x"),
+                _uri("CE-y"),
+                _uri("CE-z"),
+            ),
+        ),
+        DisjointUnion(
+            context=CTX,
+            union_class=_uri("Child"),
+            disjoint_union_of=_binary_seq(
+                "du-list",
+                "du-list-tail",
+                _uri("Boy"),
+                _uri("Girl"),
+            ),
         ),
     )
 
@@ -181,6 +317,173 @@ def test_axiomatize_round_trips_current_class_elements(
     assert len(actual) == 1
     assert type(actual[0]) is type(element)
     assert actual[0] == element
+
+
+@pytest.mark.parametrize("element", _current_object_expression_elements())
+def test_axiomatize_round_trips_current_object_expression_elements(
+    element: StructuralElement,
+) -> None:
+    actual = axiomatize(_graph_from_element(element))
+
+    assert len(actual) == 1
+    assert type(actual[0]) is type(element)
+    assert actual[0] == element
+
+
+def _current_property_axiom_elements() -> tuple[StructuralElement, ...]:
+    return (
+        SubObjectPropertyOf(
+            context=CTX,
+            sub_object_property_expression=_uri("childProp"),
+            super_object_property_expression=_uri("parentProp"),
+        ),
+        SubObjectPropertyOfChain(
+            context=CTX,
+            object_property_expression=_uri("hasUncle"),
+            property_chain=_binary_seq(
+                "chain-list",
+                "chain-list-tail",
+                _uri("hasParent"),
+                _uri("hasBrother"),
+            ),
+        ),
+        ObjectPropertyDomain(
+            context=CTX,
+            object_property_expression=_uri("worksFor"),
+            class_expression=_uri("Person"),
+        ),
+        ObjectPropertyRange(
+            context=CTX,
+            object_property_expression=_uri("worksForRange"),
+            class_expression=_uri("Organization"),
+        ),
+        InverseObjectProperties(
+            context=CTX,
+            object_property_expression_1=_uri("hasParent"),
+            object_property_expression_2=_uri("hasChild"),
+        ),
+        DatatypeDefinition(
+            context=CTX,
+            datatype=_uri("AdultAge"),
+            data_range=_uri("adultAgeRange"),
+        ),
+        DisjointObjectProperties(
+            context=CTX,
+            object_property_expression_1=_uri("disjointP1"),
+            object_property_expression_2=_uri("disjointP2"),
+        ),
+        DisjointObjectPropertiesNary(
+            context=CTX,
+            name_value=_uri("all-disjoint-object-props"),
+            members=_ternary_seq(
+                "adop-list",
+                "adop-list-mid",
+                "adop-list-tail",
+                _uri("op-a"),
+                _uri("op-b"),
+                _uri("op-c"),
+            ),
+        ),
+        HasKey(
+            context=CTX,
+            class_expression=_uri("KeyedPerson"),
+            key_properties=_binary_seq(
+                "key-list",
+                "key-list-tail",
+                _uri("hasSSN"),
+                _uri("nationalId"),
+            ),
+        ),
+        DifferentIndividuals(
+            context=CTX,
+            individual_1=_uri("alice"),
+            individual_2=_uri("bob"),
+        ),
+        DifferentIndividualsNary(
+            context=CTX,
+            name_value=_uri("all-different"),
+            members=_ternary_seq(
+                "diff-list",
+                "diff-list-mid",
+                "diff-list-tail",
+                _uri("aliceN"),
+                _uri("bobN"),
+                _uri("carolN"),
+            ),
+        ),
+    )
+
+
+@pytest.mark.parametrize("element", _current_property_axiom_elements())
+def test_axiomatize_round_trips_current_property_axiom_elements(
+    element: StructuralElement,
+) -> None:
+    actual = axiomatize(_graph_from_element(element))
+
+    assert len(actual) == 1
+    assert type(actual[0]) is type(element)
+    assert actual[0] == element
+
+
+def test_axiomatize_lifts_data_property_axioms_with_declarations() -> None:
+    """Data forms share RDF with object forms; DatatypeProperty tips the scale."""
+    decl_a = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    decl_b = DeclarationDataProperty(context=CTX, name_value=_uri("weight"))
+    sub = SubDataPropertyOf(
+        context=CTX,
+        sub_data_property_expression=decl_a.name,
+        super_data_property_expression=_uri("measure"),
+    )
+    domain = DataPropertyDomain(
+        context=CTX,
+        data_property_expression=decl_a.name,
+        class_expression=_uri("Person"),
+    )
+    range_ = DataPropertyRange(
+        context=CTX,
+        data_property_expression=decl_a.name,
+        data_range=_uri("nonNegInt"),
+    )
+    disjoint = DisjointDataProperties(
+        context=CTX,
+        data_property_expression_1=decl_a.name,
+        data_property_expression_2=decl_b.name,
+    )
+    disjoint_nary = DisjointDataPropertiesNary(
+        context=CTX,
+        name_value=_uri("all-disjoint-data-props"),
+        members=_ternary_seq(
+            "addp-list",
+            "addp-list-mid",
+            "addp-list-tail",
+            decl_a.name,
+            decl_b.name,
+            _uri("height"),
+        ),
+    )
+    height_decl = DeclarationDataProperty(context=CTX, name_value=_uri("height"))
+    graph = Graph(identifier=CTX)
+    for element in (
+        decl_a,
+        decl_b,
+        height_decl,
+        sub,
+        domain,
+        range_,
+        disjoint,
+        disjoint_nary,
+    ):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert SubDataPropertyOf in kinds
+    assert DataPropertyDomain in kinds
+    assert DataPropertyRange in kinds
+    assert DisjointDataProperties in kinds
+    assert DisjointDataPropertiesNary in kinds
+    assert DeclarationDataProperty in kinds
 
 
 def test_axiomatize_orders_elements_and_falls_back_to_declaration() -> None:
@@ -225,15 +528,12 @@ def test_axiomatize_does_not_mutate_caller_graph() -> None:
     "triples",
     (
         (
-            (_uri("restriction"), RDF.type, OWL.Restriction),
-            (_uri("restriction"), OWL.onProperty, _uri("object-property")),
-            (_uri("restriction"), OWL.someValuesFrom, _uri("ObjectClass")),
-            (_uri("object-property"), RDF.type, OWL.ObjectProperty),
+            # Annotation assertions are outside current axiomatization coverage.
+            (_uri("subject"), _uri("comment"), Literal("note")),
         ),
         (
-            (_uri("unary-all"), RDF.type, OWL.Restriction),
-            (_uri("unary-all"), OWL.onProperty, _uri("p")),
-            (_uri("unary-all"), OWL.allValuesFrom, _uri("range")),
+            # SameIndividual chains are outside current axiomatization coverage.
+            (_uri("a"), OWL.sameAs, _uri("b")),
         ),
     ),
 )
@@ -364,3 +664,77 @@ def test_axiomatize_fails_for_nonliteral_data_one_of_member() -> None:
 
     with pytest.raises(MalformedGraphError, match="MUST be literals"):
         axiomatize(graph)
+
+
+def test_axiomatize_fails_for_literal_object_one_of_member() -> None:
+    graph = _graph_from_triples(
+        (
+            (_uri("bad-obj-one-of"), RDF.type, OWL.Class),
+            (_uri("bad-obj-one-of"), OWL.oneOf, _uri("bad-obj-one-of-list")),
+            (_uri("bad-obj-one-of-list"), RDF.first, Literal("not-an-individual")),
+            (_uri("bad-obj-one-of-list"), RDF.rest, RDF.nil),
+        )
+    )
+
+    with pytest.raises(MalformedGraphError, match="MUST be individuals"):
+        axiomatize(graph)
+
+
+def test_axiomatize_fails_for_under_arity_object_intersection() -> None:
+    graph = _graph_from_triples(
+        (
+            (_uri("small-obj-intersection"), RDF.type, OWL.Class),
+            (
+                _uri("small-obj-intersection"),
+                OWL.intersectionOf,
+                _uri("one-cell-obj-list"),
+            ),
+            (_uri("one-cell-obj-list"), RDF.first, _uri("CE")),
+            (_uri("one-cell-obj-list"), RDF.rest, RDF.nil),
+        )
+    )
+
+    with pytest.raises(MalformedGraphError, match="n >= 2"):
+        axiomatize(graph)
+
+
+def test_axiomatize_fails_for_under_arity_disjoint_classes_nary() -> None:
+    graph = _graph_from_triples(
+        (
+            (_uri("small-adc"), RDF.type, OWL.AllDisjointClasses),
+            (_uri("small-adc"), OWL.members, _uri("adc-two-list")),
+            (_uri("adc-two-list"), RDF.first, _uri("CE-a")),
+            (_uri("adc-two-list"), RDF.rest, _uri("adc-two-list-tail")),
+            (_uri("adc-two-list-tail"), RDF.first, _uri("CE-b")),
+            (_uri("adc-two-list-tail"), RDF.rest, RDF.nil),
+        )
+    )
+
+    with pytest.raises(MalformedGraphError, match="n > 2"):
+        axiomatize(graph)
+
+
+def test_axiomatize_object_expression_before_declaration_class_fallback() -> None:
+    intersection = ObjectIntersectionOf(
+        context=CTX,
+        name_value=_uri("rich-class"),
+        intersection_of=_binary_seq(
+            "rich-list",
+            "rich-list-tail",
+            _uri("CE-a"),
+            _uri("CE-b"),
+        ),
+    )
+    plain = DeclarationClass(context=CTX, name_value=_uri("plain-class"))
+    graph = Graph(identifier=CTX)
+    for element in (intersection, plain):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+
+    assert len(actual) == 2
+    kinds = {type(element) for element in actual}
+    assert kinds == {ObjectIntersectionOf, DeclarationClass}
+    richer = next(e for e in actual if isinstance(e, ObjectIntersectionOf))
+    assert richer == intersection

@@ -28,10 +28,16 @@ Data property class expressions (subclasses of :class:`DataRestriction`):
   ``DataSomeValuesFrom( DPE1 ... DPEn DR )``, ``n >= 2``; owns an
   :class:`~rdflib_reasoning.axiom.structural_element.Seq` fragment of property
   expressions.
+- :class:`DataAllValuesFrom` --- unary form ``DataAllValuesFrom( DPE DR )``.
 - :class:`DataAllValuesFromNary` --- n-ary form
   ``DataAllValuesFrom( DPE1 ... DPEn DR )``, ``n >= 2``; owns an
   :class:`~rdflib_reasoning.axiom.structural_element.Seq` fragment of property
   expressions.
+- :class:`DataHasValue` --- ``DataHasValue( DPE lt )``.
+- Cardinality forms --- :class:`DataMinCardinality`,
+  :class:`DataMinCardinalityQualified`, :class:`DataMaxCardinality`,
+  :class:`DataMaxCardinalityQualified`, :class:`DataExactCardinality`,
+  :class:`DataExactCardinalityQualified`.
 
 Owned scaffolding fragments defined here:
 
@@ -62,7 +68,8 @@ from pydantic import (
     computed_field,
     model_validator,
 )
-from rdflib import OWL, RDF, RDFS, IdentifiedNode
+from rdflib import OWL, RDF, RDFS, XSD, IdentifiedNode, Node
+from rdflib import Literal as RDFLiteral
 
 from .common import N3IRIRef, N3Node, N3Resource, Triple
 from .structural_element import (
@@ -71,6 +78,17 @@ from .structural_element import (
     StructuralElement,
     StructuralFragment,
 )
+
+
+def _require_non_negative_integer_literal(value: Node, *, label: str) -> None:
+    """Require ``value`` to be an ``xsd:nonNegativeInteger`` literal."""
+    if not isinstance(value, RDFLiteral):
+        raise ValueError(f"{label} MUST be an RDF literal; got {type(value).__name__}.")
+    if value.datatype != XSD.nonNegativeInteger:
+        raise ValueError(
+            f"{label} MUST have datatype xsd:nonNegativeInteger; got "
+            f"{value.datatype!r}."
+        )
 
 
 class DataRange(DeclarationElement, ABC):
@@ -388,6 +406,39 @@ class DataSomeValuesFromNary(DataRestriction):
         )
 
 
+class DataAllValuesFrom(DataRestriction):
+    """Element ``DataAllValuesFrom( DPE DR )`` in the OWL 2 structural specification.
+
+    The RDF subject is typically an anonymous blank node (written ``_:x`` below).
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty DPE .
+        _:x owl:allValuesFrom DR .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataAllValuesFrom"] = "DataAllValuesFrom"
+
+    on_property: N3IRIRef
+    all_values_from: N3Resource
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return tuple(
+            chain(
+                super().as_triples,
+                [
+                    (self.name, OWL.onProperty, self.on_property),
+                    (self.name, OWL.allValuesFrom, self.all_values_from),
+                ],
+            ),
+        )
+
+
 class DataAllValuesFromNary(DataRestriction):
     """Element ``DataAllValuesFrom( DPE1 ... DPEn DR )``, n >= 2, in the OWL 2 structural specification.
 
@@ -429,6 +480,301 @@ class DataAllValuesFromNary(DataRestriction):
                 [
                     (self.name, OWL.onProperties, self.on_properties.name),
                     (self.name, OWL.allValuesFrom, self.all_values_from),
+                ],
+            ),
+        )
+
+
+class DataHasValue(DataRestriction):
+    """Element ``DataHasValue( DPE lt )`` in the OWL 2 structural specification.
+
+    The RDF subject is typically an anonymous blank node (written ``_:x`` below).
+    ``has_value`` is a literal.
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty DPE .
+        _:x owl:hasValue lt .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataHasValue"] = "DataHasValue"
+
+    on_property: N3IRIRef
+    has_value: N3Node
+
+    @model_validator(mode="after")
+    def _check_literal_value(self) -> Self:
+        if not isinstance(self.has_value, RDFLiteral):
+            raise ValueError(
+                "DataHasValue.has_value MUST be an RDF literal; got "
+                f"{type(self.has_value).__name__}."
+            )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return tuple(
+            chain(
+                super().as_triples,
+                [
+                    (self.name, OWL.onProperty, self.on_property),
+                    (self.name, OWL.hasValue, self.has_value),
+                ],
+            ),
+        )
+
+
+class DataMinCardinality(DataRestriction):
+    """Element ``DataMinCardinality( n DPE )`` in the OWL 2 structural specification.
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty DPE .
+        _:x owl:minCardinality "n"^^xsd:nonNegativeInteger .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataMinCardinality"] = "DataMinCardinality"
+
+    on_property: N3IRIRef
+    min_cardinality: N3Node
+
+    @model_validator(mode="after")
+    def _check_cardinality_literal(self) -> Self:
+        _require_non_negative_integer_literal(
+            self.min_cardinality, label="DataMinCardinality.min_cardinality"
+        )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return tuple(
+            chain(
+                super().as_triples,
+                [
+                    (self.name, OWL.onProperty, self.on_property),
+                    (self.name, OWL.minCardinality, self.min_cardinality),
+                ],
+            ),
+        )
+
+
+class DataMinCardinalityQualified(DataRestriction):
+    """Element ``DataMinCardinality( n DPE DR )`` in the OWL 2 structural specification.
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty DPE .
+        _:x owl:minQualifiedCardinality "n"^^xsd:nonNegativeInteger .
+        _:x owl:onDataRange DR .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataMinCardinalityQualified"] = "DataMinCardinalityQualified"
+
+    on_property: N3IRIRef
+    min_qualified_cardinality: N3Node
+    on_data_range: N3Resource
+
+    @model_validator(mode="after")
+    def _check_cardinality_literal(self) -> Self:
+        _require_non_negative_integer_literal(
+            self.min_qualified_cardinality,
+            label="DataMinCardinalityQualified.min_qualified_cardinality",
+        )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return tuple(
+            chain(
+                super().as_triples,
+                [
+                    (self.name, OWL.onProperty, self.on_property),
+                    (
+                        self.name,
+                        OWL.minQualifiedCardinality,
+                        self.min_qualified_cardinality,
+                    ),
+                    (self.name, OWL.onDataRange, self.on_data_range),
+                ],
+            ),
+        )
+
+
+class DataMaxCardinality(DataRestriction):
+    """Element ``DataMaxCardinality( n DPE )`` in the OWL 2 structural specification.
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty DPE .
+        _:x owl:maxCardinality "n"^^xsd:nonNegativeInteger .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataMaxCardinality"] = "DataMaxCardinality"
+
+    on_property: N3IRIRef
+    max_cardinality: N3Node
+
+    @model_validator(mode="after")
+    def _check_cardinality_literal(self) -> Self:
+        _require_non_negative_integer_literal(
+            self.max_cardinality, label="DataMaxCardinality.max_cardinality"
+        )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return tuple(
+            chain(
+                super().as_triples,
+                [
+                    (self.name, OWL.onProperty, self.on_property),
+                    (self.name, OWL.maxCardinality, self.max_cardinality),
+                ],
+            ),
+        )
+
+
+class DataMaxCardinalityQualified(DataRestriction):
+    """Element ``DataMaxCardinality( n DPE DR )`` in the OWL 2 structural specification.
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty DPE .
+        _:x owl:maxQualifiedCardinality "n"^^xsd:nonNegativeInteger .
+        _:x owl:onDataRange DR .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataMaxCardinalityQualified"] = "DataMaxCardinalityQualified"
+
+    on_property: N3IRIRef
+    max_qualified_cardinality: N3Node
+    on_data_range: N3Resource
+
+    @model_validator(mode="after")
+    def _check_cardinality_literal(self) -> Self:
+        _require_non_negative_integer_literal(
+            self.max_qualified_cardinality,
+            label="DataMaxCardinalityQualified.max_qualified_cardinality",
+        )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return tuple(
+            chain(
+                super().as_triples,
+                [
+                    (self.name, OWL.onProperty, self.on_property),
+                    (
+                        self.name,
+                        OWL.maxQualifiedCardinality,
+                        self.max_qualified_cardinality,
+                    ),
+                    (self.name, OWL.onDataRange, self.on_data_range),
+                ],
+            ),
+        )
+
+
+class DataExactCardinality(DataRestriction):
+    """Element ``DataExactCardinality( n DPE )`` in the OWL 2 structural specification.
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty DPE .
+        _:x owl:cardinality "n"^^xsd:nonNegativeInteger .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataExactCardinality"] = "DataExactCardinality"
+
+    on_property: N3IRIRef
+    cardinality: N3Node
+
+    @model_validator(mode="after")
+    def _check_cardinality_literal(self) -> Self:
+        _require_non_negative_integer_literal(
+            self.cardinality, label="DataExactCardinality.cardinality"
+        )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return tuple(
+            chain(
+                super().as_triples,
+                [
+                    (self.name, OWL.onProperty, self.on_property),
+                    (self.name, OWL.cardinality, self.cardinality),
+                ],
+            ),
+        )
+
+
+class DataExactCardinalityQualified(DataRestriction):
+    """Element ``DataExactCardinality( n DPE DR )`` in the OWL 2 structural specification.
+
+    Triples::
+
+        _:x rdf:type owl:Restriction .
+        _:x owl:onProperty DPE .
+        _:x owl:qualifiedCardinality "n"^^xsd:nonNegativeInteger .
+        _:x owl:onDataRange DR .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataExactCardinalityQualified"] = "DataExactCardinalityQualified"
+
+    on_property: N3IRIRef
+    qualified_cardinality: N3Node
+    on_data_range: N3Resource
+
+    @model_validator(mode="after")
+    def _check_cardinality_literal(self) -> Self:
+        _require_non_negative_integer_literal(
+            self.qualified_cardinality,
+            label="DataExactCardinalityQualified.qualified_cardinality",
+        )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return tuple(
+            chain(
+                super().as_triples,
+                [
+                    (self.name, OWL.onProperty, self.on_property),
+                    (
+                        self.name,
+                        OWL.qualifiedCardinality,
+                        self.qualified_cardinality,
+                    ),
+                    (self.name, OWL.onDataRange, self.on_data_range),
                 ],
             ),
         )
