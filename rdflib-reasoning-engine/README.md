@@ -8,9 +8,10 @@ The `rdflib-reasoning-engine` package provides an efficient general purpose forw
 
 ## Tutorials and demos
 
-If you want to see the current RDFS inference surface in action, start with:
+If you want to see the current inference surface in action, start with:
 
 - [../notebooks/demo-rdfs-inference.ipynb](../notebooks/demo-rdfs-inference.ipynb): compact end-to-end tutorial for RDFLib-backed RDFS materialization plus a proof view of the rule applications behind one inferred triple
+- [../notebooks/demo-owl2-rl-inference.ipynb](../notebooks/demo-owl2-rl-inference.ipynb): OWL 2 RL counterpart for class-equivalence and subclass typing materialization plus proof inspection
 - [../notebooks/demo-rdfs-retraction.ipynb](../notebooks/demo-rdfs-retraction.ipynb): ordinary RDFLib `graph.remove(...)` usage with dependency-aware retraction of inferred triples
 - [../notebooks/demo-contradiction-rules.ipynb](../notebooks/demo-contradiction-rules.ipynb): dual-channel OWL 2 RL contradiction diagnostics (`ContradictionRecord`), recorder policies, contradiction-goal proof reconstruction, and rendering
 - [../notebooks/demo-proof-reconstructor.ipynb](../notebooks/demo-proof-reconstructor.ipynb): proof-focused companion notebook covering proof reconstruction, Mermaid rendering, markdown rendering, and raw proof inspection

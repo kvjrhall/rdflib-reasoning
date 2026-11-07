@@ -27,4 +27,6 @@ diagnostics. The default recorder policy raises when a contradiction is
 detected; see [Enable contradiction diagnostics](enable-contradiction-diagnostics.md)
 to retain records without raising.
 
+For a complete walkthrough, see the
+[OWL 2 RL inference tutorial](../tutorials/notebooks/demo-owl2-rl-inference.ipynb).
 For API details, see {doc}`../autoapi/engine/api/index`.

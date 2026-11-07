@@ -18,6 +18,7 @@ Use this package when you need:
 For a quick tour of the direct engine surface, see:
 
 - [RDFS inference demo](../tutorials/notebooks/demo-rdfs-inference.ipynb)
+- [OWL 2 RL inference demo](../tutorials/notebooks/demo-owl2-rl-inference.ipynb)
 - [RDFS retraction demo](../tutorials/notebooks/demo-rdfs-retraction.ipynb)
 - [Contradiction rules demo](../tutorials/notebooks/demo-contradiction-rules.ipynb)
 
