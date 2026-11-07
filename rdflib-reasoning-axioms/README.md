@@ -131,7 +131,8 @@ Implemented rows in this matrix / parsers in `axiomatize`):
   `DifferentIndividualsNary` (`owl:members` only), binary `SameIndividual`,
   `ClassAssertion` when the `rdf:type` object is a known class expression
   (declaration, parsed CE/restriction, CE operand, `owl:Thing` /
-  `owl:Nothing`)
+  `owl:Nothing`), `DataPropertyAssertion` when the predicate is a known
+  data property and the object is a literal
 
 Ambiguous object/data shapes (restrictions and shared property predicates such
 as `rdfs:subPropertyOf`, `rdfs:domain`, `rdfs:range`,
@@ -200,7 +201,7 @@ present but malformed, such as a broken RDF list or invalid facet list,
 | Class assertion | `ClassAssertion` | Implemented | `a rdf:type CE` when `CE` is a known class expression; unknown type objects remain unconsumed |
 | Object property assertion | `ObjectPropertyAssertion`, `ObjectPropertyAssertionInverseOf` | Not started | |
 | Negative object property assertion | `NegativeObjectPropertyAssertion` | Not started | |
-| Data property assertion | `DataPropertyAssertion` | Not started | |
+| Data property assertion | `DataPropertyAssertion` | Implemented | `a DPE lt` when `DPE` is a known data property; unknown predicates / non-literals remain unconsumed |
 | Negative data property assertion | `NegativeDataPropertyAssertion` | Not started | |
 | Annotation assertion | `AnnotationAssertion` | Not started | |
 | Subannotation property axiom | `SubAnnotationPropertyOf` | Not started | |

@@ -52,6 +52,7 @@ from rdflib_reasoning.axiom.object_expression import (
     ObjectUnionOf,
 )
 from rdflib_reasoning.axiom.property_axiom import (
+    DataPropertyAssertion,
     DataPropertyDomain,
     DataPropertyRange,
     DatatypeDefinition,
@@ -677,6 +678,72 @@ def test_axiomatize_rdf_type_owl_class_is_declaration_not_assertion() -> None:
     actual = axiomatize(_graph_from_element(declaration))
     assert actual == (declaration,)
     assert not any(isinstance(element, ClassAssertion) for element in actual)
+
+
+def test_axiomatize_data_property_assertion_with_declaration_tip() -> None:
+    decl = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    assertion = DataPropertyAssertion(
+        context=CTX,
+        data_property_expression=decl.name,
+        individual=_uri("alice"),
+        value=Literal(42, datatype=XSD.integer),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationDataProperty in kinds
+    assert DataPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, DataPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_data_property_assertion_from_subproperty_operand() -> None:
+    decl_child = DeclarationDataProperty(context=CTX, name_value=_uri("ageYears"))
+    decl_parent = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    sub = SubDataPropertyOf(
+        context=CTX,
+        sub_data_property_expression=decl_child.name,
+        super_data_property_expression=decl_parent.name,
+    )
+    assertion = DataPropertyAssertion(
+        context=CTX,
+        data_property_expression=decl_child.name,
+        individual=_uri("alice"),
+        value=Literal(30, datatype=XSD.integer),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl_child, decl_parent, sub, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    found = next(e for e in actual if isinstance(e, DataPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_undeclared_literal_predicate_is_unsupported() -> None:
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(
+            _graph_from_triples(
+                ((_uri("alice"), _uri("age"), Literal(42, datatype=XSD.integer)),)
+            )
+        )
+
+
+def test_axiomatize_known_dpe_with_resource_object_not_data_assertion() -> None:
+    """Resource objects are not DataPropertyAssertion even with a known DPE."""
+    decl = DeclarationDataProperty(context=CTX, name_value=_uri("friend"))
+    graph = Graph(identifier=CTX)
+    for triple in decl.as_triples:
+        graph.add(triple)
+    graph.add((_uri("alice"), decl.name, _uri("bob")))
+
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(graph)
 
 
 def test_axiomatize_lifts_multiple_subclass_axioms_with_same_subject() -> None:

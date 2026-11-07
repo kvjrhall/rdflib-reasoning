@@ -30,6 +30,7 @@ from .datatype import (
     DataMinCardinality,
     DataMinCardinalityQualified,
     DataOneOf,
+    DataRestriction,
     DataSomeValuesFrom,
     DataSomeValuesFromNary,
     DatatypeRestriction,
@@ -57,6 +58,7 @@ from .object_expression import (
     ObjectUnionOf,
 )
 from .property_axiom import (
+    DataPropertyAssertion,
     DataPropertyDomain,
     DataPropertyRange,
     DatatypeDefinition,
@@ -194,6 +196,7 @@ class _Axiomatizer:
         self._parse_declaration_annotation_properties()
         self._parse_named_individuals()
         self._parse_class_assertions()
+        self._parse_data_property_assertions()
         self._raise_if_unconsumed_triples()
         return tuple(sorted(self.elements, key=_element_sort_key))
 
@@ -1776,6 +1779,73 @@ class _Axiomatizer:
                 context=self.context,
                 individual=subject,
                 class_expression=object_,
+            )
+            self._add_element(element, triple)
+
+    def _known_data_properties(self) -> set[IdentifiedNode]:
+        """Return nodes known to be data properties for assertion gating.
+
+        Harvests DPE names and operands from already-parsed structural elements
+        (declarations, characteristics, data restrictions, and data-property
+        axioms).
+        """
+        known: set[IdentifiedNode] = set()
+
+        def add(node: Node) -> None:
+            if isinstance(node, IdentifiedNode):
+                known.add(node)
+
+        def add_seq_members(seq: Seq) -> None:
+            for value in _seq_values(seq):
+                add(value)
+
+        for element in self.elements:
+            if isinstance(element, (DeclarationDataProperty, FunctionalDataProperty)):
+                add(element.name)
+            elif isinstance(element, DataRestriction):
+                on_property = getattr(element, "on_property", None)
+                if on_property is not None:
+                    add(on_property)
+                on_properties = getattr(element, "on_properties", None)
+                if isinstance(on_properties, Seq):
+                    add_seq_members(on_properties)
+            elif isinstance(element, SubDataPropertyOf):
+                add(element.sub_data_property_expression)
+                add(element.super_data_property_expression)
+            elif isinstance(element, EquivalentDataProperties):
+                add(element.data_property_expression_1)
+                add(element.data_property_expression_2)
+            elif isinstance(element, DisjointDataProperties):
+                add(element.data_property_expression_1)
+                add(element.data_property_expression_2)
+            elif isinstance(element, DisjointDataPropertiesNary):
+                add_seq_members(element.members)
+            elif isinstance(element, (DataPropertyDomain, DataPropertyRange)):
+                add(element.data_property_expression)
+        return known
+
+    def _parse_data_property_assertions(self) -> None:
+        """Lift ``x p lt`` when ``p`` is a known data property and ``lt`` is a literal."""
+        known = self._known_data_properties()
+        leftovers = sorted(
+            self.triples.difference(self.consumed),
+            key=_triple_key,
+        )
+        for triple in leftovers:
+            subject, predicate, object_ = triple
+            if not isinstance(object_, Literal):
+                continue
+            if predicate not in known:
+                continue
+            if not isinstance(predicate, URIRef):
+                continue
+            element = self._build_element(
+                "DataPropertyAssertion",
+                DataPropertyAssertion,
+                context=self.context,
+                data_property_expression=predicate,
+                individual=subject,
+                value=object_,
             )
             self._add_element(element, triple)
 

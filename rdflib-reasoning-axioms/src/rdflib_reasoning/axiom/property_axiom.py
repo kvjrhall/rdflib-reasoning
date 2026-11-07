@@ -19,6 +19,7 @@ Binary relational:
 - :class:`DifferentIndividuals` --- binary ``owl:differentFrom``
 - :class:`SameIndividual` --- binary ``owl:sameAs`` (n-ary forms serialize
   to chains)
+- :class:`DataPropertyAssertion` --- ``a DPE lt`` (literal value; known DPE)
 
 Seq-backed:
 
@@ -34,8 +35,9 @@ from typing import ClassVar, Literal, Self, override
 
 from pydantic import AliasChoices, Field, computed_field, model_validator
 from rdflib import OWL, RDF, RDFS, IdentifiedNode
+from rdflib import Literal as RDFLiteral
 
-from .common import N3IRIRef, N3Resource, Triple
+from .common import N3IRIRef, N3Node, N3Resource, Triple
 from .structural_element import Seq, StructuralElement
 
 
@@ -650,6 +652,48 @@ class HasKey(StructuralElement):
         )
 
 
+class DataPropertyAssertion(StructuralElement):
+    """Element ``DataPropertyAssertion( DPE a lt )`` of the OWL 2 structural specification.
+
+    Binary RDF form ``a DPE lt`` with a literal value. Graph lifting claims a
+    triple only when ``DPE`` is a known data property expression (declaration,
+    data restriction ``onProperty`` / ``onProperties``, or DPE operand of an
+    already-parsed axiom). Unknown predicates remain unconsumed.
+
+    Triples::
+
+        a DPE lt .
+    """
+
+    _require_concrete_kind: ClassVar[bool] = True
+    kind: Literal["DataPropertyAssertion"] = "DataPropertyAssertion"
+
+    data_property_expression: N3IRIRef
+    individual: N3Resource
+    value: N3Node
+
+    @model_validator(mode="after")
+    def _require_literal_value(self) -> Self:
+        if not isinstance(self.value, RDFLiteral):
+            raise ValueError(
+                "DataPropertyAssertion value MUST be an RDF literal; got "
+                f"{type(self.value).__name__}."
+            )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def name(self) -> IdentifiedNode:
+        return self.individual
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    @override
+    def as_triples(self) -> Sequence[Triple]:
+        return ((self.individual, self.data_property_expression, self.value),)
+
+
 class DifferentIndividuals(StructuralElement):
     """Element ``DifferentIndividuals( a1 a2 )`` of the OWL 2 structural specification.
 
@@ -762,6 +806,7 @@ class DifferentIndividualsNary(StructuralElement):
 
 
 __all__ = [
+    "DataPropertyAssertion",
     "DataPropertyDomain",
     "DataPropertyRange",
     "DatatypeDefinition",

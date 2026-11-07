@@ -2,8 +2,9 @@
 
 import pytest
 from pydantic import BaseModel, ValidationError
-from rdflib import OWL, RDF, RDFS, BNode, URIRef
+from rdflib import OWL, RDF, RDFS, XSD, BNode, Literal, URIRef
 from rdflib_reasoning.axiom.property_axiom import (
+    DataPropertyAssertion,
     DataPropertyDomain,
     DataPropertyRange,
     DatatypeDefinition,
@@ -269,6 +270,34 @@ def test_same_individual_as_triples() -> None:
     assert axiom.as_triples == ((a, OWL.sameAs, b),)
     _assert_python_json_round_trip(SameIndividual, axiom)
     _assert_model_json_schema_smoke(SameIndividual, "SameIndividual")
+
+
+def test_data_property_assertion_as_triples() -> None:
+    ctx = URIRef("http://example.com/g")
+    individual = URIRef("http://example.com/alice")
+    prop = URIRef("http://example.com/age")
+    value = Literal(42, datatype=XSD.integer)
+    axiom = DataPropertyAssertion(
+        context=ctx,
+        data_property_expression=prop,
+        individual=individual,
+        value=value,
+    )
+
+    assert axiom.name == individual
+    assert axiom.as_triples == ((individual, prop, value),)
+    _assert_python_json_round_trip(DataPropertyAssertion, axiom)
+    _assert_model_json_schema_smoke(DataPropertyAssertion, "DataPropertyAssertion")
+
+
+def test_data_property_assertion_rejects_non_literal_value() -> None:
+    with pytest.raises(ValidationError, match="RDF literal"):
+        DataPropertyAssertion(
+            context=URIRef("http://example.com/g"),
+            data_property_expression=URIRef("http://example.com/age"),
+            individual=URIRef("http://example.com/alice"),
+            value=URIRef("http://example.com/not-a-literal"),
+        )
 
 
 def test_disjoint_object_and_data_properties_binary() -> None:
