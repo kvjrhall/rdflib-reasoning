@@ -22,4 +22,5 @@ Related guides:
 - [Run RDFS inference](../how-to/run-rdfs-inference.md)
 - [Retract inferences](../how-to/retract-inferences.md)
 - [RDFS inference tutorial](../tutorials/notebooks/demo-rdfs-inference.ipynb)
+- [OWL 2 RL inference tutorial](../tutorials/notebooks/demo-owl2-rl-inference.ipynb)
 - [RDFS retraction tutorial](../tutorials/notebooks/demo-rdfs-retraction.ipynb)

@@ -35,7 +35,9 @@ The proof reconstructor works from derivation records. It is not a
 records they want to inspect.
 
 For rendered examples, see the
-[RDFS inference tutorial](../tutorials/notebooks/demo-rdfs-inference.ipynb) and
+[RDFS inference tutorial](../tutorials/notebooks/demo-rdfs-inference.ipynb),
+[OWL 2 RL inference tutorial](../tutorials/notebooks/demo-owl2-rl-inference.ipynb),
+and
 [proof reconstruction tutorial](../tutorials/notebooks/demo-proof-reconstructor.ipynb).
 For API details, see {doc}`../autoapi/engine/derivation/index` and
 {doc}`../autoapi/engine/proof_rendering/index`.

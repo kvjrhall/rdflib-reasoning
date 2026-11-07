@@ -6,6 +6,7 @@ from rdflib.term import BNode, Literal, URIRef, Variable
 from rdflib_reasoning.axiom.common import ContextIdentifier
 from rdflib_reasoning.engine.api import (
     NO_RULES,
+    OWL2_RL_RETE_MATERIALIZED,
     RDFS_RETE_MATERIALIZED,
     FatalRuleError,
     LiteralSubjectPolicy,
@@ -39,7 +40,7 @@ from rdflib_reasoning.engine.rules import (
     TripleConsequent,
     TriplePattern,
 )
-from rdflib_reasoning.engine.rulesets import PRODUCTION_RDFS_RULES
+from rdflib_reasoning.engine.rulesets import OWL2_RL_RULES, PRODUCTION_RDFS_RULES
 
 _X = Variable("x")
 
@@ -307,6 +308,29 @@ def test_rdfs_rete_materialized_spec_store_materializes_rdfs_closure() -> None:
     dataset.default_graph.add((alice, RDF.type, person))
 
     assert (alice, RDF.type, mammal) in dataset.default_graph
+
+
+def test_owl2_rl_rete_materialized_spec_creates_owl2_rl_factory() -> None:
+    factory = OWL2_RL_RETE_MATERIALIZED.engine_factory()
+    engine = factory.new_engine(URIRef("urn:test:canonical-owl2-rl"))
+
+    assert engine.rules == OWL2_RL_RULES
+    assert OWL2_RL_RETE_MATERIALIZED.materializes_inferences is True
+    assert OWL2_RL_RETE_MATERIALIZED.supports_retraction is True
+    assert OWL2_RL_RETE_MATERIALIZED.supports_derivation_logging is True
+    assert OWL2_RL_RETE_MATERIALIZED.contradiction_policy == "raise"
+
+
+def test_owl2_rl_rete_materialized_spec_store_materializes_owl2_rl_closure() -> None:
+    dataset = OWL2_RL_RETE_MATERIALIZED.dataset()
+    person = URIRef("urn:test:Person")
+    human = URIRef("urn:test:Human")
+    alice = URIRef("urn:test:alice")
+
+    dataset.default_graph.add((person, OWL.equivalentClass, human))
+    dataset.default_graph.add((alice, RDF.type, person))
+
+    assert (alice, RDF.type, human) in dataset.default_graph
 
 
 def test_no_rules_spec_has_logically_noop_metadata() -> None:

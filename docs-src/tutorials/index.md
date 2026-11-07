@@ -10,6 +10,10 @@ Read them in this order:
 - [RDFS inference](notebooks/demo-rdfs-inference.ipynb): RDFLib-backed RDFS
   materialization and proof inspection for one inferred triple. Start here if
   you are new to the engine package.
+- [OWL 2 RL inference](notebooks/demo-owl2-rl-inference.ipynb): OWL 2 RL
+  counterpart showing class-equivalence and subclass typing materialization
+  plus proof inspection. Read this after the RDFS tutorial when you want the
+  OWL profile.
 - [RDFS retraction](notebooks/demo-rdfs-retraction.ipynb): support-aware
   retraction through ordinary RDFLib statement removal. Read this after the
   inference tutorial to see update behavior.
@@ -25,6 +29,7 @@ Read them in this order:
 :caption: Rendered Notebook Tutorials
 
 notebooks/demo-rdfs-inference
+notebooks/demo-owl2-rl-inference
 notebooks/demo-rdfs-retraction
 notebooks/demo-contradiction-rules
 notebooks/demo-proof-reconstructor
