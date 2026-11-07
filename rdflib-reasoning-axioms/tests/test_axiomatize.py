@@ -16,10 +16,16 @@ from rdflib_reasoning.axiom.axiomatize import (
     UnsupportedGraphError,
     axiomatize,
 )
-from rdflib_reasoning.axiom.class_axiom import DeclarationClass, SubClassOf
+from rdflib_reasoning.axiom.class_axiom import (
+    ClassAssertion,
+    DeclarationClass,
+    SubClassOf,
+)
 from rdflib_reasoning.axiom.datatype import (
+    DataAllValuesFrom,
     DataAllValuesFromNary,
     DataComplementOf,
+    DataHasValue,
     DataIntersectionOf,
     DataOneOf,
     DataSomeValuesFrom,
@@ -30,6 +36,47 @@ from rdflib_reasoning.axiom.datatype import (
     FacetEntry,
     FacetList,
 )
+from rdflib_reasoning.axiom.declaration import (
+    DeclarationDataProperty,
+    DeclarationObjectProperty,
+)
+from rdflib_reasoning.axiom.object_expression import (
+    DisjointClasses,
+    DisjointClassesNary,
+    DisjointUnion,
+    EquivalentClasses,
+    ObjectComplementOf,
+    ObjectIntersectionOf,
+    ObjectInverseOf,
+    ObjectOneOf,
+    ObjectUnionOf,
+)
+from rdflib_reasoning.axiom.property_axiom import (
+    DataPropertyAssertion,
+    DataPropertyDomain,
+    DataPropertyRange,
+    DatatypeDefinition,
+    DifferentIndividuals,
+    DifferentIndividualsNary,
+    DisjointDataProperties,
+    DisjointDataPropertiesNary,
+    DisjointObjectProperties,
+    DisjointObjectPropertiesNary,
+    EquivalentDataProperties,
+    EquivalentObjectProperties,
+    HasKey,
+    InverseObjectProperties,
+    NegativeDataPropertyAssertion,
+    NegativeObjectPropertyAssertion,
+    ObjectPropertyAssertion,
+    ObjectPropertyDomain,
+    ObjectPropertyRange,
+    SameIndividual,
+    SubDataPropertyOf,
+    SubObjectPropertyOf,
+    SubObjectPropertyOfChain,
+)
+from rdflib_reasoning.axiom.restriction import ObjectSomeValuesFrom
 from rdflib_reasoning.axiom.structural_element import Seq, SeqEntry, StructuralElement
 
 EX = "http://example.com/"
@@ -147,6 +194,18 @@ def _current_datatype_elements() -> tuple[StructuralElement, ...]:
             on_properties=property_seq,
             all_values_from=_uri("range-nary"),
         ),
+        DataAllValuesFrom(
+            context=CTX,
+            name_value=_uri("all-values-from-unary"),
+            on_property=_uri("p-all"),
+            all_values_from=_uri("range-all"),
+        ),
+        DataHasValue(
+            context=CTX,
+            name_value=_uri("data-has-value"),
+            on_property=_uri("p-hv"),
+            has_value=Literal("Ada"),
+        ),
     )
 
 
@@ -157,6 +216,104 @@ def _current_class_elements() -> tuple[StructuralElement, ...]:
             context=CTX,
             sub_class_expression=_uri("ChildClass"),
             super_class_expression=_uri("ParentClass"),
+        ),
+    )
+
+
+def _ternary_seq(
+    head_name: str,
+    mid_name: str,
+    tail_name: str,
+    first: Node,
+    second: Node,
+    third: Node,
+) -> Seq:
+    return Seq(
+        context=CTX,
+        entries=(
+            SeqEntry(cell=_uri(head_name), value=first),
+            SeqEntry(cell=_uri(mid_name), value=second),
+            SeqEntry(cell=_uri(tail_name), value=third),
+            SeqEntry(cell=RDF.nil, value=None),
+        ),
+    )
+
+
+def _current_object_expression_elements() -> tuple[StructuralElement, ...]:
+    return (
+        ObjectIntersectionOf(
+            context=CTX,
+            name_value=_uri("object-intersection"),
+            intersection_of=_binary_seq(
+                "obj-intersection-list",
+                "obj-intersection-list-tail",
+                _uri("CE-a"),
+                _uri("CE-b"),
+            ),
+        ),
+        ObjectUnionOf(
+            context=CTX,
+            name_value=_uri("object-union"),
+            union_of=_binary_seq(
+                "obj-union-list",
+                "obj-union-list-tail",
+                _uri("CE-c"),
+                _uri("CE-d"),
+            ),
+        ),
+        ObjectComplementOf(
+            context=CTX,
+            name_value=_uri("object-complement"),
+            complement_of=_uri("CE-inner"),
+        ),
+        ObjectOneOf(
+            context=CTX,
+            name_value=_uri("object-one-of"),
+            one_of=_binary_seq(
+                "obj-one-of-list",
+                "obj-one-of-list-tail",
+                _uri("alice"),
+                _uri("bob"),
+            ),
+        ),
+        ObjectInverseOf(
+            context=CTX,
+            # Blank-node subject distinguishes ObjectInverseOf from
+            # InverseObjectProperties (IRI-subject owl:inverseOf).
+            name_value=BNode(),
+            inverse_of=_uri("parentOf"),
+        ),
+        DisjointClasses(
+            context=CTX,
+            class_expression_1=_uri("Boy"),
+            class_expression_2=_uri("Girl"),
+        ),
+        EquivalentClasses(
+            context=CTX,
+            class_expression_1=_uri("BoyEq"),
+            class_expression_2=_uri("MaleChild"),
+        ),
+        DisjointClassesNary(
+            context=CTX,
+            name_value=_uri("all-disjoint-classes"),
+            members=_ternary_seq(
+                "adc-list",
+                "adc-list-mid",
+                "adc-list-tail",
+                _uri("CE-x"),
+                _uri("CE-y"),
+                _uri("CE-z"),
+            ),
+        ),
+        DisjointUnion(
+            context=CTX,
+            union_class=_uri("Child"),
+            disjoint_union_of=_binary_seq(
+                "du-list",
+                "du-list-tail",
+                _uri("Boy"),
+                _uri("Girl"),
+            ),
         ),
     )
 
@@ -181,6 +338,277 @@ def test_axiomatize_round_trips_current_class_elements(
     assert len(actual) == 1
     assert type(actual[0]) is type(element)
     assert actual[0] == element
+
+
+@pytest.mark.parametrize("element", _current_object_expression_elements())
+def test_axiomatize_round_trips_current_object_expression_elements(
+    element: StructuralElement,
+) -> None:
+    actual = axiomatize(_graph_from_element(element))
+
+    assert len(actual) == 1
+    assert type(actual[0]) is type(element)
+    assert actual[0] == element
+
+
+def _current_property_axiom_elements() -> tuple[StructuralElement, ...]:
+    return (
+        SubObjectPropertyOf(
+            context=CTX,
+            sub_object_property_expression=_uri("childProp"),
+            super_object_property_expression=_uri("parentProp"),
+        ),
+        SubObjectPropertyOfChain(
+            context=CTX,
+            object_property_expression=_uri("hasUncle"),
+            property_chain=_binary_seq(
+                "chain-list",
+                "chain-list-tail",
+                _uri("hasParent"),
+                _uri("hasBrother"),
+            ),
+        ),
+        ObjectPropertyDomain(
+            context=CTX,
+            object_property_expression=_uri("worksFor"),
+            class_expression=_uri("Person"),
+        ),
+        ObjectPropertyRange(
+            context=CTX,
+            object_property_expression=_uri("worksForRange"),
+            class_expression=_uri("Organization"),
+        ),
+        InverseObjectProperties(
+            context=CTX,
+            object_property_expression_1=_uri("hasParent"),
+            object_property_expression_2=_uri("hasChild"),
+        ),
+        EquivalentObjectProperties(
+            context=CTX,
+            object_property_expression_1=_uri("eqPropA"),
+            object_property_expression_2=_uri("eqPropB"),
+        ),
+        DisjointObjectProperties(
+            context=CTX,
+            object_property_expression_1=_uri("disjointP1"),
+            object_property_expression_2=_uri("disjointP2"),
+        ),
+        DisjointObjectPropertiesNary(
+            context=CTX,
+            name_value=_uri("all-disjoint-object-props"),
+            members=_ternary_seq(
+                "adop-list",
+                "adop-list-mid",
+                "adop-list-tail",
+                _uri("op-a"),
+                _uri("op-b"),
+                _uri("op-c"),
+            ),
+        ),
+        HasKey(
+            context=CTX,
+            class_expression=_uri("KeyedPerson"),
+            key_properties=_binary_seq(
+                "key-list",
+                "key-list-tail",
+                _uri("hasSSN"),
+                _uri("nationalId"),
+            ),
+        ),
+        DifferentIndividuals(
+            context=CTX,
+            individual_1=_uri("alice"),
+            individual_2=_uri("bob"),
+        ),
+        SameIndividual(
+            context=CTX,
+            individual_1=_uri("meg"),
+            individual_2=_uri("megan"),
+        ),
+        DifferentIndividualsNary(
+            context=CTX,
+            name_value=_uri("all-different"),
+            members=_ternary_seq(
+                "diff-list",
+                "diff-list-mid",
+                "diff-list-tail",
+                _uri("aliceN"),
+                _uri("bobN"),
+                _uri("carolN"),
+            ),
+        ),
+    )
+
+
+@pytest.mark.parametrize("element", _current_property_axiom_elements())
+def test_axiomatize_round_trips_current_property_axiom_elements(
+    element: StructuralElement,
+) -> None:
+    actual = axiomatize(_graph_from_element(element))
+
+    assert len(actual) == 1
+    assert type(actual[0]) is type(element)
+    assert actual[0] == element
+
+
+def test_axiomatize_different_individuals_nary_from_distinct_members() -> None:
+    """Legacy owl:distinctMembers lifts to DifferentIndividualsNary (members form)."""
+    expected = DifferentIndividualsNary(
+        context=CTX,
+        name_value=_uri("all-different-legacy"),
+        members=_ternary_seq(
+            "legacy-diff-list",
+            "legacy-diff-list-mid",
+            "legacy-diff-list-tail",
+            _uri("aliceL"),
+            _uri("bobL"),
+            _uri("carolL"),
+        ),
+    )
+    graph = Graph(identifier=CTX)
+    for triple in expected.members.as_triples:
+        graph.add(triple)
+    graph.add((expected.name, RDF.type, OWL.AllDifferent))
+    graph.add((expected.name, OWL.distinctMembers, expected.members.name))
+
+    actual = axiomatize(graph)
+    assert actual == (expected,)
+    assert (expected.name, OWL.members, expected.members.name) in expected.as_triples
+    assert (expected.name, OWL.distinctMembers, expected.members.name) not in (
+        expected.as_triples
+    )
+
+
+def test_axiomatize_different_individuals_nary_rejects_both_list_predicates() -> None:
+    members = _ternary_seq(
+        "both-diff-list",
+        "both-diff-list-mid",
+        "both-diff-list-tail",
+        _uri("aliceB"),
+        _uri("bobB"),
+        _uri("carolB"),
+    )
+    subject = _uri("all-different-both")
+    graph = Graph(identifier=CTX)
+    for triple in members.as_triples:
+        graph.add(triple)
+    graph.add((subject, RDF.type, OWL.AllDifferent))
+    graph.add((subject, OWL.members, members.name))
+    graph.add((subject, OWL.distinctMembers, members.name))
+
+    with pytest.raises(MalformedGraphError, match="MUST NOT combine"):
+        axiomatize(graph)
+
+
+def test_axiomatize_lifts_data_property_axioms_with_declarations() -> None:
+    """Data forms share RDF with object forms; DatatypeProperty tips the scale."""
+    decl_a = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    decl_b = DeclarationDataProperty(context=CTX, name_value=_uri("weight"))
+    sub = SubDataPropertyOf(
+        context=CTX,
+        sub_data_property_expression=decl_a.name,
+        super_data_property_expression=_uri("measure"),
+    )
+    domain = DataPropertyDomain(
+        context=CTX,
+        data_property_expression=decl_a.name,
+        class_expression=_uri("Person"),
+    )
+    range_ = DataPropertyRange(
+        context=CTX,
+        data_property_expression=decl_a.name,
+        data_range=_uri("nonNegInt"),
+    )
+    disjoint = DisjointDataProperties(
+        context=CTX,
+        data_property_expression_1=decl_a.name,
+        data_property_expression_2=decl_b.name,
+    )
+    equivalent = EquivalentDataProperties(
+        context=CTX,
+        data_property_expression_1=decl_a.name,
+        data_property_expression_2=decl_b.name,
+    )
+    disjoint_nary = DisjointDataPropertiesNary(
+        context=CTX,
+        name_value=_uri("all-disjoint-data-props"),
+        members=_ternary_seq(
+            "addp-list",
+            "addp-list-mid",
+            "addp-list-tail",
+            decl_a.name,
+            decl_b.name,
+            _uri("height"),
+        ),
+    )
+    height_decl = DeclarationDataProperty(context=CTX, name_value=_uri("height"))
+    graph = Graph(identifier=CTX)
+    for element in (
+        decl_a,
+        decl_b,
+        height_decl,
+        sub,
+        domain,
+        range_,
+        disjoint,
+        equivalent,
+        disjoint_nary,
+    ):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert SubDataPropertyOf in kinds
+    assert DataPropertyDomain in kinds
+    assert DataPropertyRange in kinds
+    assert DisjointDataProperties in kinds
+    assert EquivalentDataProperties in kinds
+    assert DisjointDataPropertiesNary in kinds
+    assert DeclarationDataProperty in kinds
+
+
+def test_axiomatize_datatype_definition_with_datatype_tip() -> None:
+    """``owl:equivalentClass`` with ``rdfs:Datatype`` tip lifts as DatatypeDefinition."""
+    decl = DeclarationDatatype(context=CTX, name_value=_uri("AdultAge"))
+    definition = DatatypeDefinition(
+        context=CTX,
+        datatype=decl.name,
+        data_range=_uri("adultAgeRange"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, definition):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DatatypeDefinition in kinds
+    assert DeclarationDatatype in kinds
+    found = next(e for e in actual if isinstance(e, DatatypeDefinition))
+    assert found == definition
+
+
+def test_axiomatize_equivalent_class_chain_yields_binary_axioms() -> None:
+    """A chain of ``owl:equivalentClass`` triples lifts as one binary axiom each."""
+    ce1 = _uri("CE1")
+    ce2 = _uri("CE2")
+    ce3 = _uri("CE3")
+    graph = _graph_from_triples(
+        (
+            (ce1, OWL.equivalentClass, ce2),
+            (ce2, OWL.equivalentClass, ce3),
+        )
+    )
+
+    actual = axiomatize(graph)
+
+    assert len(actual) == 2
+    assert all(isinstance(element, EquivalentClasses) for element in actual)
+    pairs = {
+        (element.class_expression_1, element.class_expression_2) for element in actual
+    }
+    assert pairs == {(ce1, ce2), (ce2, ce3)}
 
 
 def test_axiomatize_orders_elements_and_falls_back_to_declaration() -> None:
@@ -225,15 +653,17 @@ def test_axiomatize_does_not_mutate_caller_graph() -> None:
     "triples",
     (
         (
-            (_uri("restriction"), RDF.type, OWL.Restriction),
-            (_uri("restriction"), OWL.onProperty, _uri("object-property")),
-            (_uri("restriction"), OWL.someValuesFrom, _uri("ObjectClass")),
-            (_uri("object-property"), RDF.type, OWL.ObjectProperty),
+            # Annotation assertions are outside current axiomatization coverage.
+            (_uri("subject"), _uri("comment"), Literal("note")),
         ),
         (
-            (_uri("unary-all"), RDF.type, OWL.Restriction),
-            (_uri("unary-all"), OWL.onProperty, _uri("p")),
-            (_uri("unary-all"), OWL.allValuesFrom, _uri("range")),
+            # ClassAssertion requires a known CE; undeclared type objects remain
+            # unconsumed under the strict CE gate.
+            (_uri("alice"), RDF.type, _uri("Person")),
+        ),
+        (
+            # Negative property assertions are outside current coverage.
+            (_uri("npa"), RDF.type, OWL.NegativePropertyAssertion),
         ),
     ),
 )
@@ -242,6 +672,410 @@ def test_axiomatize_fails_for_unsupported_structures(
 ) -> None:
     with pytest.raises(UnsupportedGraphError):
         axiomatize(_graph_from_triples(triples))
+
+
+def test_axiomatize_class_assertion_with_declaration_tip() -> None:
+    declaration = DeclarationClass(context=CTX, name_value=_uri("Person"))
+    assertion = ClassAssertion(
+        context=CTX,
+        individual=_uri("alice"),
+        class_expression=declaration.name,
+    )
+    graph = Graph(identifier=CTX)
+    for element in (declaration, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationClass in kinds
+    assert ClassAssertion in kinds
+    found = next(e for e in actual if isinstance(e, ClassAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_class_assertion_to_object_restriction() -> None:
+    restriction = ObjectSomeValuesFrom(
+        context=CTX,
+        name_value=BNode("parentRestriction"),
+        on_property=_uri("hasParent"),
+        some_values_from=_uri("Person"),
+    )
+    assertion = ClassAssertion(
+        context=CTX,
+        individual=_uri("alice"),
+        class_expression=restriction.name,
+    )
+    # Object-property tip so unary someValuesFrom lifts as Object*, not Data*.
+    prop_decl = DeclarationObjectProperty(
+        context=CTX,
+        name_value=_uri("hasParent"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (prop_decl, restriction, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert ObjectSomeValuesFrom in kinds
+    assert ClassAssertion in kinds
+    found = next(e for e in actual if isinstance(e, ClassAssertion))
+    assert found.individual == assertion.individual
+    assert found.class_expression == restriction.name
+
+
+def test_axiomatize_rdf_type_owl_class_is_declaration_not_assertion() -> None:
+    declaration = DeclarationClass(context=CTX, name_value=_uri("Person"))
+    actual = axiomatize(_graph_from_element(declaration))
+    assert actual == (declaration,)
+    assert not any(isinstance(element, ClassAssertion) for element in actual)
+
+
+def test_axiomatize_object_property_assertion_with_declaration_tip() -> None:
+    decl = DeclarationObjectProperty(context=CTX, name_value=_uri("knows"))
+    assertion = ObjectPropertyAssertion(
+        context=CTX,
+        object_property_expression=decl.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationObjectProperty in kinds
+    assert ObjectPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, ObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_object_property_assertion_from_subproperty_operand() -> None:
+    decl_child = DeclarationObjectProperty(context=CTX, name_value=_uri("knowsWell"))
+    decl_parent = DeclarationObjectProperty(context=CTX, name_value=_uri("knows"))
+    sub = SubObjectPropertyOf(
+        context=CTX,
+        sub_object_property_expression=decl_child.name,
+        super_object_property_expression=decl_parent.name,
+    )
+    assertion = ObjectPropertyAssertion(
+        context=CTX,
+        object_property_expression=decl_child.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl_child, decl_parent, sub, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    found = next(e for e in actual if isinstance(e, ObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_object_property_assertion_from_object_inverse_of() -> None:
+    inv = ObjectInverseOf(
+        context=CTX,
+        name_value=BNode("invKnows"),
+        inverse_of=_uri("knows"),
+    )
+    assertion = ObjectPropertyAssertion(
+        context=CTX,
+        object_property_expression=inv.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (inv, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert ObjectInverseOf in kinds
+    assert ObjectPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, ObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_undeclared_resource_predicate_is_unsupported() -> None:
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(_graph_from_triples(((_uri("alice"), _uri("knows"), _uri("bob")),)))
+
+
+def test_axiomatize_known_ope_with_literal_object_not_object_assertion() -> None:
+    """Literal objects are not ObjectPropertyAssertion even with a known OPE."""
+    decl = DeclarationObjectProperty(context=CTX, name_value=_uri("labelProp"))
+    graph = Graph(identifier=CTX)
+    for triple in decl.as_triples:
+        graph.add(triple)
+    graph.add((_uri("alice"), decl.name, Literal("note")))
+
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(graph)
+
+
+def test_axiomatize_negative_object_property_assertion_with_declaration_tip() -> None:
+    decl = DeclarationObjectProperty(context=CTX, name_value=_uri("knows"))
+    assertion = NegativeObjectPropertyAssertion(
+        context=CTX,
+        name_value=BNode("npaKnows"),
+        object_property_expression=decl.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationObjectProperty in kinds
+    assert NegativeObjectPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, NegativeObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_negative_object_property_assertion_from_subproperty_operand() -> (
+    None
+):
+    decl_child = DeclarationObjectProperty(context=CTX, name_value=_uri("knowsWell"))
+    decl_parent = DeclarationObjectProperty(context=CTX, name_value=_uri("knows"))
+    sub = SubObjectPropertyOf(
+        context=CTX,
+        sub_object_property_expression=decl_child.name,
+        super_object_property_expression=decl_parent.name,
+    )
+    assertion = NegativeObjectPropertyAssertion(
+        context=CTX,
+        name_value=BNode("npaKnowsWell"),
+        object_property_expression=decl_child.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl_child, decl_parent, sub, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    found = next(e for e in actual if isinstance(e, NegativeObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_negative_object_property_assertion_from_object_inverse_of() -> None:
+    inv = ObjectInverseOf(
+        context=CTX,
+        name_value=BNode("invKnowsNpa"),
+        inverse_of=_uri("knows"),
+    )
+    assertion = NegativeObjectPropertyAssertion(
+        context=CTX,
+        name_value=BNode("npaInvKnows"),
+        object_property_expression=inv.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (inv, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert ObjectInverseOf in kinds
+    assert NegativeObjectPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, NegativeObjectPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_negative_object_property_undeclared_predicate_is_unsupported() -> (
+    None
+):
+    node = BNode("npaUndeclaredObj")
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(
+            _graph_from_triples(
+                (
+                    (node, RDF.type, OWL.NegativePropertyAssertion),
+                    (node, OWL.sourceIndividual, _uri("alice")),
+                    (node, OWL.assertionProperty, _uri("knows")),
+                    (node, OWL.targetIndividual, _uri("bob")),
+                )
+            )
+        )
+
+
+def test_axiomatize_data_property_assertion_with_declaration_tip() -> None:
+    decl = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    assertion = DataPropertyAssertion(
+        context=CTX,
+        data_property_expression=decl.name,
+        individual=_uri("alice"),
+        value=Literal(42, datatype=XSD.integer),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationDataProperty in kinds
+    assert DataPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, DataPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_data_property_assertion_from_subproperty_operand() -> None:
+    decl_child = DeclarationDataProperty(context=CTX, name_value=_uri("ageYears"))
+    decl_parent = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    sub = SubDataPropertyOf(
+        context=CTX,
+        sub_data_property_expression=decl_child.name,
+        super_data_property_expression=decl_parent.name,
+    )
+    assertion = DataPropertyAssertion(
+        context=CTX,
+        data_property_expression=decl_child.name,
+        individual=_uri("alice"),
+        value=Literal(30, datatype=XSD.integer),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl_child, decl_parent, sub, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    found = next(e for e in actual if isinstance(e, DataPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_undeclared_literal_predicate_is_unsupported() -> None:
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(
+            _graph_from_triples(
+                ((_uri("alice"), _uri("age"), Literal(42, datatype=XSD.integer)),)
+            )
+        )
+
+
+def test_axiomatize_negative_data_property_assertion_with_declaration_tip() -> None:
+    decl = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    assertion = NegativeDataPropertyAssertion(
+        context=CTX,
+        name_value=BNode("npaAge"),
+        data_property_expression=decl.name,
+        individual=_uri("alice"),
+        value=Literal(42, datatype=XSD.integer),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    kinds = {type(element) for element in actual}
+    assert DeclarationDataProperty in kinds
+    assert NegativeDataPropertyAssertion in kinds
+    found = next(e for e in actual if isinstance(e, NegativeDataPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_negative_data_property_assertion_from_subproperty_operand() -> None:
+    decl_child = DeclarationDataProperty(context=CTX, name_value=_uri("ageYears"))
+    decl_parent = DeclarationDataProperty(context=CTX, name_value=_uri("age"))
+    sub = SubDataPropertyOf(
+        context=CTX,
+        sub_data_property_expression=decl_child.name,
+        super_data_property_expression=decl_parent.name,
+    )
+    assertion = NegativeDataPropertyAssertion(
+        context=CTX,
+        name_value=BNode("npaAgeYears"),
+        data_property_expression=decl_child.name,
+        individual=_uri("alice"),
+        value=Literal(30, datatype=XSD.integer),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl_child, decl_parent, sub, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    found = next(e for e in actual if isinstance(e, NegativeDataPropertyAssertion))
+    assert found == assertion
+
+
+def test_axiomatize_negative_data_property_undeclared_predicate_is_unsupported() -> (
+    None
+):
+    node = BNode("npaUndeclared")
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(
+            _graph_from_triples(
+                (
+                    (node, RDF.type, OWL.NegativePropertyAssertion),
+                    (node, OWL.sourceIndividual, _uri("alice")),
+                    (node, OWL.assertionProperty, _uri("age")),
+                    (node, OWL.targetValue, Literal(42, datatype=XSD.integer)),
+                )
+            )
+        )
+
+
+def test_axiomatize_npa_target_individual_with_known_ope_is_object_form() -> None:
+    """targetIndividual + known OPE lifts as NegativeObjectPropertyAssertion."""
+    decl = DeclarationObjectProperty(context=CTX, name_value=_uri("knows"))
+    assertion = NegativeObjectPropertyAssertion(
+        context=CTX,
+        name_value=BNode("npaKnowsTarget"),
+        object_property_expression=decl.name,
+        individual=_uri("alice"),
+        value=_uri("bob"),
+    )
+    graph = Graph(identifier=CTX)
+    for element in (decl, assertion):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+    found = next(e for e in actual if isinstance(e, NegativeObjectPropertyAssertion))
+    assert found == assertion
+    assert not any(isinstance(e, NegativeDataPropertyAssertion) for e in actual)
+
+
+def test_axiomatize_npa_target_individual_with_known_dpe_is_unsupported() -> None:
+    """targetIndividual NPAs are not NegativeDataPropertyAssertion even with a DPE tip."""
+    decl = DeclarationDataProperty(context=CTX, name_value=_uri("friend"))
+    node = BNode("npaFriend")
+    graph = Graph(identifier=CTX)
+    for triple in decl.as_triples:
+        graph.add(triple)
+    graph.add((node, RDF.type, OWL.NegativePropertyAssertion))
+    graph.add((node, OWL.sourceIndividual, _uri("alice")))
+    graph.add((node, OWL.assertionProperty, decl.name))
+    graph.add((node, OWL.targetIndividual, _uri("bob")))
+
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(graph)
+
+
+def test_axiomatize_known_dpe_with_resource_object_not_data_assertion() -> None:
+    """Resource objects are not DataPropertyAssertion even with a known DPE."""
+    decl = DeclarationDataProperty(context=CTX, name_value=_uri("friend"))
+    graph = Graph(identifier=CTX)
+    for triple in decl.as_triples:
+        graph.add(triple)
+    graph.add((_uri("alice"), decl.name, _uri("bob")))
+
+    with pytest.raises(UnsupportedGraphError):
+        axiomatize(graph)
 
 
 def test_axiomatize_lifts_multiple_subclass_axioms_with_same_subject() -> None:
@@ -364,3 +1198,77 @@ def test_axiomatize_fails_for_nonliteral_data_one_of_member() -> None:
 
     with pytest.raises(MalformedGraphError, match="MUST be literals"):
         axiomatize(graph)
+
+
+def test_axiomatize_fails_for_literal_object_one_of_member() -> None:
+    graph = _graph_from_triples(
+        (
+            (_uri("bad-obj-one-of"), RDF.type, OWL.Class),
+            (_uri("bad-obj-one-of"), OWL.oneOf, _uri("bad-obj-one-of-list")),
+            (_uri("bad-obj-one-of-list"), RDF.first, Literal("not-an-individual")),
+            (_uri("bad-obj-one-of-list"), RDF.rest, RDF.nil),
+        )
+    )
+
+    with pytest.raises(MalformedGraphError, match="MUST be individuals"):
+        axiomatize(graph)
+
+
+def test_axiomatize_fails_for_under_arity_object_intersection() -> None:
+    graph = _graph_from_triples(
+        (
+            (_uri("small-obj-intersection"), RDF.type, OWL.Class),
+            (
+                _uri("small-obj-intersection"),
+                OWL.intersectionOf,
+                _uri("one-cell-obj-list"),
+            ),
+            (_uri("one-cell-obj-list"), RDF.first, _uri("CE")),
+            (_uri("one-cell-obj-list"), RDF.rest, RDF.nil),
+        )
+    )
+
+    with pytest.raises(MalformedGraphError, match="n >= 2"):
+        axiomatize(graph)
+
+
+def test_axiomatize_fails_for_under_arity_disjoint_classes_nary() -> None:
+    graph = _graph_from_triples(
+        (
+            (_uri("small-adc"), RDF.type, OWL.AllDisjointClasses),
+            (_uri("small-adc"), OWL.members, _uri("adc-two-list")),
+            (_uri("adc-two-list"), RDF.first, _uri("CE-a")),
+            (_uri("adc-two-list"), RDF.rest, _uri("adc-two-list-tail")),
+            (_uri("adc-two-list-tail"), RDF.first, _uri("CE-b")),
+            (_uri("adc-two-list-tail"), RDF.rest, RDF.nil),
+        )
+    )
+
+    with pytest.raises(MalformedGraphError, match="n > 2"):
+        axiomatize(graph)
+
+
+def test_axiomatize_object_expression_before_declaration_class_fallback() -> None:
+    intersection = ObjectIntersectionOf(
+        context=CTX,
+        name_value=_uri("rich-class"),
+        intersection_of=_binary_seq(
+            "rich-list",
+            "rich-list-tail",
+            _uri("CE-a"),
+            _uri("CE-b"),
+        ),
+    )
+    plain = DeclarationClass(context=CTX, name_value=_uri("plain-class"))
+    graph = Graph(identifier=CTX)
+    for element in (intersection, plain):
+        for triple in element.as_triples:
+            graph.add(triple)
+
+    actual = axiomatize(graph)
+
+    assert len(actual) == 2
+    kinds = {type(element) for element in actual}
+    assert kinds == {ObjectIntersectionOf, DeclarationClass}
+    richer = next(e for e in actual if isinstance(e, ObjectIntersectionOf))
+    assert richer == intersection

@@ -1,6 +1,10 @@
 from pydantic import BaseModel
 from rdflib import OWL, RDF, RDFS, URIRef
-from rdflib_reasoning.axiom.class_axiom import DeclarationClass, SubClassOf
+from rdflib_reasoning.axiom.class_axiom import (
+    ClassAssertion,
+    DeclarationClass,
+    SubClassOf,
+)
 
 
 def _assert_model_json_schema_smoke(model_cls: type[BaseModel], title: str) -> None:
@@ -83,3 +87,20 @@ def test_subclass_of_python_json_round_trip_and_schema() -> None:
 
     _assert_python_json_round_trip(SubClassOf, axiom)
     _assert_model_json_schema_smoke(SubClassOf, "SubClassOf")
+
+
+def test_class_assertion_as_triples() -> None:
+    ctx = URIRef("http://example.com/g")
+    individual = URIRef("http://example.com/alice")
+    ce = URIRef("http://example.com/Person")
+    axiom = ClassAssertion(
+        context=ctx,
+        individual=individual,
+        class_expression=ce,
+    )
+
+    assert axiom.name == individual
+    assert axiom.as_triples == ((individual, RDF.type, ce),)
+    assert axiom.as_quads == tuple((*t, ctx) for t in axiom.as_triples)
+    _assert_python_json_round_trip(ClassAssertion, axiom)
+    _assert_model_json_schema_smoke(ClassAssertion, "ClassAssertion")

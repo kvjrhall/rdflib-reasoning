@@ -144,6 +144,9 @@ flowchart LR
 
 - Structural traversal SHOULD partition supported graph content into explicit `StructuralElement` or `GraphBacked` objects rather than forcing downstream agents to recover structural intent from raw triples alone.
 - Traversal over OWL 2 content SHOULD use the local OWL 2 Mapping to RDF specification artifacts and crosswalks as the primary Development Agent-facing references.
+- Traversal is parse-first: success is measured by lifting RDF into mapping-prescribed equivalent structural forms, not by preserving every forward-only packaging used when an ontology was authored.
+- Traversal MUST accept the OWL 2 Mapping to RDF reverse reconstructions even when they differ from a possible forward packaging (for example binary equivalence / same-individual chains, or an ordinary object-property assertion where the forward InverseOf individual-swap encoding was used).
+- Forward-only mapping packagings MUST NOT require dedicated reconstructible `StructuralElement` types. See [DR-033 Intentional Exclusion of Forward-Only OWL 2 Mapping Packaging](decision-records/DR-033%20Intentional%20Exclusion%20of%20Forward-Only%20OWL%202%20Mapping%20Packaging.md) and the searchable catalog in [`rdflib-reasoning-axioms/README.md`](../rdflib-reasoning-axioms/README.md).
 - Traversal output SHOULD have a stable deterministic order so that graph-derived structural representations can be compared, rendered, embedded, and supplied to Research Agents repeatably.
 - Structural rendering SHOULD be distinct from structural traversal. Rendering MAY produce prose, markdown, or other human-readable text from structural elements, but it MUST NOT change the canonical structured payload.
 - Prose and text renderers SHOULD use RDFS labels, vocabulary metadata, CURIEs, and deterministic fallback identifiers so missing labels do not make output unstable.
