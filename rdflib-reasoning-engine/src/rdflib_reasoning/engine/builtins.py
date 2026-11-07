@@ -27,9 +27,10 @@ from typing import ClassVar, Final, Never, Self
 
 from pydantic import NonNegativeInt
 from rdflib.term import Literal as RDFLiteral
-from rdflib.term import Node
+from rdflib.term import Node, URIRef
 
 from .errors import BuiltinInputError
+from .owl2_rl_datatypes import literal_value_in_datatype
 
 
 def _format_inputs(inputs: Sequence[Node]) -> str:
@@ -147,6 +148,8 @@ class NotLiteralPredicate(PredicateHook):
 
     By default, registered as "not_literal" in
     :data:`~rdflib_reasoning.engine.builtins.DEFAULT_PREDICATE_BUILTINS`.
+    See :class:`~rdflib_reasoning.engine.builtins.IsLiteralPredicate` for the
+    logical inverse of this predicate.
 
     :param context: The read-only context passed to the predicate.
     :param args: A sequence of RDF nodes. It is an error to call this predicate with less than one argument.
@@ -160,6 +163,32 @@ class NotLiteralPredicate(PredicateHook):
         if len(args) < 1:
             context.report_argument_count(args, min_inclusive=1)
         return all(not isinstance(arg, RDFLiteral) for arg in args)
+
+
+class IsLiteralPredicate(PredicateHook):
+    """True when all arguments are RDF literals.
+
+    By default, registered as "is_literal" in
+    :data:`~rdflib_reasoning.engine.builtins.DEFAULT_PREDICATE_BUILTINS`.
+    See :class:`~rdflib_reasoning.engine.builtins.NotLiteralPredicate` for the
+    logical inverse of this predicate.
+
+    Args:
+        context: The read-only context passed to the predicate.
+        args: A sequence of RDF nodes. It is an error to call this predicate
+            with less than one argument.
+
+    Returns:
+        False when any argument is not an RDF literal; True otherwise.
+    """
+
+    __slots__ = ()
+
+    def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether every argument is an RDF literal."""
+        if len(args) < 1:
+            context.report_argument_count(args, min_inclusive=1)
+        return all(isinstance(arg, RDFLiteral) for arg in args)
 
 
 class SameTermPredicate(PredicateHook):
@@ -234,6 +263,134 @@ class TermNotInPredicate(PredicateHook):
         return not self._term_in.test(context, *args)
 
 
+class LiteralSameValuePredicate(PredicateHook):
+    """True when two literals denote the same data value.
+
+    Comparison uses RDFLib value-space equality (``Literal.eq``), not RDFLib
+    node identity. Non-literal arguments and incomparable or ill-typed pairs
+    yield False so rule matching stays boolean.
+
+    By default, registered as "literal_same_value" in
+    :data:`~rdflib_reasoning.engine.builtins.DEFAULT_PREDICATE_BUILTINS`.
+    See :class:`~rdflib_reasoning.engine.builtins.LiteralDifferentValuePredicate`
+    for the related inequality predicate.
+
+    Args:
+        context: The read-only context passed to the predicate.
+        args: Exactly two RDF nodes.
+
+    Returns:
+        True when both arguments are literals that denote the same data value.
+    """
+
+    __slots__ = ()
+
+    def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether two literals denote the same data value."""
+        if len(args) != 2:
+            context.report_argument_count(args, min_inclusive=2, max_inclusive=2)
+        left, right = args
+        if not isinstance(left, RDFLiteral) or not isinstance(right, RDFLiteral):
+            return False
+        try:
+            return left.eq(right)
+        except TypeError:
+            return False
+
+
+class LiteralDifferentValuePredicate(PredicateHook):
+    """True when two literals denote different data values.
+
+    Comparison uses RDFLib value-space inequality (``Literal.neq``).
+    Non-literal arguments and incomparable or ill-typed pairs yield False so
+    rule matching does not treat unknown inequality as proven difference.
+
+    By default, registered as "literal_different_value" in
+    :data:`~rdflib_reasoning.engine.builtins.DEFAULT_PREDICATE_BUILTINS`.
+    See :class:`~rdflib_reasoning.engine.builtins.LiteralSameValuePredicate`
+    for the related equality predicate.
+
+    Args:
+        context: The read-only context passed to the predicate.
+        args: Exactly two RDF nodes.
+
+    Returns:
+        True when both arguments are literals that denote different data values.
+    """
+
+    __slots__ = ()
+
+    def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether two literals denote different data values."""
+        if len(args) != 2:
+            context.report_argument_count(args, min_inclusive=2, max_inclusive=2)
+        left, right = args
+        if not isinstance(left, RDFLiteral) or not isinstance(right, RDFLiteral):
+            return False
+        try:
+            return left.neq(right)
+        except TypeError:
+            return False
+
+
+class LiteralInDatatypePredicate(PredicateHook):
+    """True when a literal's data value is in a datatype's value space.
+
+    Only OWL 2 RL supported datatype IRIs are recognized. See
+    :func:`~rdflib_reasoning.engine.owl2_rl_datatypes.literal_value_in_datatype`.
+
+    By default, registered as "literal_in_datatype" in
+    :data:`~rdflib_reasoning.engine.builtins.DEFAULT_PREDICATE_BUILTINS`.
+    See :class:`~rdflib_reasoning.engine.builtins.LiteralNotInDatatypePredicate`
+    for the logical inverse of this predicate.
+
+    Args:
+        context: The read-only context passed to the predicate.
+        args: Exactly two RDF nodes ``(literal, datatype_iri)``.
+
+    Returns:
+        True when the first argument is a literal whose data value is contained
+        in the value space of the datatype IRI given as the second argument.
+    """
+
+    __slots__ = ()
+
+    def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether a literal's value is in a datatype value space."""
+        if len(args) != 2:
+            context.report_argument_count(args, min_inclusive=2, max_inclusive=2)
+        literal, datatype = args
+        if not isinstance(literal, RDFLiteral) or not isinstance(datatype, URIRef):
+            return False
+        return literal_value_in_datatype(literal, datatype)
+
+
+class LiteralNotInDatatypePredicate(PredicateHook):
+    """True when a literal's data value is not in a datatype's value space.
+
+    By default, registered as "literal_not_in_datatype" in
+    :data:`~rdflib_reasoning.engine.builtins.DEFAULT_PREDICATE_BUILTINS`.
+    See :class:`~rdflib_reasoning.engine.builtins.LiteralInDatatypePredicate`
+    for the logical inverse of this predicate.
+
+    Args:
+        context: The read-only context passed to the predicate.
+        args: Exactly two RDF nodes ``(literal, datatype_iri)``.
+
+    Returns:
+        True when :class:`~rdflib_reasoning.engine.builtins.LiteralInDatatypePredicate`
+        is False for the same arguments (including arity-valid non-membership).
+    """
+
+    __slots__ = ()
+
+    _in_datatype: Final[LiteralInDatatypePredicate] = LiteralInDatatypePredicate()
+
+    def test(self, context: RuleContext, *args: Node) -> bool:
+        """Return whether a literal's value is outside a datatype value space."""
+        return not self._in_datatype.test(context, *args)
+
+
 DEFAULT_CALLBACK_BUILTINS: Final[Mapping[str, CallbackHook]] = MappingProxyType({})
 """Default callbacks available to registries.
 
@@ -245,9 +402,14 @@ DEFAULT_PREDICATE_BUILTINS: Final[Mapping[str, PredicateHook]] = MappingProxyTyp
     {
         "different_terms": DifferentTermsPredicate(),
         "not_literal": NotLiteralPredicate(),
+        "is_literal": IsLiteralPredicate(),
         "same_term": SameTermPredicate(),
         "term_in": TermInPredicate(),
         "term_not_in": TermNotInPredicate(),
+        "literal_same_value": LiteralSameValuePredicate(),
+        "literal_different_value": LiteralDifferentValuePredicate(),
+        "literal_in_datatype": LiteralInDatatypePredicate(),
+        "literal_not_in_datatype": LiteralNotInDatatypePredicate(),
     }
 )
 """Default predicates available to registries.
@@ -255,9 +417,14 @@ DEFAULT_PREDICATE_BUILTINS: Final[Mapping[str, PredicateHook]] = MappingProxyTyp
 At this time, the following predicates are provided:
 - ``different_terms``: True when the all arguments are distinct RDF nodes.
 - ``not_literal``: True when all arguments are not RDF literals.
+- ``is_literal``: True when all arguments are RDF literals.
 - ``same_term``: True when the all arguments are identical RDF nodes.
 - ``term_in``: True when the first term equals one of the remaining terms.
 - ``term_not_in``: True when the first term equals none of the remaining terms.
+- ``literal_same_value``: True when two literals denote the same data value.
+- ``literal_different_value``: True when two literals denote different data values.
+- ``literal_in_datatype``: True when a literal's value is in a datatype value space.
+- ``literal_not_in_datatype``: True when a literal's value is not in a datatype value space.
 """
 
 
