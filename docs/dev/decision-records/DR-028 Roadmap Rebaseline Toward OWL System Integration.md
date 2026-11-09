@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [DR-034 Roadmap Rebalance OWL Substrate Before Inference Middleware](DR-034%20Roadmap%20Rebalance%20OWL%20Substrate%20Before%20Inference%20Middleware.md)
 
 ## Context
 

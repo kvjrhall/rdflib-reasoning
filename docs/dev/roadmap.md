@@ -14,7 +14,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 - Release planning is intentionally incremental. A later release MAY be re-scoped when implementation feedback, validation work, or design clarification shows that a planned feature is under-specified or too large for the target release.
 - A roadmap item may appear before it has a full architectural section. In that case, the item MUST be treated as planned intent, not fully authorized design.
-- The current pre-`1.0.0` rebaseline toward OWL system integration is captured in [DR-028 Roadmap Rebaseline Toward OWL System Integration](decision-records/DR-028%20Roadmap%20Rebaseline%20Toward%20OWL%20System%20Integration.md).
+- The current pre-`1.0.0` sequencing authority is [DR-034 Roadmap Rebalance OWL Substrate Before Inference Middleware](decision-records/DR-034%20Roadmap%20Rebalance%20OWL%20Substrate%20Before%20Inference%20Middleware.md), which supersedes the release order in [DR-028 Roadmap Rebaseline Toward OWL System Integration](decision-records/DR-028%20Roadmap%20Rebaseline%20Toward%20OWL%20System%20Integration.md) while preserving the OWL system integration rebaseline.
+- After the deductive RDFLib substrate (`0.4.0`), implementation feedback rebalanced the next three releases: complete the OWL 2 RL and structural-axiom substrate first (`0.5.0`), finish inferred-content traversal and text representation next (`0.6.0`), then expose inference through Research Agent middleware (`0.7.0`). OWL 2 RDF mapping and OWL 2 RL remain adjacent; Research Agent-facing inference remains capability-gated middleware after the symbolic substrate is stable.
 - Prospective use cases are formal planning input, but they do not override this roadmap or the authoritative architecture. This posture is captured in [DR-029 Prospective Use Cases as Non-Authoritative Planning Input](decision-records/DR-029%20Prospective%20Use%20Cases%20as%20Non-Authoritative%20Planning%20Input.md).
 
 The chart below is a *planning sketch* of release ordering and relative scope.
@@ -32,9 +33,9 @@ gantt
     0.3.0 Vocabulary middleware           :done,    r030, 2026-03-23, 2026-04-26
     0.4.0 Deductive RDFLib dataset        :done,    r040, 2026-04-27, 2026-04-30
     section Planned
-    0.5.0 Inference middleware            :active,  r050, after r040, 45d
-    0.6.0 Structural traversal baseline   :         r060, after r050, 45d
-    0.7.0 Complete OWL 2 RL profile       :         r070, after r060, 45d
+    0.5.0 OWL 2 RL + structural axioms    :active,  r050, after r040, 45d
+    0.6.0 Inferred traversal + text       :         r060, after r050, 45d
+    0.7.0 Inference middleware            :         r070, after r060, 45d
     0.8.0 OWL system integration          :         r080, after r070, 45d
     0.9.0 Graph import + provenance       :         r090, after r080, 45d
     0.10.0 Knowledge exchange + authoring :         r100, after r090, 45d
@@ -247,7 +248,113 @@ diagnostics through stable typed models.
   and rendered without exposing raw engine internals as the user-facing surface.
 - Performance-oriented relation indexes remain out of scope for this release.
 
-## 7. Release `0.5.0`: Inference middleware
+## 7. Release `0.5.0`: OWL 2 RL inference rules and structural axioms
+
+Priority: highest
+
+This release completes the OWL 2 RL forward-chaining substrate and the
+RL-relevant OWL 2 RDF mapping / structural-axiom baseline. It is primarily an
+engine and axioms package milestone: Research Agent inference middleware remains
+`0.7.0`.
+
+Much of this release is already implemented. Remaining work is release hygiene:
+confirm conformance evidence, keep documentation aligned with landed coverage,
+and cut the release once exit criteria are met.
+
+### 7.1. In scope
+
+1. OWL 2 RDF mapping coverage baseline
+   - Implemented: declarations, class and property axioms, representative class
+     and data-range expressions, restrictions, keys, and individual assertions
+     needed for RL-oriented structural work, including strict `axiomatize`
+     graph lifting for those forms.
+   - Keep coverage aligned with the OWL 2 mapping index and the
+     `rdflib-reasoning-axioms` feature matrix for the RL-relevant baseline.
+   - Ontology headers, `owl:imports`, and the annotation axiom family are out of
+     scope for this release; they are deferred to graph import and OWL system
+     integration (`0.8.0` / `0.9.0`).
+   - Architecture: [Structural elements and middleware](architecture.md#structural-elements-and-middleware)
+   - Architecture: [Structural traversal and representation](architecture.md#structural-traversal-and-representation)
+1. Complete OWL 2 RL materialization rules
+   - Implemented: OWL 2 RL triple-producing rule families for the repository's
+     forward-chaining materialization profile.
+   - Preserve RDF data-model enforcement, support bookkeeping, derivation
+     logging, and retraction compatibility.
+   - Architecture: [RETE Engine Design](architecture.md#rete-engine-design)
+   - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)
+1. Complete OWL 2 RL contradiction diagnostics
+   - Implemented: dual-channel treatment of OWL 2 RL contradiction-producing
+     `false` rules with non-mutating diagnostics and contradiction-goal proof
+     reconstruction.
+   - Architecture: [Contradiction signaling](architecture.md#contradiction-signaling)
+1. OWL 2 RL conformance and demonstration artifacts
+   - Preserve rule-level tests and RDFLib-facing notebooks or examples that show
+     OWL 2 RL materialization, proof inspection, and contradiction diagnostics.
+   - Structural lift of representative inferred outputs is deferred to `0.6.0`
+     rather than blocking this substrate release.
+
+### 7.2. Exit criteria
+
+- The engine provides complete OWL 2 RL materialization coverage for the
+  repository's forward-chaining OWL 2 RL profile.
+- Contradiction-producing OWL 2 RL rules are represented through diagnostics
+  rather than synthetic contradiction triples.
+- The RL-relevant structural-axiom / `axiomatize` baseline is documented in the
+  axioms feature matrix and usable for later inferred-content traversal work.
+- RDFLib-facing OWL 2 RL demonstration artifacts cover materialization, proof
+  inspection, and contradiction diagnostics.
+
+## 8. Release `0.6.0`: Inferred-content traversal and text representation
+
+Priority: highest
+
+This release completes the structural layer around already-implemented
+`axiomatize` coverage. It is not a greenfield traversal milestone: supported
+asserted OWL patterns already lift into `StructuralElement` objects. The focus
+is inferred-content behavior, residue policy for non-consumed triples,
+deterministic text representation, and compatibility with OWL 2 RL outputs.
+
+### 8.1. In scope
+
+1. Inferred-content traversal checks
+   - Add tests and demos over graphs that contain inferred triples, treating
+     inferred triples as ordinary graph content for structural lifting when they
+     correspond to supported constructs or assertions.
+   - Architecture: [Structural traversal and representation](architecture.md#structural-traversal-and-representation)
+   - Architecture: [OWL system composition](architecture.md#owl-system-composition)
+1. Residue policy for non-consumed triples
+   - Extend axiomatization beyond the current strict-only V1 behavior so callers
+     can drop-and-warn (or otherwise skip) triples that are not claimed by
+     supported structural patterns, instead of always raising
+     `UnsupportedGraphError`.
+   - Keep malformed recognized patterns as hard failures
+     (`MalformedGraphError`).
+   - Architecture: [Structural traversal and representation](architecture.md#structural-traversal-and-representation)
+1. Stable ordering and deterministic text representation
+   - Preserve stable ordering for traversed structural elements so repeated
+     graph traversal produces deterministic structured payloads.
+   - Render structural elements as concise prose using labels, CURIEs, and
+     deterministic fallback identifiers, without changing canonical structured
+     payloads.
+   - Architecture: [Structural traversal and representation](architecture.md#structural-traversal-and-representation)
+1. OWL structural traversal compatibility
+   - Verify that representative inferred OWL 2 RL outputs can be lifted into
+     structural representations when they correspond to supported constructs or
+     assertions.
+   - Architecture: [OWL system composition](architecture.md#owl-system-composition)
+
+### 8.2. Exit criteria
+
+- Graphs containing asserted and inferred content can be lifted through the
+  structural layer with an explicit residue policy for unsupported leftovers.
+- Structural elements can be rendered deterministically as text without mutating
+  their canonical structured form.
+- Representative OWL 2 RL outputs that correspond to supported structural forms
+  can be traversed, rendered, and tested through the structural layer.
+- The feature matrix, spec index, and traversal behavior remain aligned enough
+  for Development Agents to reason about coverage and gaps.
+
+## 9. Release `0.7.0`: Inference middleware
 
 Priority: highest
 
@@ -255,7 +362,7 @@ This release exposes the deductive substrate to Research Agents through explicit
 middleware composition. It turns inference from a Python/RDFLib capability into
 a controlled runtime affordance over dataset-backed state.
 
-### 7.1. In scope
+### 9.1. In scope
 
 1. Inference middleware capability boundary
    - Add inference middleware as the explicit way to expose reasoning behavior
@@ -269,7 +376,8 @@ a controlled runtime affordance over dataset-backed state.
      `DatasetRuntime` coordination boundary.
    - Implemented foundation: `DatasetRuntime` can already be configured with a
      reasoner specification so middleware and tests can share a reasoner-backed
-     RDFLib dataset boundary.
+     RDFLib dataset boundary. That foundation is a prerequisite for this
+     release, not a substitute for capability-gated inference middleware.
    - Ensure inference operates on the same dataset-backed state as manual graph
      updates, vocabulary-constrained modeling, and later graph import.
    - Architecture: [Dataset middleware](architecture.md#dataset-middleware)
@@ -291,99 +399,13 @@ a controlled runtime affordance over dataset-backed state.
      inference-enabled Research Agent conditions through middleware composition.
    - Preserve compatibility with tracing and proof-rendering tools.
 
-### 7.2. Exit criteria
+### 9.2. Exit criteria
 
 - Research Agent-facing inference is capability-gated by middleware inclusion.
 - Inference middleware composes over the same dataset runtime and coordination
   boundary as dataset and vocabulary middleware.
 - Explanations and diagnostics cross the Research Agent boundary as stable,
   typed models or schema-visible tool responses rather than engine internals.
-
-## 8. Release `0.6.0`: OWL structural traversal and representation baseline
-
-Priority: highest
-
-This release makes OWL 2 RDF mapping usable in both directions for supported
-constructs. Structural elements stop being only serialization helpers and
-become a traversal, representation, and text-generation layer over graph
-content.
-
-### 8.1. In scope
-
-1. Structural traversal over RDF graphs
-   - Implement traversal that partitions supported RDF graph content into
-     explicit `StructuralElement` or `GraphBacked` objects.
-   - Traverse graphs containing asserted triples, inferred triples, or both.
-   - Architecture: [Structural traversal and representation](architecture.md#structural-traversal-and-representation)
-1. OWL 2 RDF mapping coverage baseline
-   - Prioritize constructs needed to demonstrate class axioms, property axioms,
-     assertions, declarations, and representative expression forms.
-   - Keep coverage aligned with the OWL 2 mapping index and the
-     `rdflib-reasoning-axioms` feature matrix.
-   - Architecture: [Structural elements and middleware](architecture.md#structural-elements-and-middleware)
-1. Stable ordering and deterministic text representation
-   - Define stable ordering for traversed structural elements so repeated graph
-     traversal produces deterministic text and schema payloads.
-   - Render structural elements as concise prose using labels, CURIEs, and
-     deterministic fallback identifiers.
-   - Architecture: [Structural traversal and representation](architecture.md#structural-traversal-and-representation)
-1. Inferred-content traversal checks
-   - Include tests or demos over graphs that contain inferred triples, even
-     before complete OWL 2 RL materialization is available.
-   - Preserve the architectural requirement that inferred OWL-level facts can
-     later be lifted into structural representations.
-   - Architecture: [OWL system composition](architecture.md#owl-system-composition)
-
-### 8.2. Exit criteria
-
-- Supported RDF graph patterns can be lifted into structural objects and
-  rendered deterministically as text.
-- Traversal works over graphs containing asserted and inferred content.
-- The feature matrix, spec index, and traversal behavior remain aligned enough
-  for Development Agents to reason about coverage and gaps.
-
-## 9. Release `0.7.0`: Complete OWL 2 RL materialization profile
-
-Priority: highest
-
-This release implements complete OWL 2 RL rule coverage for the repository's
-forward-chaining materialization profile, including the interaction between
-triple materialization, contradiction diagnostics, proof reconstruction, and
-structural traversal.
-
-### 9.1. In scope
-
-1. Complete OWL 2 RL materialization rules
-   - Implement the OWL 2 RL triple-producing rule families indexed by the local
-     OWL 2 reasoning profile specification.
-   - Preserve RDF data-model enforcement, support bookkeeping, derivation
-     logging, and retraction compatibility for new rule families.
-   - Architecture: [RETE Engine Design](architecture.md#rete-engine-design)
-   - Architecture: [Engine event contract and entrypoint](architecture.md#engine-event-contract-and-entrypoint)
-1. Complete OWL 2 RL contradiction diagnostics
-   - Complete the repository's dual-channel treatment of OWL 2 RL
-     contradiction-producing `false` rules.
-   - Preserve non-mutating diagnostics and contradiction-goal proof
-     reconstruction.
-   - Architecture: [Contradiction signaling](architecture.md#contradiction-signaling)
-1. OWL structural traversal compatibility
-   - Verify that representative inferred OWL 2 RL outputs can be traversed into
-     structural representations when they correspond to supported constructs or
-     assertions.
-   - Architecture: [OWL system composition](architecture.md#owl-system-composition)
-1. OWL 2 RL conformance and demonstration artifacts
-   - Add rule-level tests, profile-level regression coverage, and notebooks or
-     examples that show inferred OWL-level axioms or assertions being produced
-     and then lifted into structural form.
-
-### 9.2. Exit criteria
-
-- The engine provides complete OWL 2 RL materialization coverage for the
-  repository's forward-chaining OWL 2 RL profile.
-- Contradiction-producing OWL 2 RL rules are represented through diagnostics
-  rather than synthetic contradiction triples.
-- Representative inferred OWL outputs can be traversed, rendered, explained,
-  and tested through the structural layer.
 
 ## 10. Release `0.8.0`: OWL system integration baseline
 
@@ -429,7 +451,9 @@ Priority: high
 This release adds controlled graph import and provenance infrastructure without
 committing to remote provider-specific retrieval. It prepares the system to
 ingest external graph content while preserving source, trust, and graph-context
-metadata.
+metadata. Ontology headers, import declarations, and annotation axioms deferred
+from the `0.5.0` RL-oriented structural baseline belong here because they are
+primarily about ingesting and scoping ontologies rather than RL entailment.
 
 ### 11.1. In scope
 
@@ -438,6 +462,17 @@ metadata.
    - Keep import mechanics separate from remote entity-resolution or provider
      ranking policy.
    - Architecture: [Graph import, provenance, and knowledge retrieval](architecture.md#graph-import-provenance-and-knowledge-retrieval)
+1. Ontology header and import handling
+   - Add structural coverage and import-path behavior for ontology headers and
+     `owl:imports` as needed to ingest and scope ontology documents cleanly.
+   - Architecture: [Structural elements and middleware](architecture.md#structural-elements-and-middleware)
+   - Architecture: [Graph import, provenance, and knowledge retrieval](architecture.md#graph-import-provenance-and-knowledge-retrieval)
+1. Annotation axiom coverage for imported ontologies
+   - Extend structural coverage for the annotation axiom family deferred from
+     the `0.5.0` RL-oriented baseline, including annotation assertions and
+     related annotation-property forms needed when imported ontologies carry
+     annotation metadata.
+   - Architecture: [Structural traversal and representation](architecture.md#structural-traversal-and-representation)
 1. Provenance-bearing imported graph content
    - Attach provenance sufficient to explain where imported facts originated,
      how they were imported, and which graph or dataset context owns them.
@@ -456,6 +491,9 @@ metadata.
 ### 11.2. Exit criteria
 
 - Imported RDF content can be placed into controlled graph or dataset contexts.
+- Ontology headers, import declarations, and annotation metadata needed for
+  imported ontologies can be represented through the structural layer where
+  those forms are in scope for this release.
 - Imported facts can be traced to source/provenance metadata suitable for
   debugging, evaluation, and later knowledge exchange.
 - Remote service retrieval remains out of scope for this release.
@@ -533,9 +571,10 @@ and hybrid query-time inference become primary roadmap concerns.
 ### 13.1. In scope
 
 1. Core documentation and public tutorial path
-   - Present a coherent public path through RDFLib-level inference, Research
-     Agent middleware, structural traversal, OWL 2 RL materialization, graph
-     provenance, and knowledge exchange.
+   - Present a coherent public path through RDFLib-level inference, OWL 2 RL
+     materialization, inferred-content structural traversal and text
+     representation, Research Agent inference middleware, graph provenance, and
+     knowledge exchange.
 1. Release hardening
    - Resolve known architectural drift, update package READMEs, validate
      notebooks that function as public demos, and run repository validation.
@@ -551,8 +590,9 @@ and hybrid query-time inference become primary roadmap concerns.
 ### 13.2. Exit criteria
 
 - The repository exposes a coherent pre-`1.0.0` core: deductive RDFLib datasets,
-  inference middleware, structural traversal, complete OWL 2 RL materialization,
-  OWL system integration, graph provenance, and knowledge exchange.
+  complete OWL 2 RL materialization, inferred-content structural traversal and
+  text representation, inference middleware, OWL system integration, graph
+  provenance, and knowledge exchange.
 - Public README and notebook guidance describe how to use and evaluate the core
   system.
 - Citation guidance is visible to readers of the repository and release

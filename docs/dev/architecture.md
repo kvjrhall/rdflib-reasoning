@@ -138,20 +138,24 @@ flowchart LR
     G1[("RDF Graph<br/>(input)")]
     SE["StructuralElement<br/>+ owned StructuralFragment"]
     G2[("RDF Graph<br/>(projected)")]
-    G1 -.->|"traversal (planned)"| SE
+    G1 -->|"axiomatize<br/>(implemented)"| SE
     SE -->|"as_triples / as_quads<br/>(implemented)"| G2
 ```
 
 - Structural traversal SHOULD partition supported graph content into explicit `StructuralElement` or `GraphBacked` objects rather than forcing downstream agents to recover structural intent from raw triples alone.
+- The implemented traversal entrypoint is `axiomatize`, which lifts supported RDF graph patterns into a deterministic tuple of `StructuralElement` instances for the forms covered by the axioms feature matrix.
 - Traversal over OWL 2 content SHOULD use the local OWL 2 Mapping to RDF specification artifacts and crosswalks as the primary Development Agent-facing references.
 - Traversal is parse-first: success is measured by lifting RDF into mapping-prescribed equivalent structural forms, not by preserving every forward-only packaging used when an ontology was authored.
 - Traversal MUST accept the OWL 2 Mapping to RDF reverse reconstructions even when they differ from a possible forward packaging (for example binary equivalence / same-individual chains, or an ordinary object-property assertion where the forward InverseOf individual-swap encoding was used).
 - Forward-only mapping packagings MUST NOT require dedicated reconstructible `StructuralElement` types. See [DR-033 Intentional Exclusion of Forward-Only OWL 2 Mapping Packaging](decision-records/DR-033%20Intentional%20Exclusion%20of%20Forward-Only%20OWL%202%20Mapping%20Packaging.md) and the searchable catalog in [`rdflib-reasoning-axioms/README.md`](../rdflib-reasoning-axioms/README.md).
+- The default leftover contract is strict: unsupported or unclaimed input triples raise `UnsupportedGraphError` rather than returning a partial structural view. Malformed recognized patterns raise `MalformedGraphError`.
+- Traversal SHOULD also provide an explicit residue policy for inferred-content and import-shaped graphs so callers can drop-and-warn or otherwise skip non-consumed triples instead of always failing closed. That residue policy MUST NOT weaken hard failure for malformed recognized patterns.
 - Traversal output SHOULD have a stable deterministic order so that graph-derived structural representations can be compared, rendered, embedded, and supplied to Research Agents repeatably.
 - Structural rendering SHOULD be distinct from structural traversal. Rendering MAY produce prose, markdown, or other human-readable text from structural elements, but it MUST NOT change the canonical structured payload.
 - Prose and text renderers SHOULD use RDFS labels, vocabulary metadata, CURIEs, and deterministic fallback identifiers so missing labels do not make output unstable.
 - Traversal SHOULD work over RDF graphs containing asserted triples, inferred triples, or both. Inferred triples SHOULD be treated as ordinary graph content for traversal, while derivation, provenance, or proof links MAY be preserved separately when available.
 - OWL structural traversal and OWL 2 RL inference SHOULD remain adjacent in roadmap planning. The system SHOULD avoid a design where inferred OWL-level facts cannot be lifted into structural representations that the rest of the repository can validate, render, or exchange.
+- See [DR-034 Roadmap Rebalance OWL Substrate Before Inference Middleware](decision-records/DR-034%20Roadmap%20Rebalance%20OWL%20Substrate%20Before%20Inference%20Middleware.md) for the post-`0.4.0` release sequencing that keeps mapping and RL adjacent while treating inferred-content traversal and text representation as residual structural work.
 
 ### OWL system composition
 
