@@ -290,6 +290,11 @@ and cut the release once exit criteria are met.
 1. OWL 2 RL conformance and demonstration artifacts
    - Preserve rule-level tests and RDFLib-facing notebooks or examples that show
      OWL 2 RL materialization, proof inspection, and contradiction diagnostics.
+   - Profile-level conformance evidence lives in
+     `rdflib-reasoning-engine/tests/test_owl2_rl_conformance.py` (positive and
+     negative entailment plus consistency and inconsistency cases under the
+     full `OWL2_RL_RETE_MATERIALIZED` / `OWL2_RL_RULES` profile). Demos already
+     exist; this release does not add new demonstration notebooks.
    - Structural lift of representative inferred outputs is deferred to `0.6.0`
      rather than blocking this substrate release.
 
