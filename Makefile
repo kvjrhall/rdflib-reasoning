@@ -1,4 +1,4 @@
-.PHONY: audit check clean cloc docs docs-linkcheck docs-serve help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
+.PHONY: audit check clean cloc cloc-all docs docs-linkcheck docs-serve help install install-all install-dev install-research notebook specs specs-fetch specs-index specs-normalize test validate
 
 PYTHON ?= python
 TESTS ?=
@@ -35,8 +35,11 @@ clean:  # remove generated docs, test, coverage, and build artifacts
 	rm -f coverage.xml
 	rm -f rdflib-reasoning-*/coverage.xml
 
-cloc: clean  # count lines of code
-	cloc --exclude-dir=.venv,.uv-cache,htmlcov --not-match-d='.*docs/specs/.*' --fullpath .
+cloc: clean  # count lines of code in package src/ trees
+	cloc --exclude-dir=.venv,.uv-cache,htmlcov --not-match-d='.*docs/specs(/.*)?$$' --match-d='.*/src(/.*)?$$' --fullpath .
+
+cloc-all: clean  # count lines of code across the monorepo (excludes docs/specs)
+	cloc --exclude-dir=.venv,.uv-cache,htmlcov --not-match-d='.*docs/specs(/.*)?$$' --fullpath .
 
 docs: install-dev  # build the Sphinx documentation site
 	uv run python docs-src/prepare_notebooks.py
