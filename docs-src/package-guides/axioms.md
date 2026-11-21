@@ -12,4 +12,12 @@ Use this package when you need:
 - JSON-schema-friendly boundaries for tools, middleware, and downstream Python
   callers.
 
+`axiomatize` is the strict graph-lifting entrypoint: it recovers Implemented
+OWL 2 structural forms from an RDFLib graph into a deterministic tuple of
+`StructuralElement` instances. Unsupported or unclaimed triples raise
+`UnsupportedGraphError` rather than returning a partial view. Coverage,
+including OWL 2 RL profile notes and forms that are not yet Implemented
+(ontology headers, imports, and the annotation axiom family), is documented in
+the [axioms package feature matrix](https://github.com/kvjrhall/rdflib-reasoning/blob/main/rdflib-reasoning-axioms/README.md#feature-matrix).
+
 For generated API docs, see {doc}`../autoapi/axiom/index`.

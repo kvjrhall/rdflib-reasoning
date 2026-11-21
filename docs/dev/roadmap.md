@@ -32,9 +32,9 @@ gantt
     0.2.0 Dataset middleware              :done,    r020, 2026-03-14, 2026-03-22
     0.3.0 Vocabulary middleware           :done,    r030, 2026-03-23, 2026-04-26
     0.4.0 Deductive RDFLib dataset        :done,    r040, 2026-04-27, 2026-04-30
+    0.5.0 OWL 2 RL + structural axioms    :done,    r050, after r040, 2026-11-14
     section Planned
-    0.5.0 OWL 2 RL + structural axioms    :active,  r050, after r040, 45d
-    0.6.0 Inferred traversal + text       :         r060, after r050, 45d
+    0.6.0 Inferred traversal + text       :active,  r060, after r050, 45d
     0.7.0 Inference middleware            :         r070, after r060, 45d
     0.8.0 OWL system integration          :         r080, after r070, 45d
     0.9.0 Graph import + provenance       :         r090, after r080, 45d
@@ -248,7 +248,7 @@ diagnostics through stable typed models.
   and rendered without exposing raw engine internals as the user-facing surface.
 - Performance-oriented relation indexes remain out of scope for this release.
 
-## 7. Release `0.5.0`: OWL 2 RL inference rules and structural axioms
+## 7. Release `0.5.0`: OWL 2 RL inference rules and structural axioms (released)
 
 Priority: highest
 
@@ -256,10 +256,12 @@ This release completes the OWL 2 RL forward-chaining substrate and the
 RL-relevant OWL 2 RDF mapping / structural-axiom baseline. It is primarily an
 engine and axioms package milestone: Research Agent inference middleware remains
 `0.7.0`.
-
-Much of this release is already implemented. Remaining work is release hygiene:
-confirm conformance evidence, keep documentation aligned with landed coverage,
-and cut the release once exit criteria are met.
+This release has been completed. The items below describe the released
+`0.5.0` capability surface and the scope that was intentionally deferred:
+inferred-content traversal, residue policy, and deterministic text
+representation (`0.6.0`); Research Agent inference middleware (`0.7.0`); and
+ontology headers, `owl:imports`, and the annotation axiom family
+(`0.8.0` / `0.9.0`).
 
 ### 7.1. In scope
 
